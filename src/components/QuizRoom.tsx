@@ -19,7 +19,8 @@ import {
   Users,
   Search,
   CheckCircle,
-  Keyboard
+  Keyboard,
+  Lock
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { QuizExam, ExamAttempt, QuizQuestion } from '../types';
@@ -54,6 +55,11 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
   const [lastAttempt, setLastAttempt] = useState<ExamAttempt | null>(null);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'wrong' | 'flagged'>('all');
 
+  // Password gate — set when a student picks an exam that requires a room password
+  const [pendingPasswordExam, setPendingPasswordExam] = useState<QuizExam | null>(null);
+  const [passwordAttempt, setPasswordAttempt] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+
   // Reload exams when the component mounts, and again whenever a new exam is published
   // (App.tsx bumps examsRefreshKey after a successful create, even if this tab never unmounted).
   useEffect(() => {
@@ -86,6 +92,28 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
     setSecondsRemaining(exam.durationMinutes * 60);
     setStartTime(new Date().toISOString());
     setExamState('testing');
+  };
+
+  // Entry point from the exam list — gate behind a password prompt if the room has one
+  const handleRequestStartExam = (exam: QuizExam) => {
+    if (exam.roomPassword) {
+      setPendingPasswordExam(exam);
+      setPasswordAttempt('');
+      setPasswordError(false);
+      return;
+    }
+    handleStartExam(exam);
+  };
+
+  const handleConfirmPassword = () => {
+    if (!pendingPasswordExam) return;
+    if (passwordAttempt.trim() !== pendingPasswordExam.roomPassword) {
+      setPasswordError(true);
+      return;
+    }
+    const exam = pendingPasswordExam;
+    setPendingPasswordExam(null);
+    handleStartExam(exam);
   };
 
   // Select answer for question
@@ -304,9 +332,16 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                 </h3>
 
                 {/* Description */}
-                <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-4">
+                <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-2">
                   {exam.description}
                 </p>
+
+                {/* School / Teacher / Class meta, if provided */}
+                {(exam.schoolName || exam.className) && (
+                  <p className="text-[11px] text-slate-400 mb-2">
+                    {[exam.schoolName, exam.className && `Lớp ${exam.className}`].filter(Boolean).join(' · ')}
+                  </p>
+                )}
               </div>
 
               {/* Meta stats & CTA */}
@@ -328,10 +363,14 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
 
                 <button
                   id={`start-exam-btn-${exam.id}`}
-                  onClick={() => handleStartExam(exam)}
+                  onClick={() => handleRequestStartExam(exam)}
                   className="w-full flex items-center justify-center gap-2 bg-slate-100 hover:bg-cyan-600 text-slate-800 hover:text-white text-xs font-bold py-2.5 rounded-xl border border-slate-300 hover:border-cyan-500 transition-all group-hover:shadow-md"
                 >
-                  <Play className="w-3.5 h-3.5 fill-current" />
+                  {exam.roomPassword ? (
+                    <Lock className="w-3.5 h-3.5" />
+                  ) : (
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                  )}
                   <span>Vào Phòng Thi & Làm Bài</span>
                 </button>
               </div>
@@ -339,6 +378,60 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
             </div>
           ))}
         </div>
+
+        {/* Room Password Gate */}
+        {pendingPasswordExam && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white border border-slate-300 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-600 border border-cyan-500/30 flex items-center justify-center mx-auto">
+                <Lock className="w-6 h-6" />
+              </div>
+
+              <div className="text-center">
+                <h3 className="text-lg font-bold text-slate-900">Phòng Thi Có Mật Mã</h3>
+                <p className="text-xs text-slate-500 mt-1 line-clamp-1">{pendingPasswordExam.title}</p>
+              </div>
+
+              <div>
+                <input
+                  type="text"
+                  autoFocus
+                  value={passwordAttempt}
+                  onChange={(e) => {
+                    setPasswordAttempt(e.target.value);
+                    setPasswordError(false);
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleConfirmPassword()}
+                  placeholder="Nhập mật mã phòng thi..."
+                  className={`w-full bg-slate-50 border rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none ${
+                    passwordError ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-cyan-500'
+                  }`}
+                />
+                {passwordError && (
+                  <p className="text-xs text-rose-600 font-semibold mt-1.5">Sai mật mã phòng thi. Vui lòng thử lại.</p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setPendingPasswordExam(null)}
+                  className="flex-1 text-xs font-semibold text-slate-500 hover:text-slate-800 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmPassword}
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold py-2.5 rounded-xl shadow-md transition-colors"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>Vào Phòng Thi</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     );

@@ -87,6 +87,10 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   const [difficulty, setDifficulty] = useState<'Cơ bản' | 'Trung bình' | 'Nâng cao' | 'Chuyên gia'>('Trung bình');
   const [durationMinutes, setDurationMinutes] = useState(15);
   const [passScorePercent, setPassScorePercent] = useState(70);
+  const [schoolName, setSchoolName] = useState('');
+  const [teacherName, setTeacherName] = useState('');
+  const [className, setClassName] = useState('');
+  const [roomPassword, setRoomPassword] = useState('');
 
   // File upload state
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -403,7 +407,10 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
       passScorePercent: Number(passScorePercent) || 70,
       questions: questions,
       createdAt: new Date().toISOString(),
-      authorName: 'Quản trị viên / Giảng viên',
+      authorName: teacherName.trim() || 'Quản trị viên / Giảng viên',
+      schoolName: schoolName.trim() || undefined,
+      className: className.trim() || undefined,
+      roomPassword: roomPassword.trim() || undefined,
       participantsCount: 0,
       averageScore: 0,
       sourceFile: uploadedFile?.name,
@@ -704,6 +711,52 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2 py-2 text-xs text-slate-200 focus:outline-none"
                   />
                 </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Tên Trường</label>
+                <input
+                  type="text"
+                  value={schoolName}
+                  onChange={(e) => setSchoolName(e.target.value)}
+                  placeholder="VD: THCS Nguyễn Du..."
+                  className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Tên Giáo Viên</label>
+                <input
+                  type="text"
+                  value={teacherName}
+                  onChange={(e) => setTeacherName(e.target.value)}
+                  placeholder="VD: Nguyễn Văn A..."
+                  className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Lớp</label>
+                <input
+                  type="text"
+                  value={className}
+                  onChange={(e) => setClassName(e.target.value)}
+                  placeholder="VD: 9A1..."
+                  className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Mật Mã Phòng Thi</label>
+                <input
+                  type="text"
+                  value={roomPassword}
+                  onChange={(e) => setRoomPassword(e.target.value)}
+                  placeholder="Để trống nếu không cần mật mã"
+                  className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none"
+                />
               </div>
             </div>
           </div>

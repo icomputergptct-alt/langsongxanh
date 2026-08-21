@@ -85,6 +85,9 @@ export interface QuizExam {
   questions: QuizQuestion[];
   createdAt: string;
   authorName: string;
+  schoolName?: string;
+  className?: string;
+  roomPassword?: string;
   participantsCount: number;
   averageScore: number;
   sourceFile?: string;

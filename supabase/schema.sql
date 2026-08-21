@@ -49,6 +49,9 @@ create table if not exists quiz_exams (
   questions jsonb not null default '[]',
   created_at timestamptz not null default now(),
   author_name text not null,
+  school_name text,
+  class_name text,
+  room_password text,
   participants_count int not null default 0,
   average_score numeric not null default 0,
   source_file text,
@@ -108,3 +111,9 @@ drop policy if exists "public read exam_attempts" on exam_attempts;
 create policy "public read exam_attempts" on exam_attempts for select using (true);
 drop policy if exists "public write exam_attempts" on exam_attempts;
 create policy "public write exam_attempts" on exam_attempts for insert with check (true);
+
+-- Migration: adds school/class/room-password columns to a quiz_exams table that
+-- already existed before this feature — safe to re-run, no-op if columns exist.
+alter table quiz_exams add column if not exists school_name text;
+alter table quiz_exams add column if not exists class_name text;
+alter table quiz_exams add column if not exists room_password text;
