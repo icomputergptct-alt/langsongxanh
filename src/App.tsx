@@ -159,8 +159,10 @@ export default function App() {
   };
 
   // Handle Exam Created
+  const [examsRefreshKey, setExamsRefreshKey] = useState(0);
   const handleExamCreated = (newExam: QuizExam) => {
     setActiveTab('quiz');
+    setExamsRefreshKey((k) => k + 1);
   };
 
   // Filter Articles
@@ -639,6 +641,7 @@ export default function App() {
         {activeTab === 'quiz' && (
           <QuizRoom
             openCreateQuizModal={openCreateQuizModal}
+            examsRefreshKey={examsRefreshKey}
             onAttemptRecorded={() => {
               // triggers state update
             }}

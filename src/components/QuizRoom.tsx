@@ -28,11 +28,13 @@ import { storageService } from '../services/storageService';
 interface QuizRoomProps {
   onAttemptRecorded?: () => void;
   openCreateQuizModal: (mode?: 'upload' | 'manual') => void;
+  examsRefreshKey?: number;
 }
 
 export const QuizRoom: React.FC<QuizRoomProps> = ({
   onAttemptRecorded,
   openCreateQuizModal,
+  examsRefreshKey,
 }) => {
   const [exams, setExams] = useState<QuizExam[]>([]);
   const [selectedExam, setSelectedExam] = useState<QuizExam | null>(null);
@@ -52,10 +54,11 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
   const [lastAttempt, setLastAttempt] = useState<ExamAttempt | null>(null);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'wrong' | 'flagged'>('all');
 
-  // Reload exams when component mounts
+  // Reload exams when the component mounts, and again whenever a new exam is published
+  // (App.tsx bumps examsRefreshKey after a successful create, even if this tab never unmounted).
   useEffect(() => {
     storageService.getExams().then(setExams).catch((err) => console.error('Không tải được đề thi:', err));
-  }, []);
+  }, [examsRefreshKey]);
 
   // Countdown timer during test
   useEffect(() => {
