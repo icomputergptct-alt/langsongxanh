@@ -237,11 +237,14 @@ function parseRawQuizLocally(text: string, fileName?: string) {
   // content) run the question and its options together on one line with no real
   // newline between them. Force a line break before each recognizable marker so the
   // line-by-line parser below can still find them.
+  // The lookbehind below excludes any position right after a letter/digit so a
+  // marker-shaped substring glued to the end of a normal word (e.g. the "c." in
+  // "khác." or "được.") is never mistaken for a real "C." option marker.
   const normalized = text
-    .replace(/(?<!^)(?<!\n)\s*(?=(?:câu|question|q)\s*\d+\s*[\.:\)\-])/gi, "\n")
-    .replace(/(?<!^)(?<!\n)\s*(?=[A-Da-d][\.:\)\-]\s)/g, "\n")
-    .replace(/(?<!^)(?<!\n)\s*(?=(?:đáp án|câu trả lời đúng|answer|correct answer|key)[\s:])/gi, "\n")
-    .replace(/(?<!^)(?<!\n)\s*(?=(?:giải thích|lý do|explanation)[\s:])/gi, "\n");
+    .replace(/(?<!^)(?<!\n)(?<![\p{L}\p{N}])\s*(?=(?:câu|question|q)\s*\d+\s*[\.:\)\-])/giu, "\n")
+    .replace(/(?<!^)(?<!\n)(?<![\p{L}\p{N}])\s*(?=[A-Da-d][\.:\)\-]\s)/gu, "\n")
+    .replace(/(?<!^)(?<!\n)(?<![\p{L}\p{N}])\s*(?=(?:đáp án|câu trả lời đúng|answer|correct answer|key)[\s:])/giu, "\n")
+    .replace(/(?<!^)(?<!\n)(?<![\p{L}\p{N}])\s*(?=(?:giải thích|lý do|explanation)[\s:])/giu, "\n");
 
   const lines = normalized.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
   const questions: any[] = [];
