@@ -31,7 +31,7 @@ import { Article, QuizExam } from './types';
 import { storageService } from './services/storageService';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities'>('news');
+  const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities'>('quiz');
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoadingArticles, setIsLoadingArticles] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
