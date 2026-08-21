@@ -293,15 +293,15 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   const handleAddQuestion = () => {
     const newQ: QuizQuestion = {
       id: `q-${Date.now()}`,
-      question: 'Nhập nội dung câu hỏi mới ở đây...',
+      question: '',
       options: [
-        { id: 'A', text: 'Phương án A' },
-        { id: 'B', text: 'Phương án B' },
-        { id: 'C', text: 'Phương án C' },
-        { id: 'D', text: 'Phương án D' },
+        { id: 'A', text: '' },
+        { id: 'B', text: '' },
+        { id: 'C', text: '' },
+        { id: 'D', text: '' },
       ],
       correctOptionId: 'A',
-      explanation: 'Giải thích lý do phương án A là chính xác...',
+      explanation: '',
       difficulty: 'Trung bình',
     };
     setQuestions([...questions, newQ]);
@@ -708,15 +708,6 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                   (Nhấp vào nút radio để chỉ định đáp án đúng)
                 </span>
               </h4>
-
-              <button
-                type="button"
-                onClick={handleAddQuestion}
-                className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-700 transition-colors"
-              >
-                <PlusCircle className="w-3.5 h-3.5" />
-                <span>Thêm câu hỏi</span>
-              </button>
             </div>
 
             <div className="space-y-4">
@@ -835,6 +826,15 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                 </div>
               ))}
             </div>
+
+            <button
+              type="button"
+              onClick={handleAddQuestion}
+              className="flex items-center justify-center gap-1.5 w-full bg-slate-800 hover:bg-slate-700 text-cyan-400 text-xs font-semibold px-3 py-2.5 rounded-lg border border-dashed border-slate-700 hover:border-cyan-500/60 transition-colors"
+            >
+              <PlusCircle className="w-3.5 h-3.5" />
+              <span>Thêm câu hỏi</span>
+            </button>
 
           </div>
           )}
