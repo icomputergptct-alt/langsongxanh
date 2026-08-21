@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BarChart3, 
   Users, 
@@ -26,16 +26,21 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz }) => {
-  const [attempts, setAttempts] = useState<ExamAttempt[]>(() => storageService.getAttempts());
-  const [exams, setExams] = useState<QuizExam[]>(() => storageService.getExams());
+  const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
+  const [exams, setExams] = useState<QuizExam[]>([]);
   const [searchCandidate, setSearchCandidate] = useState('');
   const [selectedAttempt, setSelectedAttempt] = useState<ExamAttempt | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<'attempts' | 'exams' | 'analytics'>('analytics');
 
-  const handleDeleteExam = (examId: string) => {
+  useEffect(() => {
+    storageService.getAttempts().then(setAttempts).catch((err) => console.error('Không tải được lượt thi:', err));
+    storageService.getExams().then(setExams).catch((err) => console.error('Không tải được đề thi:', err));
+  }, []);
+
+  const handleDeleteExam = async (examId: string) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa đề thi này?')) {
-      storageService.deleteExam(examId);
-      setExams(storageService.getExams());
+      await storageService.deleteExam(examId);
+      setExams(await storageService.getExams());
     }
   };
 

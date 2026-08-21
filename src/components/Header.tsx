@@ -44,9 +44,11 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setActiveTab('news')}
             className="flex items-center gap-2.5 cursor-pointer select-none group"
           >
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
-              T
-            </div>
+            <img
+              src="/logo.png"
+              alt="TechPulse"
+              className="w-8 h-8 rounded-lg shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform"
+            />
             <div className="flex items-baseline gap-1">
               <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-100">
                 TECH<span className="text-blue-400">PULSE</span>

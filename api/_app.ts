@@ -36,6 +36,18 @@ export function createApiApp() {
         return res.status(400).json({ error: "Nội dung tệp rỗng hoặc không hợp lệ" });
       }
 
+      // Prefer local rule-based parsing first — instant, free, no external API call.
+      const localQuiz = parseRawQuizLocally(rawText, fileName);
+      const isLowConfidence =
+        localQuiz.questions.length === 0 ||
+        (localQuiz.questions.length === 1 &&
+          localQuiz.questions[0].explanation === "Được tạo tự động từ tài liệu đính kèm.");
+
+      if (!isLowConfidence) {
+        return res.json({ success: true, data: localQuiz, source: "local-parser" });
+      }
+
+      // Local parser couldn't find a clear "Câu N. / A. B. C. D." structure — try Gemini AI as a fallback.
       const ai = getGeminiClient();
 
       if (ai) {
@@ -86,13 +98,12 @@ Yêu cầu trả về đúng định dạng JSON như sau (không kèm markdown 
           const parsed = JSON.parse(text);
           return res.json({ success: true, data: parsed, source: "gemini" });
         } catch (geminiErr: any) {
-          console.warn("Gemini parse failed, fallback to local rule-based parser:", geminiErr?.message);
+          console.warn("Gemini fallback also failed, returning local best-effort result:", geminiErr?.message);
         }
       }
 
-      // Fallback rule-based parser for text
-      const fallbackQuiz = parseRawQuizLocally(rawText, fileName);
-      return res.json({ success: true, data: fallbackQuiz, source: "local-parser" });
+      // Neither local parser nor AI found real structure — return the local best-effort result anyway.
+      return res.json({ success: true, data: localQuiz, source: "local-parser" });
     } catch (err: any) {
       console.error("Error in parse-quiz-file:", err);
       res.status(500).json({ error: "Không thể phân tích tệp đề thi", details: err?.message });
@@ -222,7 +233,17 @@ Hãy trả về JSON với cấu trúc:
 
 // Local smart parser for quiz raw text (when user uploads a file format like Question 1:... A. B. C. D. Answer: A)
 function parseRawQuizLocally(text: string, fileName?: string) {
-  const lines = text.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+  // Some sources (e.g. text extracted from .docx via soft line-breaks, or copy-pasted
+  // content) run the question and its options together on one line with no real
+  // newline between them. Force a line break before each recognizable marker so the
+  // line-by-line parser below can still find them.
+  const normalized = text
+    .replace(/(?<!^)(?<!\n)\s*(?=(?:câu|question|q)\s*\d+\s*[\.:\)\-])/gi, "\n")
+    .replace(/(?<!^)(?<!\n)\s*(?=[A-Da-d][\.:\)\-]\s)/g, "\n")
+    .replace(/(?<!^)(?<!\n)\s*(?=(?:đáp án|câu trả lời đúng|answer|correct answer|key)[\s:])/gi, "\n")
+    .replace(/(?<!^)(?<!\n)\s*(?=(?:giải thích|lý do|explanation)[\s:])/gi, "\n");
+
+  const lines = normalized.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
   const questions: any[] = [];
   let currentQ: any = null;
   let qCounter = 1;
@@ -266,7 +287,9 @@ function parseRawQuizLocally(text: string, fileName?: string) {
 
     // Check option A, B, C, D
     const optMatch = line.match(/^([A-Da-d])[\.:\)\-]\s*(.*)/);
-    if (optMatch) {
+    // Skip if this letter was already captured for the current question — a later
+    // line like "Đáp án đúng là: C. ..." can otherwise get mistaken for a 2nd option C.
+    if (optMatch && !currentQ.options.some((o: any) => o.id === optMatch[1].toUpperCase())) {
       const optId = optMatch[1].toUpperCase();
       const optText = optMatch[2] || "";
       // Check if option line has marked (* or [x])

@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import { createApiApp } from "./api/_app";
 
 dotenv.config();
+dotenv.config({ path: ".env.local", override: true });
 
 async function startServer() {
   const app = express();

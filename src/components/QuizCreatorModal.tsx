@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import mammoth from 'mammoth';
 import { 
   PlusCircle, 
   Upload, 
@@ -53,6 +54,23 @@ D. Quản lý bộ nhớ RAM ảo
 Đáp án: B
 Giải thích: ML-KEM là chuẩn mật mã hậu lượng tử thay thế ECDH theo tiêu chuẩn FIPS 203 của NIST.`;
 
+// AI/parser output occasionally repeats an option (e.g. an explanation line like
+// "Đáp án: C. Lười biếng" gets re-detected as another "C" option). Keep only the
+// first occurrence of each option id, capped at A-D, so the editor never shows
+// duplicate radio buttons for the same letter.
+function normalizeQuestions(questions: QuizQuestion[]): QuizQuestion[] {
+  return questions.map((q) => {
+    const seen = new Set<string>();
+    const options = (q.options || []).filter((opt) => {
+      const id = opt.id?.toUpperCase();
+      if (!id || !['A', 'B', 'C', 'D'].includes(id) || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    return { ...q, options };
+  });
+}
+
 export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   isOpen,
   onClose,
@@ -61,7 +79,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   const [activeMode, setActiveMode] = useState<'upload' | 'ai-prompt' | 'manual'>('upload');
   
   // Exam metadata
-  const [title, setTitle] = useState('Đề Khảo Sát Kỹ Thuật Số Mới 2026');
+  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('Bộ đề thi trắc nghiệm chuyên sâu kiểm tra kiến thức công nghệ.');
   const [category, setCategory] = useState('Trí tuệ Nhân tạo');
   const [difficulty, setDifficulty] = useState<'Cơ bản' | 'Trung bình' | 'Nâng cao' | 'Chuyên gia'>('Trung bình');
@@ -73,44 +91,73 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   const [rawFileText, setRawFileText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [parseMessage, setParseMessage] = useState<string | null>(null);
+  const [processProgress, setProcessProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // AI Prompt generation state
   const [aiTopic, setAiTopic] = useState('Kiến trúc Đám mây AWS & Kubernetes');
   const [aiQuestionCount, setAiQuestionCount] = useState(5);
 
-  // Questions list editor
-  const [questions, setQuestions] = useState<QuizQuestion[]>([
-    {
-      id: 'q1',
-      question: 'Câu hỏi mẫu: Đâu là lợi ích lớn nhất của việc áp dụng Microservices?',
-      options: [
-        { id: 'A', text: 'Khả năng phát triển, kiểm thử và mở rộng độc lập từng dịch vụ' },
-        { id: 'B', text: 'Giảm số lượng máy chủ cần thuê' },
-        { id: 'C', text: 'Loại bỏ hoàn toàn nhu cầu viết Unit Test' },
-        { id: 'D', text: 'Mã nguồn chạy nhanh hơn 100 lần' },
-      ],
-      correctOptionId: 'A',
-      explanation: 'Microservices cho phép các team độc lập tự chủ triển khai và scale riêng biệt từng module nghiệp vụ.',
-      difficulty: 'Dễ',
-      topic: 'Kiến trúc'
-    }
-  ]);
+  // Questions list editor — starts empty; populated once a file/AI/manual source provides real questions
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
 
   if (!isOpen) return null;
+
+  // Genuinely binary formats we still can't read (old-style .doc, PDF, images...)
+  // — reading these with FileReader.readAsText() produces garbled control-character
+  // junk, not real text. Detect that so we can warn instead of silently corrupting
+  // the AI parse and the Supabase save.
+  const isLikelyBinary = (text: string) => {
+    const sample = text.slice(0, 2000);
+    if (!sample) return false;
+    let controlCount = 0;
+    for (let i = 0; i < sample.length; i++) {
+      const code = sample.charCodeAt(i);
+      if (code === 0 || (code < 32 && code !== 9 && code !== 10 && code !== 13)) controlCount++;
+    }
+    return controlCount / sample.length > 0.03;
+  };
+
+  const loadFileAsText = async (file: File) => {
+    setUploadedFile(file);
+
+    // .docx is a zipped XML format — extract its real text with mammoth
+    // instead of reading the raw bytes as "text".
+    if (file.name.toLowerCase().endsWith('.docx')) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        setRawFileText(result.value || '');
+      } catch (err) {
+        console.error('Failed to extract .docx text:', err);
+        alert(`Không thể đọc nội dung tệp "${file.name}". Vui lòng thử lưu lại dưới dạng .txt hoặc copy nội dung dán trực tiếp.`);
+        setUploadedFile(null);
+        setRawFileText('');
+      }
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = (event.target?.result as string) || '';
+      if (isLikelyBinary(content)) {
+        alert(
+          `Tệp "${file.name}" có vẻ là định dạng nhị phân (Word 97-2003 .doc / PDF...) mà trình duyệt không đọc được thành văn bản thuần. Vui lòng lưu lại dưới dạng .txt/.json/.csv/.docx, hoặc copy nội dung câu hỏi rồi dán trực tiếp vào ô bên dưới.`
+        );
+        setUploadedFile(null);
+        setRawFileText('');
+        return;
+      }
+      setRawFileText(content);
+    };
+    reader.readAsText(file);
+  };
 
   // Handle File Selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploadedFile(file);
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      setRawFileText(content || '');
-    };
-    reader.readAsText(file);
+    loadFileAsText(file);
   };
 
   // Drag and drop handlers
@@ -118,20 +165,32 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
-    setUploadedFile(file);
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      setRawFileText(content || '');
-    };
-    reader.readAsText(file);
+    loadFileAsText(file);
   };
 
   // Load sample template text
   const handleLoadSampleText = () => {
     setRawFileText(SAMPLE_QUIZ_TEXT);
     setUploadedFile(new File([SAMPLE_QUIZ_TEXT], 'de_thi_mau_cong_nghe.txt', { type: 'text/plain' }));
+  };
+
+  // Simulated progress bar: the actual request is a single fetch with no real
+  // progress events, so we animate toward 90% while waiting and snap to 100% on finish.
+  const startFakeProgress = () => {
+    setProcessProgress(8);
+    return setInterval(() => {
+      setProcessProgress((prev) => {
+        if (prev >= 90) return prev;
+        const step = prev < 50 ? 6 : prev < 75 ? 3 : 1;
+        return Math.min(90, prev + step);
+      });
+    }, 300);
+  };
+
+  const finishFakeProgress = (intervalId: ReturnType<typeof setInterval>) => {
+    clearInterval(intervalId);
+    setProcessProgress(100);
+    setTimeout(() => setProcessProgress(0), 500);
   };
 
   // Process and parse the uploaded file / text
@@ -143,6 +202,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
 
     setIsProcessing(true);
     setParseMessage('Đang phân tích cấu trúc câu hỏi và đáp án...');
+    const progressInterval = startFakeProgress();
 
     try {
       // First try JSON parse if it's already a JSON file
@@ -153,9 +213,10 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
           setDescription(directJson.description || description);
           setCategory(directJson.category || category);
           setDurationMinutes(directJson.durationMinutes || durationMinutes);
-          setQuestions(directJson.questions);
+          setQuestions(normalizeQuestions(directJson.questions));
           setParseMessage(`Đã trích xuất thành công ${directJson.questions.length} câu hỏi từ tệp JSON!`);
           setIsProcessing(false);
+          finishFakeProgress(progressInterval);
           return;
         }
       } catch {
@@ -177,7 +238,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
         setDescription(result.data.description || description);
         if (result.data.category) setCategory(result.data.category);
         if (result.data.durationMinutes) setDurationMinutes(result.data.durationMinutes);
-        setQuestions(result.data.questions);
+        setQuestions(normalizeQuestions(result.data.questions));
         setParseMessage(`Trích xuất thành công ${result.data.questions.length} câu hỏi (${result.source === 'gemini' ? 'Gemini AI thông minh' : 'Bộ phân tích cấu trúc'})!`);
       } else {
         throw new Error('Dữ liệu trả về không đúng cấu trúc đề thi');
@@ -187,6 +248,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
       setParseMessage('Đã chuyển sang chế độ tự động điền câu hỏi.');
     } finally {
       setIsProcessing(false);
+      finishFakeProgress(progressInterval);
     }
   };
 
@@ -196,6 +258,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
 
     setIsProcessing(true);
     setParseMessage(`Gemini AI đang biên soạn bộ ${aiQuestionCount} câu hỏi về "${aiTopic}"...`);
+    const progressInterval = startFakeProgress();
 
     try {
       const res = await fetch('/api/ai/generate-quiz', {
@@ -212,7 +275,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
       if (result && result.data && result.data.questions) {
         setTitle(result.data.title || `Đề thi: ${aiTopic}`);
         setDescription(result.data.description || `Bộ câu hỏi kiểm tra kiến thức về ${aiTopic}`);
-        setQuestions(result.data.questions);
+        setQuestions(normalizeQuestions(result.data.questions));
         setDurationMinutes(result.data.durationMinutes || aiQuestionCount * 2);
         setParseMessage(`Đã khởi tạo thành công ${result.data.questions.length} câu hỏi trắc nghiệm chất lượng cao!`);
       } else {
@@ -222,6 +285,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
       alert('Không thể kết nối AI, vui lòng thử lại hoặc sử dụng tính năng tải tệp câu hỏi.');
     } finally {
       setIsProcessing(false);
+      finishFakeProgress(progressInterval);
     }
   };
 
@@ -266,7 +330,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   };
 
   // Final submit & save exam
-  const handleSaveExam = () => {
+  const handleSaveExam = async () => {
     if (!title.trim()) {
       alert('Vui lòng nhập tên đề thi.');
       return;
@@ -293,9 +357,14 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
       isFeatured: true,
     };
 
-    storageService.saveExam(newExam);
-    onExamCreated(newExam);
-    onClose();
+    try {
+      await storageService.saveExam(newExam);
+      onExamCreated(newExam);
+      onClose();
+    } catch (err) {
+      console.error('Không lưu được đề thi:', err);
+      alert('Không thể lưu đề thi lên Supabase. Vui lòng thử lại.');
+    }
   };
 
   return (
@@ -341,16 +410,21 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
               <span>1. Tải Tệp Đính Kèm</span>
             </button>
 
-            <button
-              onClick={() => setActiveMode('ai-prompt')}
-              className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                activeMode === 'ai-prompt' ? 'bg-cyan-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>2. Tạo Bằng AI</span>
-            </button>
+            {/* Temporarily hidden — resume later */}
+            {false && (
+              <button
+                onClick={() => setActiveMode('ai-prompt')}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  activeMode === 'ai-prompt' ? 'bg-cyan-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>2. Tạo Bằng AI</span>
+              </button>
+            )}
 
+            {/* Temporarily hidden — resume later */}
+            {false && (
             <button
               onClick={() => setActiveMode('manual')}
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
@@ -360,6 +434,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
               <FileCode className="w-3.5 h-3.5" />
               <span>3. Chỉnh Sửa ({questions.length})</span>
             </button>
+            )}
           </div>
 
           {/* MODE 1: File Upload & Smart Parser */}
@@ -377,7 +452,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileChange}
-                  accept=".txt,.json,.csv,.doc,.docx"
+                  accept=".txt,.json,.csv,.docx"
                   className="hidden"
                 />
 
@@ -389,7 +464,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                   {uploadedFile ? `Tệp đã chọn: ${uploadedFile.name}` : 'Kéo thả tệp đề thi hoặc nhấp để chọn'}
                 </h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto mb-3">
-                  Hỗ trợ tệp văn bản <strong>.TXT, .JSON, .CSV</strong> chứa danh sách câu hỏi trắc nghiệm A, B, C, D kèm đáp án.
+                  Hỗ trợ tệp văn bản <strong>.TXT, .JSON, .CSV, .DOCX</strong> chứa danh sách câu hỏi trắc nghiệm A, B, C, D kèm đáp án.
                 </p>
 
                 <div className="flex items-center justify-center gap-2">
@@ -439,12 +514,25 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                       <span>{isProcessing ? 'Đang trích xuất...' : 'Trích xuất đề thi tự động'}</span>
                     </button>
                   </div>
+
+                  {isProcessing && (
+                    <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-300 ease-out"
+                        style={{ width: `${processProgress}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
               {parseMessage && (
                 <div className="bg-cyan-950/50 border border-cyan-500/30 text-cyan-200 text-xs p-3 rounded-xl flex items-center gap-2">
-                  <FileCheck className="w-4 h-4 text-cyan-400 shrink-0" />
+                  {isProcessing ? (
+                    <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                  ) : (
+                    <FileCheck className="w-4 h-4 text-cyan-400 shrink-0" />
+                  )}
                   <span>{parseMessage}</span>
                 </div>
               )}
@@ -496,6 +584,15 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                   <span>{isProcessing ? 'Đang tạo câu hỏi...' : 'Tạo Đề Thi Ngay Bằng AI'}</span>
                 </button>
               </div>
+
+              {isProcessing && (
+                <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${processProgress}%` }}
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -512,52 +609,13 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none"
+                  placeholder="Nhập tên đề thi..."
+                  className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none"
                   required
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Danh mục chuyên môn</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none"
-                >
-                  <option value="Trí tuệ Nhân tạo">Trí tuệ Nhân tạo</option>
-                  <option value="An ninh Mạng">An ninh Mạng</option>
-                  <option value="Điện toán Đám mây & DevOps">Điện toán Đám mây & DevOps</option>
-                  <option value="Kiến trúc Phần mềm">Kiến trúc Phần mềm</option>
-                  <option value="Phần cứng & Bán dẫn">Phần cứng & Bán dẫn</option>
-                  <option value="Blockchain & Web3">Blockchain & Web3</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Mô tả ngắn</label>
-                <input
-                  type="text"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-400 mb-1">Độ khó</label>
-                  <select
-                    value={difficulty}
-                    onChange={(e) => setDifficulty(e.target.value as any)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2 py-2 text-xs text-slate-200 focus:outline-none"
-                  >
-                    <option value="Cơ bản">Cơ bản</option>
-                    <option value="Trung bình">Trung bình</option>
-                    <option value="Nâng cao">Nâng cao</option>
-                    <option value="Chuyên gia">Chuyên gia</option>
-                  </select>
-                </div>
-
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[11px] font-medium text-slate-400 mb-1">Thời gian (phút)</label>
                   <input
@@ -585,7 +643,8 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
             </div>
           </div>
 
-          {/* Questions Visual Editor */}
+          {/* Questions Visual Editor — only once there are real questions to show */}
+          {questions.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="font-bold text-sm text-slate-100 flex items-center gap-2">
@@ -633,20 +692,6 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
-                  </div>
-
-                  {/* Code snippet optional */}
-                  <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">
-                      Mã nguồn mẫu / Code Snippet (nếu có):
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={q.codeSnippet || ''}
-                      onChange={(e) => handleUpdateQuestion(qIndex, 'codeSnippet', e.target.value)}
-                      placeholder="// Đoạn code cần phân tích trong câu hỏi..."
-                      className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 font-mono text-xs text-cyan-300 focus:outline-none"
-                    />
                   </div>
 
                   {/* 4 Options Grid */}
@@ -706,6 +751,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
             </div>
 
           </div>
+          )}
 
         </div>
 

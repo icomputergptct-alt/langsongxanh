@@ -32,9 +32,10 @@ import { storageService } from './services/storageService';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities'>('news');
-  const [articles, setArticles] = useState<Article[]>(() => storageService.getArticles());
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [isLoadingArticles, setIsLoadingArticles] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
-  
+
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tất cả');
@@ -47,11 +48,59 @@ export default function App() {
   // Modal
   const [isCreateQuizModalOpen, setIsCreateQuizModalOpen] = useState(false);
 
-  // Refresh articles from storage on mount
+  // Sync the selected article to the URL (/bai-viet/{slug}) so links are shareable & bookmarkable
+  const selectArticle = (article: Article | null) => {
+    setSelectedArticle(article);
+    const path = article ? `/bai-viet/${article.slug}` : '/';
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+  };
+
+  // Load articles from Supabase on mount
   useEffect(() => {
-    setArticles(storageService.getArticles());
+    let cancelled = false;
+    setIsLoadingArticles(true);
+    storageService
+      .getArticles()
+      .then((data) => {
+        if (cancelled) return;
+        setArticles(data);
+        // Deep-link support: opening /bai-viet/{slug} directly should load that article
+        const match = window.location.pathname.match(/^\/bai-viet\/([^/]+)\/?$/);
+        if (match) {
+          const found = data.find((a) => a.slug === decodeURIComponent(match[1]));
+          if (found) {
+            setSelectedArticle(found);
+            setActiveTab('news');
+          }
+        }
+      })
+      .catch((err) => console.error('Không tải được danh sách bài viết:', err))
+      .finally(() => {
+        if (!cancelled) setIsLoadingArticles(false);
+      });
     setSavedCount(storageService.getOfflineArticles().length);
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  // Handle browser Back/Forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const match = window.location.pathname.match(/^\/bai-viet\/([^/]+)\/?$/);
+      if (match) {
+        const found = articles.find((a) => a.slug === decodeURIComponent(match[1]));
+        setSelectedArticle(found || null);
+        setActiveTab('news');
+      } else {
+        setSelectedArticle(null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [articles]);
 
   // Listen to browser network changes
   useEffect(() => {
@@ -92,13 +141,14 @@ export default function App() {
   };
 
   // Toggle Like Article
-  const handleToggleLike = (articleId: string, e?: React.MouseEvent) => {
+  const handleToggleLike = async (articleId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    storageService.toggleLikeArticle(articleId);
-    setArticles(storageService.getArticles());
+    const { likes, isLiked } = await storageService.toggleLikeArticle(articleId);
+    setArticles((prev) =>
+      prev.map((a) => (a.id === articleId ? { ...a, likes, isLikedByUser: isLiked } : a))
+    );
     if (selectedArticle && selectedArticle.id === articleId) {
-      const updated = storageService.getArticles().find((a) => a.id === articleId);
-      if (updated) setSelectedArticle(updated);
+      setSelectedArticle((prev) => (prev ? { ...prev, likes, isLikedByUser: isLiked } : prev));
     }
   };
 
@@ -137,14 +187,21 @@ export default function App() {
   const featuredArticle = articles.find((a) => a.isDeepAnalysis) || articles[0];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
-      
+    <div className="min-h-screen text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white relative">
+
+      {/* Background image + dark overlay so text stays readable */}
+      <div
+        className="fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/bg.png')" }}
+      />
+      <div className="fixed inset-0 -z-10 bg-slate-950/75" />
+
       {/* Top Main Navigation Header */}
       <Header
         activeTab={activeTab}
         setActiveTab={(tab) => {
           setActiveTab(tab);
-          setSelectedArticle(null); // Return to list view
+          selectArticle(null); // Return to list view
         }}
         isOffline={isOffline}
         toggleOffline={handleToggleOffline}
@@ -183,12 +240,16 @@ export default function App() {
         {/* ============================================================ */}
         {activeTab === 'news' && (
           <>
-            {selectedArticle ? (
+            {isLoadingArticles ? (
+              <div className="text-center py-24 text-slate-400 text-sm">
+                Đang tải bài viết từ Supabase...
+              </div>
+            ) : selectedArticle ? (
               /* Article Deep Detail View */
               <ArticleDetail
                 article={selectedArticle}
                 isSavedOffline={storageService.isArticleSavedOffline(selectedArticle.id)}
-                onBack={() => setSelectedArticle(null)}
+                onBack={() => selectArticle(null)}
                 onToggleSaveOffline={(art) => handleToggleSaveOffline(art)}
                 onToggleLike={(id) => handleToggleLike(id)}
               />
@@ -204,7 +265,7 @@ export default function App() {
                     {featuredArticle && (
                       <section
                         id="bento-hero-featured"
-                        onClick={() => setSelectedArticle(featuredArticle)}
+                        onClick={() => selectArticle(featuredArticle)}
                         className="md:col-span-12 lg:col-span-8 bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 relative overflow-hidden group cursor-pointer transition-all duration-300 hover:border-blue-500/60 hover:shadow-2xl hover:shadow-blue-500/10 min-h-[380px] flex flex-col justify-end"
                       >
                         {/* Cover Image Background with dark overlay */}
@@ -239,7 +300,7 @@ export default function App() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedArticle(featuredArticle);
+                                selectArticle(featuredArticle);
                               }}
                               className="bg-white text-slate-950 px-5 py-2.5 rounded-xl text-sm font-bold shadow-md hover:bg-slate-200 transition-colors"
                             >
@@ -268,7 +329,7 @@ export default function App() {
                           <div 
                             onClick={() => {
                               const art = articles.find((a) => a.id === 'art-gaafet-2nm') || articles[1];
-                              if (art) setSelectedArticle(art);
+                              if (art) selectArticle(art);
                             }}
                             className="border-b border-slate-800 pb-3 cursor-pointer group/news"
                           >
@@ -281,7 +342,7 @@ export default function App() {
                           <div 
                             onClick={() => {
                               const art = articles.find((a) => a.id === 'art-post-quantum-cryptography') || articles[0];
-                              if (art) setSelectedArticle(art);
+                              if (art) selectArticle(art);
                             }}
                             className="border-b border-slate-800 pb-3 cursor-pointer group/news"
                           >
@@ -294,7 +355,7 @@ export default function App() {
                           <div 
                             onClick={() => {
                               const art = articles.find((a) => a.id === 'art-multi-agent-ai-system') || articles[2];
-                              if (art) setSelectedArticle(art);
+                              if (art) selectArticle(art);
                             }}
                             className="pb-1 cursor-pointer group/news"
                           >
@@ -457,15 +518,15 @@ export default function App() {
 
                 {/* Category Pills & Quick Filter Controls */}
                 <div className="space-y-4 pt-2">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    
+                  <div className="flex flex-col gap-4">
+
                     {/* Category Scrollable Bar */}
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none min-w-0 w-full">
                       {categories.map((cat) => (
                         <button
                           key={cat}
                           onClick={() => setSelectedCategory(cat)}
-                          className={`text-xs font-semibold px-4 py-2 rounded-xl whitespace-nowrap transition-all ${
+                          className={`text-xs font-semibold px-4 py-2 rounded-xl whitespace-nowrap shrink-0 transition-all ${
                             selectedCategory === cat
                               ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20'
                               : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
@@ -477,7 +538,7 @@ export default function App() {
                     </div>
 
                     {/* Filter Type Segmented Control */}
-                    <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs shrink-0 self-start md:self-auto">
+                    <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs shrink-0 self-start">
                       <button
                         onClick={() => setArticleFilterType('all')}
                         className={`px-3.5 py-1.5 rounded-lg transition-colors ${
@@ -539,7 +600,7 @@ export default function App() {
                         key={article.id}
                         article={article}
                         isSavedOffline={storageService.isArticleSavedOffline(article.id)}
-                        onSelectArticle={(art) => setSelectedArticle(art)}
+                        onSelectArticle={(art) => selectArticle(art)}
                         onToggleSaveOffline={(art, e) => handleToggleSaveOffline(art, e)}
                         onToggleLike={(id, e) => handleToggleLike(id, e)}
                       />
@@ -559,7 +620,7 @@ export default function App() {
           <OfflineLibrary
             isOffline={isOffline}
             onSelectArticle={(art) => {
-              setSelectedArticle(art);
+              selectArticle(art);
               setActiveTab('news');
             }}
             onRefreshSavedCount={() => setSavedCount(storageService.getOfflineArticles().length)}
@@ -607,9 +668,7 @@ export default function App() {
       <footer className="border-t border-slate-900 bg-slate-950/80 backdrop-blur text-slate-500 text-xs py-8 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white font-black text-xs">
-              TP
-            </div>
+            <img src="/logo.png" alt="TechPulse" className="w-6 h-6 rounded-lg" />
             <span className="font-semibold text-slate-300">TechPulse Digital Hub</span>
             <span className="text-slate-600">| Nền tảng Tri thức Công nghệ Số</span>
           </div>

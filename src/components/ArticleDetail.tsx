@@ -36,7 +36,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
   const [likes, setLikes] = useState(article.likes);
   const [isLiked, setIsLiked] = useState(!!article.isLikedByUser);
   const [fontSize, setFontSize] = useState<'normal' | 'large' | 'xlarge'>('normal');
-  const [readerTheme, setReaderTheme] = useState<'dark' | 'slate' | 'sepia'>('dark');
+  const [readerTheme, setReaderTheme] = useState<'light' | 'dark' | 'sepia'>('light');
   const [aiSummary, setAiSummary] = useState<{
     summary?: string;
     keyPoints?: string[];
@@ -91,17 +91,73 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
     }
   };
 
-  // Reader theme classes
+  // Reader theme tokens: outer card + every text/border role used inside the article
+  const THEME = {
+    light: {
+      card: 'bg-white text-slate-900 border-slate-200',
+      heading: 'text-slate-900',
+      text: 'text-slate-700',
+      strong: 'text-slate-900',
+      muted: 'text-slate-500',
+      border: 'border-slate-200',
+      tag: 'bg-slate-100 text-slate-500',
+      quote: 'bg-slate-100 text-slate-700',
+      likeBtn: 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200',
+    },
+    dark: {
+      card: 'bg-slate-900/90 text-slate-200 border-slate-800',
+      heading: 'text-slate-100',
+      text: 'text-slate-300',
+      strong: 'text-slate-100',
+      muted: 'text-slate-400',
+      border: 'border-slate-800',
+      tag: 'bg-slate-800/60 text-slate-400',
+      quote: 'bg-slate-800/50 text-slate-300',
+      likeBtn: 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700',
+    },
+    sepia: {
+      card: 'bg-[#1c1815] text-[#e8ded1] border-[#382f29]',
+      heading: 'text-[#f1e6d3]',
+      text: 'text-[#e8ded1]',
+      strong: 'text-[#f1e6d3]',
+      muted: 'text-[#b8a98f]',
+      border: 'border-[#382f29]',
+      tag: 'bg-[#241f1a] text-[#b8a98f]',
+      quote: 'bg-[#241f1a] text-[#e8ded1]',
+      likeBtn: 'bg-[#241f1a] hover:bg-[#2c261f] text-[#e8ded1] border-[#382f29]',
+    },
+  };
+  const theme = THEME[readerTheme];
   const themeClasses = {
-    dark: 'bg-slate-900/90 text-slate-200 border-slate-800',
-    slate: 'bg-slate-950 text-slate-100 border-slate-900',
-    sepia: 'bg-[#1c1815] text-[#e8ded1] border-[#382f29]',
+    light: THEME.light.card,
+    dark: THEME.dark.card,
+    sepia: THEME.sepia.card,
   };
 
+  // Font-size tokens: scale the title and quote too, not just body paragraphs,
+  // so the effect is visible immediately without needing to scroll.
+  const SIZE = {
+    normal: {
+      title: 'text-2xl sm:text-3xl lg:text-4xl',
+      quote: 'text-sm',
+      body: 'text-base leading-relaxed',
+    },
+    large: {
+      title: 'text-3xl sm:text-4xl lg:text-5xl',
+      quote: 'text-base',
+      body: 'text-lg leading-relaxed',
+    },
+    xlarge: {
+      title: 'text-4xl sm:text-5xl lg:text-6xl',
+      quote: 'text-lg',
+      body: 'text-xl leading-loose',
+    },
+  };
+  const size = SIZE[fontSize];
   const fontClasses = {
-    normal: 'text-base leading-relaxed',
-    large: 'text-lg leading-relaxed',
-    xlarge: 'text-xl leading-loose',
+    normal: SIZE.normal.body,
+    large: SIZE.large.body,
+    xlarge: SIZE.xlarge.body,
   };
 
   return (
@@ -131,11 +187,11 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
             </button>
 
             <button
-              onClick={() => setReaderTheme(readerTheme === 'dark' ? 'sepia' : readerTheme === 'sepia' ? 'slate' : 'dark')}
+              onClick={() => setReaderTheme(readerTheme === 'light' ? 'dark' : readerTheme === 'dark' ? 'sepia' : 'light')}
               title="Thay đổi giao diện đọc"
               className="px-2 py-1 hover:bg-slate-800 rounded text-slate-300 text-[10px] font-medium"
             >
-              {readerTheme === 'dark' ? '🌙 Tối' : readerTheme === 'sepia' ? '📜 Sepia' : '⬛ Đen sâu'}
+              {readerTheme === 'light' ? '☀️ Trắng' : readerTheme === 'dark' ? '🌙 Tối' : '📜 Sepia'}
             </button>
           </div>
 
@@ -193,19 +249,19 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
             </span>
           )}
           {article.tags.map((tag, idx) => (
-            <span key={idx} className="text-xs text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded">
+            <span key={idx} className={`text-xs px-2 py-0.5 rounded ${theme.tag}`}>
               #{tag}
             </span>
           ))}
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-100 tracking-tight leading-tight mb-4">
+        <h1 className={`font-extrabold tracking-tight leading-tight mb-4 ${size.title} ${theme.heading}`}>
           {article.title}
         </h1>
 
         {/* Author & Meta */}
-        <div className="flex flex-wrap items-center justify-between gap-4 py-4 mb-6 border-y border-slate-800/80 text-xs sm:text-sm text-slate-400">
+        <div className={`flex flex-wrap items-center justify-between gap-4 py-4 mb-6 border-y text-xs sm:text-sm ${theme.border} ${theme.muted}`}>
           <div className="flex items-center gap-3">
             <img
               src={article.author.avatar}
@@ -213,23 +269,23 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
               className="w-10 h-10 rounded-full object-cover border border-slate-700"
             />
             <div>
-              <div className="flex items-center gap-1.5 font-semibold text-slate-200">
+              <div className={`flex items-center gap-1.5 font-semibold ${theme.heading}`}>
                 <span>{article.author.name}</span>
                 {article.author.verified && (
                   <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400" />
                 )}
               </div>
-              <p className="text-xs text-slate-400">{article.author.role}</p>
+              <p className={`text-xs ${theme.muted}`}>{article.author.role}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4 text-xs">
             <span className="flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-slate-500" />
+              <Clock className="w-3.5 h-3.5 opacity-70" />
               <span>Thời gian đọc: {article.readTimeMinutes} phút</span>
             </span>
             <span className="flex items-center gap-1">
-              <Eye className="w-3.5 h-3.5 text-slate-500" />
+              <Eye className="w-3.5 h-3.5 opacity-70" />
               <span>{article.views} lượt đọc</span>
             </span>
             <span>
@@ -304,7 +360,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
         </div>
 
         {/* Article Summary Box */}
-        <div className="mb-8 p-4 bg-slate-800/50 border-l-4 border-cyan-500 rounded-r-xl text-slate-300 text-sm italic leading-relaxed">
+        <div className={`mb-8 p-4 border-l-4 border-cyan-500 rounded-r-xl italic leading-relaxed ${size.quote} ${theme.quote}`}>
           "{article.summary}"
         </div>
 
@@ -314,7 +370,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
             // Heading 3
             if (paragraph.startsWith('### ')) {
               return (
-                <h3 key={index} className="text-xl font-bold text-slate-100 mt-8 mb-3 border-b border-slate-800/80 pb-2">
+                <h3 key={index} className={`text-xl font-bold mt-8 mb-3 border-b pb-2 ${theme.heading} ${theme.border}`}>
                   {paragraph.replace('### ', '')}
                 </h3>
               );
@@ -345,9 +401,9 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
             if (paragraph.startsWith('* ') || paragraph.startsWith('- ')) {
               const items = paragraph.split('\n').map((item) => item.replace(/^[\*\-]\s+/, ''));
               return (
-                <ul key={index} className="space-y-2 pl-6 list-disc marker:text-cyan-500 text-slate-300">
+                <ul key={index} className={`space-y-2 pl-6 list-disc marker:text-cyan-500 ${theme.text}`}>
                   {items.map((it, i) => (
-                    <li key={i} dangerouslySetInnerHTML={{ __html: it.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                    <li key={i} dangerouslySetInnerHTML={{ __html: it.replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.strong} font-semibold">$1</strong>`) }} />
                   ))}
                 </ul>
               );
@@ -356,9 +412,9 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
             if (/^\d+\.\s+/.test(paragraph)) {
               const items = paragraph.split('\n').map((item) => item.replace(/^\d+\.\s+/, ''));
               return (
-                <ol key={index} className="space-y-2 pl-6 list-decimal marker:text-cyan-500 text-slate-300">
+                <ol key={index} className={`space-y-2 pl-6 list-decimal marker:text-cyan-500 ${theme.text}`}>
                   {items.map((it, i) => (
-                    <li key={i} dangerouslySetInnerHTML={{ __html: it.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                    <li key={i} dangerouslySetInnerHTML={{ __html: it.replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.strong} font-semibold">$1</strong>`) }} />
                   ))}
                 </ol>
               );
@@ -368,35 +424,35 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
             return (
               <p
                 key={index}
-                className="text-slate-300 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: paragraph.replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-100 font-semibold">$1</strong>') }}
+                className={`leading-relaxed ${theme.text}`}
+                dangerouslySetInnerHTML={{ __html: paragraph.replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.strong} font-semibold">$1</strong>`) }}
               />
             );
           })}
         </div>
 
         {/* Article Footer Likes & Engagement */}
-        <div className="mt-12 pt-6 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4">
+        <div className={`mt-12 pt-6 border-t flex flex-wrap items-center justify-between gap-4 ${theme.border}`}>
           <button
             id="article-like-btn"
             onClick={handleLike}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
               isLiked
                 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm shadow-cyan-500/20'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                : theme.likeBtn
             }`}
           >
             <ThumbsUp className={`w-4 h-4 ${isLiked ? 'fill-cyan-400 text-cyan-400' : ''}`} />
             <span>Thích bài viết ({likes})</span>
           </button>
 
-          <div className="flex items-center gap-3 text-xs text-slate-400">
+          <div className={`flex items-center gap-3 text-xs ${theme.muted}`}>
             <span>Bản quyền nội dung thuộc TechPulse Digital Hub</span>
           </div>
         </div>
 
         {/* Live Discussion & Comments Section */}
-        <CommentSection articleId={article.id} articleTitle={article.title} />
+        <CommentSection articleId={article.id} articleTitle={article.title} theme={readerTheme} />
 
       </article>
 
