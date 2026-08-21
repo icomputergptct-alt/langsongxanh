@@ -202,70 +202,74 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
     return (
       <div id="quiz-room-lobby" className="max-w-6xl mx-auto pb-16">
         
-        {/* Banner Hero */}
-        <div className="bg-gradient-to-r from-white via-indigo-50 to-white border border-slate-200 rounded-2xl p-6 sm:p-8 mb-8 shadow-xl">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-2.5 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-600 border border-cyan-500/30 flex items-center justify-center">
-                  <GraduationCap className="w-5 h-5" />
+        {/* Unified Toolbar Card — hero + search/filter live in one continuous surface
+            instead of separate floating white blocks, so the page reads as one panel. */}
+        <div className="bg-white border border-slate-200 rounded-2xl mb-8 shadow-xl overflow-hidden">
+          {/* Hero */}
+          <div className="bg-gradient-to-r from-white via-indigo-50 to-white p-6 sm:p-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div>
+                <div className="flex items-center gap-2.5 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-600 border border-cyan-500/30 flex items-center justify-center">
+                    <GraduationCap className="w-5 h-5" />
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                    Phòng Thi Trắc Nghiệm Công Nghệ Kỹ Thuật Số
+                  </h2>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
-                  Phòng Thi Trắc Nghiệm Công Nghệ Kỹ Thuật Số
-                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
+                  Hệ thống đánh giá năng lực công nghệ toàn diện. Thử sức với các bộ đề thi khảo sát AI, An ninh mạng, Kubernetes, Kiến trúc phần mềm và lập trình hiện đại.
+                </p>
               </div>
-              <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
-                Hệ thống đánh giá năng lực công nghệ toàn diện. Thử sức với các bộ đề thi khảo sát AI, An ninh mạng, Kubernetes, Kiến trúc phần mềm và lập trình hiện đại.
-              </p>
-            </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
-              <button
-                onClick={() => openCreateQuizModal('upload')}
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs sm:text-sm font-bold px-5 py-3 rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.02]"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Tạo Phòng Thi Mới từ Tệp</span>
-              </button>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+                <button
+                  onClick={() => openCreateQuizModal('upload')}
+                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs sm:text-sm font-bold px-5 py-3 rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.02]"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Tạo Phòng Thi Mới từ Tệp</span>
+                </button>
 
-              <button
-                onClick={() => openCreateQuizModal('manual')}
-                className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white text-xs sm:text-sm font-bold px-5 py-3 rounded-xl shadow-md transition-all hover:scale-[1.02]"
-              >
-                <Keyboard className="w-4 h-4" />
-                <span>Tạo Phòng Thi Bằng Công Cụ Nhập Liệu</span>
-              </button>
+                <button
+                  onClick={() => openCreateQuizModal('manual')}
+                  className="flex items-center justify-center gap-2 bg-transparent hover:bg-slate-100 border border-slate-300 text-slate-600 hover:text-slate-900 text-xs sm:text-sm font-bold px-5 py-3 rounded-xl transition-all"
+                >
+                  <Keyboard className="w-4 h-4" />
+                  <span>Tạo Bằng Công Cụ Nhập Liệu</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Filters & Search */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-          <div className="relative w-full sm:max-w-md">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchFilter}
-              onChange={(e) => setSearchFilter(e.target.value)}
-              placeholder="Tìm kiếm đề thi theo chủ đề, từ khóa..."
-              className="w-full bg-white border border-slate-200 focus:border-cyan-500 rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm text-slate-800 placeholder-slate-500 focus:outline-none"
-            />
-          </div>
+          {/* Filters & Search */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-200">
+            <div className="relative w-full sm:max-w-md">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                placeholder="Tìm kiếm đề thi theo chủ đề, từ khóa..."
+                className="w-full bg-white border border-slate-200 focus:border-cyan-500 rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm text-slate-800 placeholder-slate-500 focus:outline-none"
+              />
+            </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto scrollbar-none">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategoryFilter(cat)}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
-                  categoryFilter === cat
-                    ? 'bg-cyan-600 text-white'
-                    : 'bg-white hover:bg-slate-100 text-slate-500 border border-slate-200'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+            <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto scrollbar-none">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat)}
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
+                    categoryFilter === cat
+                      ? 'bg-cyan-600 text-white'
+                      : 'bg-white hover:bg-slate-100 text-slate-500 border border-slate-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
