@@ -64,6 +64,7 @@ export interface QuizOption {
 export interface QuizQuestion {
   id: string;
   question: string;
+  questionImage?: string;
   codeSnippet?: string;
   codeLanguage?: string;
   options: QuizOption[];

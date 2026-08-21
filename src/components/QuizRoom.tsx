@@ -18,7 +18,8 @@ import {
   ArrowLeft,
   Users,
   Search,
-  CheckCircle
+  CheckCircle,
+  Keyboard
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { QuizExam, ExamAttempt, QuizQuestion } from '../types';
@@ -26,7 +27,7 @@ import { storageService } from '../services/storageService';
 
 interface QuizRoomProps {
   onAttemptRecorded?: () => void;
-  openCreateQuizModal: () => void;
+  openCreateQuizModal: (mode?: 'upload' | 'manual') => void;
 }
 
 export const QuizRoom: React.FC<QuizRoomProps> = ({
@@ -215,13 +216,23 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
               </p>
             </div>
 
-            <button
-              onClick={openCreateQuizModal}
-              className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs sm:text-sm font-bold px-5 py-3 rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.02] shrink-0"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Tạo Phòng Thi Mới từ Tệp</span>
-            </button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+              <button
+                onClick={() => openCreateQuizModal('upload')}
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs sm:text-sm font-bold px-5 py-3 rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.02]"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Tạo Phòng Thi Mới từ Tệp</span>
+              </button>
+
+              <button
+                onClick={() => openCreateQuizModal('manual')}
+                className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white text-xs sm:text-sm font-bold px-5 py-3 rounded-xl shadow-md transition-all hover:scale-[1.02]"
+              >
+                <Keyboard className="w-4 h-4" />
+                <span>Tạo Phòng Thi Bằng Công Cụ Nhập Liệu</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -422,6 +433,17 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
               <h3 className="text-xl sm:text-2xl font-bold text-slate-900 leading-relaxed mb-4">
                 {currentQ.question}
               </h3>
+
+              {/* Question Image (if applicable) */}
+              {currentQ.questionImage && (
+                <div className="mb-6">
+                  <img
+                    src={currentQ.questionImage}
+                    alt={`Hình minh họa câu hỏi ${currentQ.id}`}
+                    className="max-w-full max-h-96 rounded-xl border border-slate-200 shadow-sm"
+                  />
+                </div>
+              )}
 
               {/* Code Snippet Box (if applicable) */}
               {currentQ.codeSnippet && (
@@ -814,6 +836,17 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                     <span>{isCorrect ? 'Chính xác' : 'Chưa đúng'}</span>
                   </span>
                 </div>
+
+                {/* Question image if any */}
+                {q.questionImage && (
+                  <div className="my-3">
+                    <img
+                      src={q.questionImage}
+                      alt={`Hình minh họa câu hỏi ${q.id}`}
+                      className="max-w-full max-h-72 rounded-xl border border-slate-200 shadow-sm"
+                    />
+                  </div>
+                )}
 
                 {/* Code snippet if any */}
                 {q.codeSnippet && (

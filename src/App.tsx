@@ -47,6 +47,12 @@ export default function App() {
 
   // Modal
   const [isCreateQuizModalOpen, setIsCreateQuizModalOpen] = useState(false);
+  const [quizCreatorInitialMode, setQuizCreatorInitialMode] = useState<'upload' | 'manual'>('upload');
+
+  const openCreateQuizModal = (mode?: 'upload' | 'manual') => {
+    setQuizCreatorInitialMode(mode === 'manual' ? 'manual' : 'upload');
+    setIsCreateQuizModalOpen(true);
+  };
 
   // Sync the selected article to the URL (/bai-viet/{slug}) so links are shareable & bookmarkable
   const selectArticle = (article: Article | null) => {
@@ -208,7 +214,7 @@ export default function App() {
         savedOfflineCount={savedCount}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        openCreateQuizModal={() => setIsCreateQuizModalOpen(true)}
+        openCreateQuizModal={openCreateQuizModal}
       />
 
       {/* Main Container */}
@@ -386,7 +392,7 @@ export default function App() {
                             <span>Quản lý Thi cử</span>
                           </h3>
                           <button
-                            onClick={() => setIsCreateQuizModalOpen(true)}
+                            onClick={openCreateQuizModal}
                             className="p-1.5 bg-blue-500/10 text-blue-400 rounded-lg hover:bg-blue-500/20 transition-colors"
                             title="Tạo đề thi mới"
                           >
@@ -396,7 +402,7 @@ export default function App() {
 
                         {/* Upload trigger dropzone styled as Bento card */}
                         <div 
-                          onClick={() => setIsCreateQuizModalOpen(true)}
+                          onClick={openCreateQuizModal}
                           className="border-2 border-dashed border-slate-800 hover:border-blue-500/50 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 bg-slate-950/60 cursor-pointer transition-all group/drop mb-4"
                         >
                           <span className="text-xs text-slate-400 group-hover/drop:text-slate-300">
@@ -632,7 +638,7 @@ export default function App() {
         {/* ============================================================ */}
         {activeTab === 'quiz' && (
           <QuizRoom
-            openCreateQuizModal={() => setIsCreateQuizModalOpen(true)}
+            openCreateQuizModal={openCreateQuizModal}
             onAttemptRecorded={() => {
               // triggers state update
             }}
@@ -644,7 +650,7 @@ export default function App() {
         {/* ============================================================ */}
         {activeTab === 'admin' && (
           <AdminDashboard
-            onOpenCreateQuiz={() => setIsCreateQuizModalOpen(true)}
+            onOpenCreateQuiz={openCreateQuizModal}
           />
         )}
 
@@ -660,6 +666,7 @@ export default function App() {
       {/* Quiz Creator Modal Dialog — unmounted while closed so it always opens with a clean slate */}
       {isCreateQuizModalOpen && (
         <QuizCreatorModal
+          initialMode={quizCreatorInitialMode}
           onClose={() => setIsCreateQuizModalOpen(false)}
           onExamCreated={handleExamCreated}
         />

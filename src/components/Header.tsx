@@ -20,7 +20,7 @@ interface HeaderProps {
   savedOfflineCount: number;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  openCreateQuizModal: () => void;
+  openCreateQuizModal: (mode?: 'upload' | 'manual') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({

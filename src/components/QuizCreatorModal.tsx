@@ -16,12 +16,15 @@ import {
   AlertCircle,
   X,
   Layers,
-  FileCheck
+  FileCheck,
+  ImagePlus,
+  ImageOff
 } from 'lucide-react';
 import { QuizExam, QuizQuestion, QuizOption } from '../types';
 import { storageService } from '../services/storageService';
 
 interface QuizCreatorModalProps {
+  initialMode?: 'upload' | 'ai-prompt' | 'manual';
   onClose: () => void;
   onExamCreated: (exam: QuizExam) => void;
 }
@@ -71,10 +74,11 @@ function normalizeQuestions(questions: QuizQuestion[]): QuizQuestion[] {
 }
 
 export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
+  initialMode = 'upload',
   onClose,
   onExamCreated,
 }) => {
-  const [activeMode, setActiveMode] = useState<'upload' | 'ai-prompt' | 'manual'>('upload');
+  const [activeMode, setActiveMode] = useState<'upload' | 'ai-prompt' | 'manual'>(initialMode);
   
   // Exam metadata
   const [title, setTitle] = useState('');
@@ -325,6 +329,49 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
     setQuestions(updated);
   };
 
+  // Question image: teachers can attach a screenshot/photo either by pasting from the
+  // clipboard (e.g. right after using the Windows/Mac screenshot tool) or by picking a file.
+  const MAX_QUESTION_IMAGE_BYTES = 4 * 1024 * 1024; // 4MB — keeps the Supabase JSON row reasonable
+
+  const applyQuestionImageFile = (qIndex: number, file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    if (file.size > MAX_QUESTION_IMAGE_BYTES) {
+      alert('Ảnh quá lớn (tối đa 4MB). Vui lòng chọn ảnh nhỏ hơn hoặc chụp lại với độ phân giải thấp hơn.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      handleUpdateQuestion(qIndex, 'questionImage', (event.target?.result as string) || '');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleQuestionImageFileChange = (qIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) applyQuestionImageFile(qIndex, file);
+    e.target.value = '';
+  };
+
+  const handleQuestionTextPaste = (qIndex: number, e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData.items;
+    let imageItem: DataTransferItem | null = null;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        imageItem = items[i];
+        break;
+      }
+    }
+    if (!imageItem) return;
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    applyQuestionImageFile(qIndex, file);
+  };
+
+  const handleRemoveQuestionImage = (qIndex: number) => {
+    handleUpdateQuestion(qIndex, 'questionImage', undefined);
+  };
+
   // Final submit & save exam
   const handleSaveExam = async () => {
     if (!title.trim()) {
@@ -419,8 +466,6 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
               </button>
             )}
 
-            {/* Temporarily hidden — resume later */}
-            {false && (
             <button
               onClick={() => setActiveMode('manual')}
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
@@ -428,9 +473,8 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
               }`}
             >
               <FileCode className="w-3.5 h-3.5" />
-              <span>3. Chỉnh Sửa ({questions.length})</span>
+              <span>2. Nhập Thủ Công</span>
             </button>
-            )}
           </div>
 
           {/* MODE 1: File Upload & Smart Parser */}
@@ -592,6 +636,21 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
             </div>
           )}
 
+          {/* MODE 3: Manual Question Entry */}
+          {activeMode === 'manual' && (
+            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-2">
+              <div className="flex items-center gap-2 text-cyan-400 font-bold text-sm">
+                <FileCode className="w-4 h-4" />
+                <span>Nhập Câu Hỏi Thủ Công</span>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Nhấn "Thêm câu hỏi" bên dưới để tạo từng câu. Mỗi câu hỏi có thể kèm hình ảnh minh họa —
+                dán trực tiếp ảnh chụp màn hình (Ctrl+V sau khi chụp) vào ô nội dung câu hỏi, hoặc bấm
+                "Thêm ảnh" để chọn tệp ảnh có sẵn.
+              </p>
+            </div>
+          )}
+
           {/* General Metadata Config */}
           <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-5 space-y-4">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -639,8 +698,8 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
             </div>
           </div>
 
-          {/* Questions Visual Editor — only once there are real questions to show */}
-          {questions.length > 0 && (
+          {/* Questions Visual Editor — shown once there are real questions, or always in manual mode */}
+          {(questions.length > 0 || activeMode === 'manual') && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="font-bold text-sm text-slate-100 flex items-center gap-2">
@@ -675,9 +734,40 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                         rows={2}
                         value={q.question}
                         onChange={(e) => handleUpdateQuestion(qIndex, 'question', e.target.value)}
+                        onPaste={(e) => handleQuestionTextPaste(qIndex, e)}
                         className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
-                        placeholder="Nội dung câu hỏi..."
+                        placeholder="Nội dung câu hỏi... (có thể dán ảnh chụp màn hình trực tiếp vào đây)"
                       />
+
+                      {/* Question image attachment */}
+                      {q.questionImage ? (
+                        <div className="relative mt-2 inline-block">
+                          <img
+                            src={q.questionImage}
+                            alt={`Ảnh minh họa câu hỏi ${qIndex + 1}`}
+                            className="max-h-40 rounded-lg border border-slate-800"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveQuestionImage(qIndex)}
+                            title="Xóa ảnh"
+                            className="absolute -top-2 -right-2 p-1 bg-rose-600 hover:bg-rose-500 text-white rounded-full shadow-md transition-colors"
+                          >
+                            <ImageOff className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 bg-slate-900 hover:bg-slate-800 border border-slate-800 px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors">
+                          <ImagePlus className="w-3.5 h-3.5" />
+                          <span>Thêm ảnh</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleQuestionImageFileChange(qIndex, e)}
+                          />
+                        </label>
+                      )}
                     </div>
 
                     <button
