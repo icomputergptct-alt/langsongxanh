@@ -127,6 +127,19 @@ export const Header: React.FC<HeaderProps> = ({
         <nav id="nav-tabs-bar" className="flex items-center space-x-2 sm:space-x-4 overflow-x-auto py-2 scrollbar-none border-t border-slate-800/60">
           
           <button
+            id="tab-quiz-rooms-btn"
+            onClick={() => setActiveTab('quiz')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+              activeTab === 'quiz'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <GraduationCap className="w-4 h-4" />
+            <span>Phòng Thi Trắc Nghiệm</span>
+          </button>
+
+          <button
             id="tab-news-btn"
             onClick={() => setActiveTab('news')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
@@ -157,19 +170,6 @@ export const Header: React.FC<HeaderProps> = ({
                 {savedOfflineCount}
               </span>
             )}
-          </button>
-
-          <button
-            id="tab-quiz-rooms-btn"
-            onClick={() => setActiveTab('quiz')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
-              activeTab === 'quiz'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-            }`}
-          >
-            <GraduationCap className="w-4 h-4" />
-            <span>Phòng Thi Trắc Nghiệm</span>
           </button>
 
           <button
