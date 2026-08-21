@@ -657,12 +657,13 @@ export default function App() {
 
       </main>
 
-      {/* Quiz Creator Modal Dialog */}
-      <QuizCreatorModal
-        isOpen={isCreateQuizModalOpen}
-        onClose={() => setIsCreateQuizModalOpen(false)}
-        onExamCreated={handleExamCreated}
-      />
+      {/* Quiz Creator Modal Dialog — unmounted while closed so it always opens with a clean slate */}
+      {isCreateQuizModalOpen && (
+        <QuizCreatorModal
+          onClose={() => setIsCreateQuizModalOpen(false)}
+          onExamCreated={handleExamCreated}
+        />
+      )}
 
       {/* Platform Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 backdrop-blur text-slate-500 text-xs py-8 mt-auto">

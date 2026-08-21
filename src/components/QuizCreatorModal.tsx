@@ -22,7 +22,6 @@ import { QuizExam, QuizQuestion, QuizOption } from '../types';
 import { storageService } from '../services/storageService';
 
 interface QuizCreatorModalProps {
-  isOpen: boolean;
   onClose: () => void;
   onExamCreated: (exam: QuizExam) => void;
 }
@@ -72,7 +71,6 @@ function normalizeQuestions(questions: QuizQuestion[]): QuizQuestion[] {
 }
 
 export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
-  isOpen,
   onClose,
   onExamCreated,
 }) => {
@@ -100,8 +98,6 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
 
   // Questions list editor — starts empty; populated once a file/AI/manual source provides real questions
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-
-  if (!isOpen) return null;
 
   // Genuinely binary formats we still can't read (old-style .doc, PDF, images...)
   // — reading these with FileReader.readAsText() produces garbled control-character
