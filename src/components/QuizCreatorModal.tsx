@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import mammoth from 'mammoth';
 import { 
   PlusCircle, 
@@ -102,6 +102,16 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
 
   // Questions list editor — starts empty; populated once a file/AI/manual source provides real questions
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+
+  // Auto-scroll to the newly added question card so teachers don't have to hunt for it
+  const lastQuestionRef = useRef<HTMLDivElement | null>(null);
+  const prevQuestionCountRef = useRef(0);
+  useEffect(() => {
+    if (questions.length > prevQuestionCountRef.current) {
+      lastQuestionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    prevQuestionCountRef.current = questions.length;
+  }, [questions.length]);
 
   // Genuinely binary formats we still can't read (old-style .doc, PDF, images...)
   // — reading these with FileReader.readAsText() produces garbled control-character
@@ -714,6 +724,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
               {questions.map((q, qIndex) => (
                 <div
                   key={q.id || qIndex}
+                  ref={qIndex === questions.length - 1 ? lastQuestionRef : undefined}
                   className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3"
                 >
                   <div className="flex items-start justify-between gap-3">
