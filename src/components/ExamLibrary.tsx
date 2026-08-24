@@ -231,7 +231,7 @@ const ExamDocumentViewerModal: React.FC<ViewerModalProps> = ({ doc, onClose }) =
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
-      <div className="bg-white border border-slate-300 rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="bg-white border border-slate-300 rounded-2xl w-full max-w-6xl h-[96vh] flex flex-col shadow-2xl overflow-hidden">
         <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between gap-3 shrink-0">
           <h3 className="text-sm font-bold text-slate-900 line-clamp-1">{doc.title}</h3>
           <div className="flex items-center gap-2 shrink-0">
@@ -251,7 +251,7 @@ const ExamDocumentViewerModal: React.FC<ViewerModalProps> = ({ doc, onClose }) =
 
         <div className="flex-1 overflow-y-auto bg-slate-100">
           {doc.fileType === 'pdf' ? (
-            <iframe src={doc.fileUrl} title={doc.title} className="w-full h-full border-0" />
+            <iframe src={`${doc.fileUrl}#zoom=page-width`} title={doc.title} className="w-full h-full border-0" />
           ) : isLoading ? (
             <div className="flex items-center justify-center h-full text-slate-400 gap-2 text-sm">
               <Loader2 className="w-4 h-4 animate-spin" />
