@@ -32,7 +32,20 @@ interface ExamLibraryProps {
   onRefreshSavedCount: () => void;
 }
 
-const GRADE_ICONS = [Clock, Award, PenLine, Ruler, Cloud, Gift, Sun, User, Trophy, Globe, Monitor, Calendar];
+const GRADE_THEMES = [
+  { icon: Clock, from: 'from-sky-400', to: 'to-blue-600' },
+  { icon: Award, from: 'from-violet-400', to: 'to-purple-600' },
+  { icon: PenLine, from: 'from-pink-400', to: 'to-rose-600' },
+  { icon: Ruler, from: 'from-orange-400', to: 'to-amber-600' },
+  { icon: Cloud, from: 'from-teal-400', to: 'to-emerald-600' },
+  { icon: Gift, from: 'from-red-400', to: 'to-rose-600' },
+  { icon: Sun, from: 'from-yellow-400', to: 'to-orange-500' },
+  { icon: User, from: 'from-indigo-400', to: 'to-indigo-600' },
+  { icon: Trophy, from: 'from-amber-400', to: 'to-yellow-600' },
+  { icon: Globe, from: 'from-cyan-400', to: 'to-sky-600' },
+  { icon: Monitor, from: 'from-fuchsia-400', to: 'to-pink-600' },
+  { icon: Calendar, from: 'from-lime-400', to: 'to-green-600' },
+];
 
 export const ExamLibrary: React.FC<ExamLibraryProps> = ({
   examsRefreshKey,
@@ -106,22 +119,29 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
               <h2 className="text-sm sm:text-base font-extrabold text-slate-900 mb-4">
                 Đề thi, đề kiểm tra nổi bật
               </h2>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                {GRADE_ICONS.map((Icon, idx) => {
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                {GRADE_THEMES.map((theme, idx) => {
                   const g = idx + 1;
                   const isActive = gradeFilter === g;
+                  const Icon = theme.icon;
                   return (
                     <button
                       key={g}
                       onClick={() => setGradeFilter(isActive ? null : g)}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs sm:text-sm font-semibold transition-colors ${
+                      className={`group flex flex-col items-center gap-2.5 p-4 rounded-2xl border-2 transition-all ${
                         isActive
-                          ? 'bg-cyan-600 border-cyan-600 text-white'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                          ? 'border-cyan-500 bg-cyan-50 shadow-md'
+                          : 'border-slate-100 bg-slate-50 hover:border-slate-200 hover:bg-white hover:shadow-md'
                       }`}
                     >
-                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-cyan-600'}`} />
-                      <span>Đề thi lớp {g}</span>
+                      <div
+                        className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${theme.from} ${theme.to} flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}
+                      >
+                        <Icon className="w-7 h-7 text-white" strokeWidth={2} />
+                      </div>
+                      <span className={`text-xs sm:text-sm font-bold ${isActive ? 'text-cyan-700' : 'text-slate-700'}`}>
+                        Đề thi lớp {g}
+                      </span>
                     </button>
                   );
                 })}
