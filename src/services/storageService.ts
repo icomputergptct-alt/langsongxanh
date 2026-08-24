@@ -1,4 +1,4 @@
-﻿import { Article, Comment, ExamAttempt, OfflineArticle, QuizExam } from '../types';
+﻿import { Article, Comment, ExamAttempt, ExamDocument, OfflineArticle, QuizExam } from '../types';
 import { supabase } from './supabaseClient';
 
 // Local-only state: things that are inherently per-device (offline cache,
@@ -164,6 +164,22 @@ function rowToAttempt(row: any): ExamAttempt {
     durationSeconds: row.duration_seconds,
     answers: row.answers || [],
     flaggedQuestions: row.flagged_questions || [],
+  };
+}
+
+function rowToExamDocument(row: any): ExamDocument {
+  return {
+    id: row.id,
+    title: row.title,
+    grade: row.grade || undefined,
+    semester: row.semester || undefined,
+    category: row.category || undefined,
+    description: row.description || undefined,
+    fileUrl: row.file_url,
+    fileName: row.file_name,
+    fileType: row.file_type,
+    views: row.views,
+    uploadedAt: row.uploaded_at,
   };
 }
 
@@ -422,6 +438,55 @@ export const storageService = {
         .from('quiz_exams')
         .update({ participants_count: newCount, average_score: newAvg })
         .eq('id', attempt.examId);
+    }
+  },
+
+  // --- Exam Document Library ("Kho đề thi kiểm tra" — real .docx/.pdf files) ---
+  async getExamDocuments(): Promise<ExamDocument[]> {
+    const { data, error } = await supabase
+      .from('exam_documents')
+      .select('*')
+      .order('uploaded_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(rowToExamDocument);
+  },
+
+  async uploadExamFile(file: File): Promise<{ fileUrl: string; fileName: string; fileType: string }> {
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await supabase.storage.from('exam-files').upload(path, file);
+    if (error) throw error;
+    const { data } = supabase.storage.from('exam-files').getPublicUrl(path);
+    return { fileUrl: data.publicUrl, fileName: file.name, fileType: ext };
+  },
+
+  async saveExamDocument(doc: ExamDocument): Promise<void> {
+    const row = {
+      id: doc.id,
+      title: doc.title,
+      grade: doc.grade || null,
+      semester: doc.semester || null,
+      category: doc.category || null,
+      description: doc.description || null,
+      file_url: doc.fileUrl,
+      file_name: doc.fileName,
+      file_type: doc.fileType,
+      views: doc.views,
+      uploaded_at: doc.uploadedAt,
+    };
+    const { error } = await supabase.from('exam_documents').upsert(row);
+    if (error) throw error;
+  },
+
+  async deleteExamDocument(docId: string): Promise<void> {
+    const { error } = await supabase.from('exam_documents').delete().eq('id', docId);
+    if (error) throw error;
+  },
+
+  async incrementExamDocumentViews(docId: string): Promise<void> {
+    const { data } = await supabase.from('exam_documents').select('views').eq('id', docId).maybeSingle();
+    if (data) {
+      await supabase.from('exam_documents').update({ views: (data.views || 0) + 1 }).eq('id', docId);
     }
   },
 

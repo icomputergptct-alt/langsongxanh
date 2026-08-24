@@ -95,6 +95,22 @@ export interface QuizExam {
   isFeatured?: boolean;
 }
 
+// A real uploaded .docx/.pdf exam file browsable in "Kho đề thi kiểm tra" — distinct from
+// QuizExam, which is an interactive multiple-choice test room.
+export interface ExamDocument {
+  id: string;
+  title: string;
+  grade?: number;
+  semester?: number;
+  category?: string;
+  description?: string;
+  fileUrl: string;
+  fileName: string;
+  fileType: string;
+  views: number;
+  uploadedAt: string;
+}
+
 export interface UserExamAnswer {
   questionId: string;
   selectedOptionId: string;

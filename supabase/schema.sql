@@ -79,11 +79,28 @@ create table if not exists exam_attempts (
 );
 create index if not exists exam_attempts_exam_id_idx on exam_attempts(exam_id);
 
+-- "Kho đề thi kiểm tra" file library — real uploaded .docx/.pdf documents, browsable by
+-- grade, distinct from quiz_exams (which are interactive multiple-choice test rooms).
+create table if not exists exam_documents (
+  id text primary key,
+  title text not null,
+  grade int,
+  semester int,
+  category text,
+  description text,
+  file_url text not null,
+  file_name text not null,
+  file_type text not null,
+  views int not null default 0,
+  uploaded_at timestamptz not null default now()
+);
+
 -- Public/no-auth demo app: allow the anon (publishable) key to read and write everything.
 alter table articles enable row level security;
 alter table comments enable row level security;
 alter table quiz_exams enable row level security;
 alter table exam_attempts enable row level security;
+alter table exam_documents enable row level security;
 
 drop policy if exists "public read articles" on articles;
 create policy "public read articles" on articles for select using (true);
@@ -112,6 +129,29 @@ drop policy if exists "public read exam_attempts" on exam_attempts;
 create policy "public read exam_attempts" on exam_attempts for select using (true);
 drop policy if exists "public write exam_attempts" on exam_attempts;
 create policy "public write exam_attempts" on exam_attempts for insert with check (true);
+
+drop policy if exists "public read exam_documents" on exam_documents;
+create policy "public read exam_documents" on exam_documents for select using (true);
+drop policy if exists "public write exam_documents" on exam_documents;
+create policy "public write exam_documents" on exam_documents for insert with check (true);
+drop policy if exists "public update exam_documents" on exam_documents;
+create policy "public update exam_documents" on exam_documents for update using (true) with check (true);
+drop policy if exists "public delete exam_documents" on exam_documents;
+create policy "public delete exam_documents" on exam_documents for delete using (true);
+
+-- Storage bucket holding the uploaded exam files themselves (the actual .docx/.pdf bytes).
+insert into storage.buckets (id, name, public)
+values ('exam-files', 'exam-files', true)
+on conflict (id) do nothing;
+
+drop policy if exists "public read exam-files" on storage.objects;
+create policy "public read exam-files" on storage.objects for select using (bucket_id = 'exam-files');
+drop policy if exists "public upload exam-files" on storage.objects;
+create policy "public upload exam-files" on storage.objects for insert with check (bucket_id = 'exam-files');
+drop policy if exists "public update exam-files" on storage.objects;
+create policy "public update exam-files" on storage.objects for update using (bucket_id = 'exam-files') with check (bucket_id = 'exam-files');
+drop policy if exists "public delete exam-files" on storage.objects;
+create policy "public delete exam-files" on storage.objects for delete using (bucket_id = 'exam-files');
 
 -- Migration: adds school/class/room-password columns to a quiz_exams table that
 -- already existed before this feature — safe to re-run, no-op if columns exist.

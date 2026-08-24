@@ -30,16 +30,12 @@ interface QuizRoomProps {
   onAttemptRecorded?: () => void;
   openCreateQuizModal: (mode?: 'upload' | 'manual') => void;
   examsRefreshKey?: number;
-  autoStartExamId?: string | null;
-  onAutoStartHandled?: () => void;
 }
 
 export const QuizRoom: React.FC<QuizRoomProps> = ({
   onAttemptRecorded,
   openCreateQuizModal,
   examsRefreshKey,
-  autoStartExamId,
-  onAutoStartHandled,
 }) => {
   const [exams, setExams] = useState<QuizExam[]>([]);
   const [selectedExam, setSelectedExam] = useState<QuizExam | null>(null);
@@ -119,16 +115,6 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
     setPendingPasswordExam(null);
     handleStartExam(exam);
   };
-
-  // Deep-link entry point — e.g. clicking an exam from the "Kho đề thi kiểm tra" library
-  useEffect(() => {
-    if (!autoStartExamId || examState !== 'lobby') return;
-    const exam = exams.find((e) => e.id === autoStartExamId);
-    if (exam) {
-      handleRequestStartExam(exam);
-      onAutoStartHandled?.();
-    }
-  }, [autoStartExamId, exams, examState]);
 
   // Select answer for question
   const handleSelectOption = (questionId: string, optionId: string) => {

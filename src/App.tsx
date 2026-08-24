@@ -49,14 +49,6 @@ export default function App() {
   const [isCreateQuizModalOpen, setIsCreateQuizModalOpen] = useState(false);
   const [quizCreatorInitialMode, setQuizCreatorInitialMode] = useState<'upload' | 'manual'>('upload');
 
-  // Deep-link: opening an exam from the "Kho đề thi kiểm tra" library jumps to the Quiz Room tab
-  // and asks it to auto-start that specific exam.
-  const [autoStartExamId, setAutoStartExamId] = useState<string | null>(null);
-  const handleOpenExamFromLibrary = (examId: string) => {
-    setAutoStartExamId(examId);
-    setActiveTab('quiz');
-  };
-
   const openCreateQuizModal = (mode?: 'upload' | 'manual') => {
     setQuizCreatorInitialMode(mode === 'manual' ? 'manual' : 'upload');
     setIsCreateQuizModalOpen(true);
@@ -634,8 +626,6 @@ export default function App() {
         {/* ============================================================ */}
         {activeTab === 'offline' && (
           <ExamLibrary
-            examsRefreshKey={examsRefreshKey}
-            onOpenExam={handleOpenExamFromLibrary}
             isOffline={isOffline}
             onSelectArticle={(art) => {
               selectArticle(art);
@@ -652,8 +642,6 @@ export default function App() {
           <QuizRoom
             openCreateQuizModal={openCreateQuizModal}
             examsRefreshKey={examsRefreshKey}
-            autoStartExamId={autoStartExamId}
-            onAutoStartHandled={() => setAutoStartExamId(null)}
             onAttemptRecorded={() => {
               // triggers state update
             }}
