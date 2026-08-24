@@ -85,7 +85,7 @@ create table if not exists exam_documents (
   id text primary key,
   title text not null,
   grade int,
-  semester int,
+  semester text,
   category text,
   description text,
   file_url text not null,
@@ -159,3 +159,9 @@ alter table quiz_exams add column if not exists school_name text;
 alter table quiz_exams add column if not exists class_name text;
 alter table quiz_exams add column if not exists room_password text;
 alter table quiz_exams add column if not exists grade int;
+
+-- Migration: exam_documents.semester started as an int (1/2) but now also needs to hold
+-- "Giữa kỳ" — switch it to text and relabel the existing HK1/HK2 rows.
+alter table exam_documents alter column semester type text using semester::text;
+update exam_documents set semester = 'Học kỳ 1' where semester = '1';
+update exam_documents set semester = 'Học kỳ 2' where semester = '2';

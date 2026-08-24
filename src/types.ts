@@ -101,7 +101,7 @@ export interface ExamDocument {
   id: string;
   title: string;
   grade?: number;
-  semester?: number;
+  semester?: string;
   category?: string;
   description?: string;
   fileUrl: string;

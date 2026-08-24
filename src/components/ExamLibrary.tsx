@@ -61,7 +61,7 @@ const UploadExamFileModal: React.FC<UploadModalProps> = ({ defaultGrade, onClose
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [grade, setGrade] = useState(defaultGrade ? String(defaultGrade) : '');
-  const [semester, setSemester] = useState('1');
+  const [semester, setSemester] = useState('Học kỳ 1');
   const [isUploading, setIsUploading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -94,7 +94,7 @@ const UploadExamFileModal: React.FC<UploadModalProps> = ({ defaultGrade, onClose
         id: `doc-${Date.now()}`,
         title: title.trim(),
         grade: grade ? Number(grade) : undefined,
-        semester: semester ? Number(semester) : undefined,
+        semester: semester || undefined,
         fileUrl,
         fileName,
         fileType,
@@ -171,8 +171,9 @@ const UploadExamFileModal: React.FC<UploadModalProps> = ({ defaultGrade, onClose
               onChange={(e) => setSemester(e.target.value)}
               className="w-full bg-slate-800 border border-slate-600 focus:border-cyan-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none"
             >
-              <option value="1">Học kỳ 1</option>
-              <option value="2">Học kỳ 2</option>
+              <option value="Giữa kỳ">Giữa kỳ</option>
+              <option value="Học kỳ 1">Học kỳ 1</option>
+              <option value="Học kỳ 2">Học kỳ 2</option>
             </select>
           </div>
         </div>
