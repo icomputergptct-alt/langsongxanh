@@ -669,46 +669,46 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
           )}
 
           {/* General Metadata Config */}
-          <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-5 space-y-4">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          <div className="bg-slate-800/70 border border-slate-700 rounded-2xl p-5 space-y-4">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
               Thông Tin Tổng Quan Đề Thi
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Tên Đề Thi</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Tên Đề Thi</label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Nhập tên đề thi..."
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none"
+                  className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-400 mb-1">Thời gian (phút)</label>
+                  <label className="block text-[11px] font-medium text-slate-300 mb-1">Thời gian (phút)</label>
                   <input
                     type="number"
                     min={1}
                     max={180}
                     value={durationMinutes}
                     onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2 py-2 text-xs text-slate-200 focus:outline-none"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-2 text-xs text-slate-100 focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-400 mb-1">Điểm đạt (%)</label>
+                  <label className="block text-[11px] font-medium text-slate-300 mb-1">Điểm đạt (%)</label>
                   <input
                     type="number"
                     min={10}
                     max={100}
                     value={passScorePercent}
                     onChange={(e) => setPassScorePercent(Number(e.target.value))}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-2 py-2 text-xs text-slate-200 focus:outline-none"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-2 text-xs text-slate-100 focus:outline-none"
                   />
                 </div>
               </div>
@@ -716,46 +716,46 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Tên Trường</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Tên Trường</label>
                 <input
                   type="text"
                   value={schoolName}
                   onChange={(e) => setSchoolName(e.target.value)}
                   placeholder="VD: THCS Nguyễn Du..."
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none"
+                  className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Tên Giáo Viên</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Tên Giáo Viên</label>
                 <input
                   type="text"
                   value={teacherName}
                   onChange={(e) => setTeacherName(e.target.value)}
                   placeholder="VD: Nguyễn Văn A..."
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none"
+                  className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Lớp</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Lớp</label>
                 <input
                   type="text"
                   value={className}
                   onChange={(e) => setClassName(e.target.value)}
                   placeholder="VD: 9A1..."
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none"
+                  className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Mật Mã Phòng Thi</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Mật Mã Phòng Thi</label>
                 <input
                   type="text"
                   value={roomPassword}
                   onChange={(e) => setRoomPassword(e.target.value)}
                   placeholder="Để trống nếu không cần mật mã"
-                  className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none"
+                  className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
                 />
               </div>
             </div>
