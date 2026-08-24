@@ -141,19 +141,6 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           <button
-            id="tab-news-btn"
-            onClick={() => setActiveTab('news')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
-              activeTab === 'news'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <span>Bảng Điều Khiển & Bài Viết</span>
-          </button>
-
-          <button
             id="tab-offline-btn"
             onClick={() => setActiveTab('offline')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all relative ${
@@ -171,6 +158,19 @@ export const Header: React.FC<HeaderProps> = ({
                 {savedOfflineCount}
               </span>
             )}
+          </button>
+
+          <button
+            id="tab-news-btn"
+            onClick={() => setActiveTab('news')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+              activeTab === 'news'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Bảng Điều Khiển & Bài Viết</span>
           </button>
 
           <button
