@@ -119,7 +119,7 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
               <h2 className="text-sm sm:text-base font-extrabold text-slate-900 mb-4">
                 Đề thi, đề kiểm tra nổi bật
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3">
                 {GRADE_THEMES.map((theme, idx) => {
                   const g = idx + 1;
                   const isActive = gradeFilter === g;
@@ -128,19 +128,19 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
                     <button
                       key={g}
                       onClick={() => setGradeFilter(isActive ? null : g)}
-                      className={`group flex flex-col items-center gap-2.5 p-4 rounded-2xl border-2 transition-all ${
+                      className={`group flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
                         isActive
                           ? 'border-cyan-500 bg-cyan-50 shadow-md'
                           : 'border-slate-100 bg-slate-50 hover:border-slate-200 hover:bg-white hover:shadow-md'
                       }`}
                     >
                       <div
-                        className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${theme.from} ${theme.to} flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}
+                        className={`w-9 h-9 rounded-xl bg-gradient-to-br ${theme.from} ${theme.to} flex items-center justify-center shadow-md group-hover:scale-105 transition-transform`}
                       >
-                        <Icon className="w-7 h-7 text-white" strokeWidth={2} />
+                        <Icon className="w-5 h-5 text-white" strokeWidth={2} />
                       </div>
-                      <span className={`text-xs sm:text-sm font-bold ${isActive ? 'text-cyan-700' : 'text-slate-700'}`}>
-                        Đề thi lớp {g}
+                      <span className={`text-[11px] sm:text-xs font-bold ${isActive ? 'text-cyan-700' : 'text-slate-700'}`}>
+                        Lớp {g}
                       </span>
                     </button>
                   );
