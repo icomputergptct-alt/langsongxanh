@@ -4,8 +4,9 @@ import {
   Wifi, 
   WifiOff, 
   Search, 
-  DownloadCloud, 
-  GraduationCap, 
+  DownloadCloud,
+  FileText,
+  GraduationCap,
   PlusCircle, 
   BarChart3, 
   Wrench, 
@@ -161,7 +162,7 @@ export const Header: React.FC<HeaderProps> = ({
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
-            <DownloadCloud className="w-4 h-4" />
+            <FileText className="w-4 h-4" />
             <span>Kho đề thi kiểm tra</span>
             {savedOfflineCount > 0 && (
               <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${

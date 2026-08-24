@@ -52,6 +52,7 @@ create table if not exists quiz_exams (
   school_name text,
   class_name text,
   room_password text,
+  grade int,
   participants_count int not null default 0,
   average_score numeric not null default 0,
   source_file text,
@@ -117,3 +118,4 @@ create policy "public write exam_attempts" on exam_attempts for insert with chec
 alter table quiz_exams add column if not exists school_name text;
 alter table quiz_exams add column if not exists class_name text;
 alter table quiz_exams add column if not exists room_password text;
+alter table quiz_exams add column if not exists grade int;

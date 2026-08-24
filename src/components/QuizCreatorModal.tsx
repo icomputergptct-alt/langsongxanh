@@ -91,6 +91,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   const [teacherName, setTeacherName] = useState('');
   const [className, setClassName] = useState('');
   const [roomPassword, setRoomPassword] = useState('');
+  const [grade, setGrade] = useState('');
 
   // File upload state
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -411,6 +412,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
       schoolName: schoolName.trim() || undefined,
       className: className.trim() || undefined,
       roomPassword: roomPassword.trim() || undefined,
+      grade: grade ? Number(grade) : undefined,
       participantsCount: 0,
       averageScore: 0,
       sourceFile: uploadedFile?.name,
@@ -714,7 +716,21 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-1">
+              <div>
+                <label className="block text-xs font-medium text-slate-200 mb-1">Khối Lớp</label>
+                <select
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-600 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none"
+                >
+                  <option value="">Không chọn</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((g) => (
+                    <option key={g} value={g}>Lớp {g}</option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-xs font-medium text-slate-200 mb-1">Tên Trường</label>
                 <input

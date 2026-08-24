@@ -88,6 +88,7 @@ export interface QuizExam {
   schoolName?: string;
   className?: string;
   roomPassword?: string;
+  grade?: number;
   participantsCount: number;
   averageScore: number;
   sourceFile?: string;

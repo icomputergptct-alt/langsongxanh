@@ -22,7 +22,7 @@ import {
 import { Header } from './components/Header';
 import { ArticleCard } from './components/ArticleCard';
 import { ArticleDetail } from './components/ArticleDetail';
-import { OfflineLibrary } from './components/OfflineLibrary';
+import { ExamLibrary } from './components/ExamLibrary';
 import { QuizRoom } from './components/QuizRoom';
 import { QuizCreatorModal } from './components/QuizCreatorModal';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -48,6 +48,14 @@ export default function App() {
   // Modal
   const [isCreateQuizModalOpen, setIsCreateQuizModalOpen] = useState(false);
   const [quizCreatorInitialMode, setQuizCreatorInitialMode] = useState<'upload' | 'manual'>('upload');
+
+  // Deep-link: opening an exam from the "Kho đề thi kiểm tra" library jumps to the Quiz Room tab
+  // and asks it to auto-start that specific exam.
+  const [autoStartExamId, setAutoStartExamId] = useState<string | null>(null);
+  const handleOpenExamFromLibrary = (examId: string) => {
+    setAutoStartExamId(examId);
+    setActiveTab('quiz');
+  };
 
   const openCreateQuizModal = (mode?: 'upload' | 'manual') => {
     setQuizCreatorInitialMode(mode === 'manual' ? 'manual' : 'upload');
@@ -622,10 +630,12 @@ export default function App() {
         )}
 
         {/* ============================================================ */}
-        {/* TAB 2: OFFLINE LIBRARY                                       */}
+        {/* TAB 2: EXAM LIBRARY ("Kho đề thi kiểm tra")                  */}
         {/* ============================================================ */}
         {activeTab === 'offline' && (
-          <OfflineLibrary
+          <ExamLibrary
+            examsRefreshKey={examsRefreshKey}
+            onOpenExam={handleOpenExamFromLibrary}
             isOffline={isOffline}
             onSelectArticle={(art) => {
               selectArticle(art);
@@ -642,6 +652,8 @@ export default function App() {
           <QuizRoom
             openCreateQuizModal={openCreateQuizModal}
             examsRefreshKey={examsRefreshKey}
+            autoStartExamId={autoStartExamId}
+            onAutoStartHandled={() => setAutoStartExamId(null)}
             onAttemptRecorded={() => {
               // triggers state update
             }}
