@@ -162,7 +162,7 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <DownloadCloud className="w-4 h-4" />
-            <span>Kho Đọc Ngoại Tuyến</span>
+            <span>Kho đề thi kiểm tra</span>
             {savedOfflineCount > 0 && (
               <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
                 activeTab === 'offline' ? 'bg-white text-blue-600' : 'bg-blue-500 text-white'
