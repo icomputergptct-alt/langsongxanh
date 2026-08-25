@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { 
   GraduationCap, 
   Clock, 
@@ -8,8 +8,7 @@ import {
   Flag, 
   ChevronLeft, 
   ChevronRight, 
-  RotateCcw, 
-  Check, 
+  Check,
   Layers, 
   Sparkles, 
   BarChart2, 
@@ -17,7 +16,6 @@ import {
   Play,
   ArrowLeft,
   Users,
-  Search,
   CheckCircle,
   Keyboard,
   Lock
@@ -30,20 +28,26 @@ interface QuizRoomProps {
   onAttemptRecorded?: () => void;
   openCreateQuizModal: (mode?: 'upload' | 'manual') => void;
   examsRefreshKey?: number;
+  globalSearchQuery?: string;
+  initialExamId?: string;
+  onInitialExamConsumed?: () => void;
 }
+
+// Ignore spacing differences ("2024 - 2025" vs "2024-2025") so the global search bar
+// still matches a school year regardless of how the user typed the dash.
+const normalizeForSearch = (s: string) => s.toLowerCase().replace(/\s+/g, '');
 
 export const QuizRoom: React.FC<QuizRoomProps> = ({
   onAttemptRecorded,
   openCreateQuizModal,
   examsRefreshKey,
+  globalSearchQuery,
+  initialExamId,
+  onInitialExamConsumed,
 }) => {
   const [exams, setExams] = useState<QuizExam[]>([]);
   const [selectedExam, setSelectedExam] = useState<QuizExam | null>(null);
   const [examState, setExamState] = useState<'lobby' | 'testing' | 'result'>('lobby');
-  
-  // Search & Filter
-  const [searchFilter, setSearchFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('Tất cả');
 
   // Active testing state
   const [currentQIndex, setCurrentQIndex] = useState(0);
@@ -55,15 +59,28 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
   const [lastAttempt, setLastAttempt] = useState<ExamAttempt | null>(null);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'wrong' | 'flagged'>('all');
 
-  // Password gate — set when a student picks an exam that requires a room password
-  const [pendingPasswordExam, setPendingPasswordExam] = useState<QuizExam | null>(null);
+  // Entry gate — shown for every exam so the student can see the room's
+  // school/grade/class and enter their name before starting; the password
+  // field only appears when the room actually has one.
+  const [pendingEntryExam, setPendingEntryExam] = useState<QuizExam | null>(null);
+  const [studentName, setStudentName] = useState('');
+  const [studentNameError, setStudentNameError] = useState(false);
   const [passwordAttempt, setPasswordAttempt] = useState('');
   const [passwordError, setPasswordError] = useState(false);
+  const [isCheckingEntry, setIsCheckingEntry] = useState(false);
+  const [alreadyTookError, setAlreadyTookError] = useState(false);
 
   // Reload exams when the component mounts, and again whenever a new exam is published
   // (App.tsx bumps examsRefreshKey after a successful create, even if this tab never unmounted).
+  // There's no background server, so expired rooms are archived to a PDF lazily —
+  // whenever anyone opens the Quiz Room — rather than at the exact deadline.
   useEffect(() => {
-    storageService.getExams().then(setExams).catch((err) => console.error('Không tải được đề thi:', err));
+    storageService
+      .archiveExpiredExams()
+      .catch((err) => console.error('Không lưu trữ được đề thi hết hạn:', err))
+      .finally(() => {
+        storageService.getExams().then(setExams).catch((err) => console.error('Không tải được đề thi:', err));
+      });
   }, [examsRefreshKey]);
 
   // Countdown timer during test
@@ -94,26 +111,57 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
     setExamState('testing');
   };
 
-  // Entry point from the exam list — gate behind a password prompt if the room has one
+  // Entry point from the exam list — always collect the student's name (and a
+  // room password too, if the room has one) before starting. Whether they've
+  // already taken this exam is checked against exam_attempts once they type
+  // their name in, since there's no account to check against up front.
   const handleRequestStartExam = (exam: QuizExam) => {
-    if (exam.roomPassword) {
-      setPendingPasswordExam(exam);
-      setPasswordAttempt('');
-      setPasswordError(false);
-      return;
-    }
-    handleStartExam(exam);
+    setPendingEntryExam(exam);
+    setStudentName('');
+    setStudentNameError(false);
+    setPasswordAttempt('');
+    setPasswordError(false);
+    setAlreadyTookError(false);
   };
 
-  const handleConfirmPassword = () => {
-    if (!pendingPasswordExam) return;
-    if (passwordAttempt.trim() !== pendingPasswordExam.roomPassword) {
+  // Jumping in from a global search result — auto-open the matching exam once
+  // its data has loaded, but only once per mount (a later exams refetch shouldn't
+  // yank the user back in if they've already returned to the lobby).
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (!initialExamId || autoStartedRef.current || exams.length === 0) return;
+    const match = exams.find((e) => e.id === initialExamId);
+    if (match) {
+      autoStartedRef.current = true;
+      handleRequestStartExam(match);
+      onInitialExamConsumed?.();
+    }
+  }, [initialExamId, exams]);
+
+  const handleConfirmEntry = async () => {
+    if (!pendingEntryExam) return;
+    if (!studentName.trim()) {
+      setStudentNameError(true);
+      return;
+    }
+    if (pendingEntryExam.roomPassword && passwordAttempt.trim() !== pendingEntryExam.roomPassword) {
       setPasswordError(true);
       return;
     }
-    const exam = pendingPasswordExam;
-    setPendingPasswordExam(null);
-    handleStartExam(exam);
+    setAlreadyTookError(false);
+    setIsCheckingEntry(true);
+    try {
+      const alreadyTook = await storageService.hasStudentCompletedExam(pendingEntryExam.id, studentName);
+      if (alreadyTook) {
+        setAlreadyTookError(true);
+        return;
+      }
+      const exam = pendingEntryExam;
+      setPendingEntryExam(null);
+      handleStartExam(exam);
+    } finally {
+      setIsCheckingEntry(false);
+    }
   };
 
   // Select answer for question
@@ -168,7 +216,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
       examId: selectedExam.id,
       examTitle: selectedExam.title,
       userId: 'user-current',
-      userName: 'Đặng Tuấn Anh',
+      userName: studentName.trim() || 'Thí sinh ẩn danh',
       userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
       userRole: 'Kỹ sư Phần mềm',
       score: correctCount,
@@ -213,15 +261,17 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Filtered exams for lobby
+  // Filtered exams for lobby — filtering now happens only via the global search
+  // bar in the Header (see globalSearchQuery), not a local search/category bar.
+  const globalSearchTerm = normalizeForSearch(globalSearchQuery || '');
   const filteredExams = exams.filter((ex) => {
-    const matchSearch = ex.title.toLowerCase().includes(searchFilter.toLowerCase()) ||
-      ex.description.toLowerCase().includes(searchFilter.toLowerCase());
-    const matchCategory = categoryFilter === 'Tất cả' || ex.category === categoryFilter;
-    return matchSearch && matchCategory;
+    if (!globalSearchTerm) return true;
+    return normalizeForSearch(
+      [ex.title, ex.description, ex.schoolYear, ex.schoolName, ex.className, ex.grade && `khối ${ex.grade}`]
+        .filter(Boolean)
+        .join(' ')
+    ).includes(globalSearchTerm);
   });
-
-  const categories = ['Tất cả', ...Array.from(new Set(exams.map((e) => e.category)))];
 
   // ----------------------------------------------------
   // VIEW 1: LOBBY (Danh sách phòng thi)
@@ -270,35 +320,6 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
             </div>
           </div>
 
-          {/* Filters & Search */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-200">
-            <div className="relative w-full sm:max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
-                placeholder="Tìm kiếm đề thi theo chủ đề, từ khóa..."
-                className="w-full bg-white border border-slate-200 focus:border-cyan-500 rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm text-slate-800 placeholder-slate-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto scrollbar-none">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setCategoryFilter(cat)}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
-                    categoryFilter === cat
-                      ? 'bg-cyan-600 text-white'
-                      : 'bg-white hover:bg-slate-100 text-slate-500 border border-slate-200'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Exams Grid */}
@@ -337,9 +358,11 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                 </p>
 
                 {/* School / Teacher / Class meta, if provided */}
-                {(exam.schoolName || exam.className) && (
+                {(exam.schoolName || exam.className || exam.authorName) && (
                   <p className="text-[11px] text-slate-400 mb-2">
-                    {[exam.schoolName, exam.className && `Lớp ${exam.className}`].filter(Boolean).join(' · ')}
+                    {[exam.schoolName, exam.className && `Lớp ${exam.className}`, exam.authorName && `GV: ${exam.authorName}`]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </p>
                 )}
               </div>
@@ -379,54 +402,96 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
           ))}
         </div>
 
-        {/* Room Password Gate */}
-        {pendingPasswordExam && (
+        {/* Exam Entry Gate — shows the room's school/grade/class and collects the
+            student's name (plus a password, if the room has one) before starting */}
+        {pendingEntryExam && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white border border-slate-300 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
               <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-600 border border-cyan-500/30 flex items-center justify-center mx-auto">
-                <Lock className="w-6 h-6" />
+                {pendingEntryExam.roomPassword ? <Lock className="w-6 h-6" /> : <Play className="w-6 h-6 fill-current" />}
               </div>
 
               <div className="text-center">
-                <h3 className="text-lg font-bold text-slate-900">Phòng Thi Có Mật Mã</h3>
-                <p className="text-xs text-slate-500 mt-1 line-clamp-1">{pendingPasswordExam.title}</p>
+                <h3 className="text-lg font-bold text-slate-900">Thông Tin Thí Sinh</h3>
+                <p className="text-xs text-slate-500 mt-1 line-clamp-1">{pendingEntryExam.title}</p>
+                {(pendingEntryExam.schoolName || pendingEntryExam.grade || pendingEntryExam.className) && (
+                  <p className="text-[11px] text-cyan-700 font-semibold mt-1">
+                    {[
+                      pendingEntryExam.schoolName,
+                      pendingEntryExam.grade && `Khối ${pendingEntryExam.grade}`,
+                      pendingEntryExam.className && `Lớp ${pendingEntryExam.className}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                )}
               </div>
 
               <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Họ và Tên</label>
                 <input
                   type="text"
                   autoFocus
-                  value={passwordAttempt}
+                  value={studentName}
                   onChange={(e) => {
-                    setPasswordAttempt(e.target.value);
-                    setPasswordError(false);
+                    setStudentName(e.target.value.toUpperCase());
+                    setStudentNameError(false);
                   }}
-                  onKeyDown={(e) => e.key === 'Enter' && handleConfirmPassword()}
-                  placeholder="Nhập mật mã phòng thi..."
-                  className={`w-full bg-slate-50 border rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none ${
-                    passwordError ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-cyan-500'
+                  onKeyDown={(e) => e.key === 'Enter' && !pendingEntryExam.roomPassword && handleConfirmEntry()}
+                  placeholder="Nhập họ và tên của bạn..."
+                  className={`w-full bg-slate-50 border rounded-xl px-3 py-2.5 text-sm text-slate-800 uppercase focus:outline-none ${
+                    studentNameError ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-cyan-500'
                   }`}
                 />
-                {passwordError && (
-                  <p className="text-xs text-rose-600 font-semibold mt-1.5">Sai mật mã phòng thi. Vui lòng thử lại.</p>
+                {studentNameError && (
+                  <p className="text-xs text-rose-600 font-semibold mt-1.5">Vui lòng nhập họ và tên trước khi vào phòng thi.</p>
                 )}
               </div>
+
+              {pendingEntryExam.roomPassword && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Mật Mã Phòng Thi</label>
+                  <input
+                    type="text"
+                    value={passwordAttempt}
+                    onChange={(e) => {
+                      setPasswordAttempt(e.target.value);
+                      setPasswordError(false);
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleConfirmEntry()}
+                    placeholder="Nhập mật mã phòng thi..."
+                    className={`w-full bg-slate-50 border rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none ${
+                      passwordError ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-cyan-500'
+                    }`}
+                  />
+                  {passwordError && (
+                    <p className="text-xs text-rose-600 font-semibold mt-1.5">Sai mật mã phòng thi. Vui lòng thử lại.</p>
+                  )}
+                </div>
+              )}
+
+              {alreadyTookError && (
+                <p className="text-xs text-rose-600 font-semibold bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+                  Thí sinh "{studentName.trim()}" đã nộp bài đề thi này rồi, không thể vào lại phòng thi.
+                </p>
+              )}
 
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => setPendingPasswordExam(null)}
+                  onClick={() => setPendingEntryExam(null)}
                   className="flex-1 text-xs font-semibold text-slate-500 hover:text-slate-800 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="button"
-                  onClick={handleConfirmPassword}
-                  className="flex-1 flex items-center justify-center gap-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold py-2.5 rounded-xl shadow-md transition-colors"
+                  onClick={handleConfirmEntry}
+                  disabled={isCheckingEntry}
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60 text-white text-xs font-bold py-2.5 rounded-xl shadow-md transition-colors"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Vào Phòng Thi</span>
+                  <span>{isCheckingEntry ? 'Đang kiểm tra...' : 'Vào Phòng Thi'}</span>
                 </button>
               </div>
             </div>
@@ -670,6 +735,31 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
               </div>
 
             </div>
+
+            {/* Student & Room Info */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xl">
+              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500 mb-3">
+                Thông Tin Thí Sinh
+              </h4>
+              <div className="space-y-2 text-xs text-slate-600">
+                <div className="flex justify-between gap-2">
+                  <span className="text-slate-400">Họ và tên</span>
+                  <strong className="text-slate-800 text-right">{studentName || 'Chưa cung cấp'}</strong>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-slate-400">Trường</span>
+                  <strong className="text-slate-800 text-right">{selectedExam.schoolName || 'Chưa cung cấp'}</strong>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-slate-400">Khối</span>
+                  <strong className="text-slate-800 text-right">{selectedExam.grade ? `Khối ${selectedExam.grade}` : 'Chưa cung cấp'}</strong>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-slate-400">Lớp</span>
+                  <strong className="text-slate-800 text-right">{selectedExam.className || 'Chưa cung cấp'}</strong>
+                </div>
+              </div>
+            </div>
           </div>
 
         </div>
@@ -810,15 +900,27 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
           </p>
 
           {/* Big Score KPI */}
-          <div className="inline-flex items-baseline gap-2 bg-slate-50/80 border border-slate-200 px-6 py-3 rounded-2xl mb-6">
-            <span className={`text-4xl sm:text-5xl font-black ${
-              lastAttempt.passed ? 'text-emerald-600' : 'text-rose-600'
-            }`}>
-              {lastAttempt.percentage}%
-            </span>
-            <span className="text-xs text-slate-500 font-semibold">
-              ({lastAttempt.score} / {lastAttempt.maxScore} câu đúng)
-            </span>
+          <div className="inline-flex flex-col items-center gap-3 bg-slate-50/80 border border-slate-200 px-6 py-4 rounded-2xl mb-6">
+            <div className="inline-flex items-baseline gap-2">
+              <span className={`text-4xl sm:text-5xl font-black ${
+                lastAttempt.passed ? 'text-emerald-600' : 'text-rose-600'
+              }`}>
+                {lastAttempt.percentage}%
+              </span>
+              <span className="text-xs text-slate-500 font-semibold">
+                ({lastAttempt.score} / {lastAttempt.maxScore} câu đúng)
+              </span>
+            </div>
+            <div className="inline-flex items-baseline gap-2">
+              <span className={`text-4xl sm:text-5xl font-black ${
+                lastAttempt.passed ? 'text-emerald-600' : 'text-rose-600'
+              }`}>
+                {(lastAttempt.percentage / 10).toFixed(1).replace('.', ',')}
+              </span>
+              <span className="text-xs text-slate-500 font-semibold">
+                Tổng điểm (thang 10)
+              </span>
+            </div>
           </div>
 
           {/* Stats Bar */}
@@ -845,14 +947,6 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
 
           {/* Action buttons */}
           <div className="flex flex-wrap items-center justify-center gap-3 mt-6 pt-6 border-t border-slate-200/80">
-            <button
-              onClick={() => handleStartExam(selectedExam)}
-              className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-300 transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Thi Lại Đề Này</span>
-            </button>
-
             <button
               onClick={() => setExamState('lobby')}
               className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-lg transition-colors"

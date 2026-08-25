@@ -33,7 +33,13 @@ interface ExamLibraryProps {
   onSelectArticle: (article: Article) => void;
   isOffline: boolean;
   onRefreshSavedCount: () => void;
+  refreshKey?: number;
+  globalSearchQuery?: string;
 }
+
+// Ignore spacing differences ("2024 - 2025" vs "2024-2025") so the global search bar
+// still matches a school year regardless of how the user typed the dash.
+const normalizeForSearch = (s: string) => s.toLowerCase().replace(/\s+/g, '');
 
 const GRADE_THEMES = [
   { icon: Clock, from: 'from-sky-400', to: 'to-blue-600' },
@@ -199,7 +205,7 @@ interface ViewerModalProps {
   onClose: () => void;
 }
 
-const ExamDocumentViewerModal: React.FC<ViewerModalProps> = ({ doc, onClose }) => {
+export const ExamDocumentViewerModal: React.FC<ViewerModalProps> = ({ doc, onClose }) => {
   const [html, setHtml] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [isLoading, setIsLoading] = useState(doc.fileType === 'docx');
@@ -277,6 +283,8 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
   onSelectArticle,
   isOffline,
   onRefreshSavedCount,
+  refreshKey,
+  globalSearchQuery,
 }) => {
   const [view, setView] = useState<'exams' | 'offline-articles'>('exams');
   const [docs, setDocs] = useState<ExamDocument[]>([]);
@@ -290,10 +298,18 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
 
   useEffect(() => {
     loadDocs();
-  }, []);
+  }, [refreshKey]);
 
+  const searchTerm = normalizeForSearch(globalSearchQuery || '');
   const newestDocs = [...docs]
     .filter((d) => (gradeFilter ? d.grade === gradeFilter : true))
+    .filter((d) => {
+      if (!searchTerm) return true;
+      const haystack = normalizeForSearch(
+        [d.title, d.schoolYear, d.className, d.grade && `khối ${d.grade}`].filter(Boolean).join(' ')
+      );
+      return haystack.includes(searchTerm);
+    })
     .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
 
   const mostViewed = [...docs].sort((a, b) => b.views - a.views).slice(0, 5);
@@ -407,7 +423,11 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
 
               {newestDocs.length === 0 ? (
                 <p className="text-xs text-slate-500 py-6 text-center">
-                  {gradeFilter ? `Chưa có đề thi nào cho Lớp ${gradeFilter}.` : 'Chưa có đề thi nào được tải lên.'}
+                  {searchTerm
+                    ? `Không tìm thấy tài liệu nào khớp với "${globalSearchQuery}".`
+                    : gradeFilter
+                    ? `Chưa có đề thi nào cho Lớp ${gradeFilter}.`
+                    : 'Chưa có đề thi nào được tải lên.'}
                 </p>
               ) : (
                 <ul className="divide-y divide-slate-100">

@@ -18,7 +18,8 @@ import {
   Layers,
   FileCheck,
   ImagePlus,
-  ImageOff
+  ImageOff,
+  Save
 } from 'lucide-react';
 import { QuizExam, QuizQuestion, QuizOption } from '../types';
 import { storageService } from '../services/storageService';
@@ -28,7 +29,16 @@ interface QuizCreatorModalProps {
   onClose: () => void;
   onExamCreated: (exam: QuizExam) => void;
   authorId?: string;
-  authorEmail?: string;
+  authorName?: string;
+  schoolName?: string;
+  editingExam?: QuizExam | null;
+}
+
+// <input type="datetime-local"> needs "YYYY-MM-DDTHH:mm" in local time, not a full ISO string.
+function toDatetimeLocalValue(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 const SAMPLE_QUIZ_TEXT = `1. Trong kiến trúc microservices hiện đại, pattern nào giúp duy trì tính nhất quán dữ liệu giữa các dịch vụ phân tán?
@@ -80,22 +90,24 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   onClose,
   onExamCreated,
   authorId,
-  authorEmail,
+  authorName,
+  schoolName,
+  editingExam,
 }) => {
-  const [activeMode, setActiveMode] = useState<'upload' | 'ai-prompt' | 'manual'>(initialMode);
-  
+  const [activeMode, setActiveMode] = useState<'upload' | 'ai-prompt' | 'manual'>(editingExam ? 'manual' : initialMode);
+
   // Exam metadata
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('Bộ đề thi trắc nghiệm chuyên sâu kiểm tra kiến thức công nghệ.');
-  const [category, setCategory] = useState('Trí tuệ Nhân tạo');
-  const [difficulty, setDifficulty] = useState<'Cơ bản' | 'Trung bình' | 'Nâng cao' | 'Chuyên gia'>('Trung bình');
-  const [durationMinutes, setDurationMinutes] = useState(15);
-  const [passScorePercent, setPassScorePercent] = useState(70);
-  const [schoolName, setSchoolName] = useState('');
-  const [teacherName, setTeacherName] = useState('');
-  const [className, setClassName] = useState('');
-  const [roomPassword, setRoomPassword] = useState('');
-  const [grade, setGrade] = useState('');
+  const [title, setTitle] = useState(editingExam?.title || '');
+  const [description, setDescription] = useState(editingExam?.description || 'Bộ đề thi trắc nghiệm chuyên sâu kiểm tra kiến thức công nghệ.');
+  const [category, setCategory] = useState(editingExam?.category || '');
+  const [difficulty, setDifficulty] = useState<'Cơ bản' | 'Trung bình' | 'Nâng cao' | 'Chuyên gia'>(editingExam?.difficulty || 'Trung bình');
+  const [durationMinutes, setDurationMinutes] = useState(editingExam?.durationMinutes ?? 15);
+  const [passScorePercent, setPassScorePercent] = useState(editingExam?.passScorePercent ?? 70);
+  const [className, setClassName] = useState(editingExam?.className || '');
+  const [roomPassword, setRoomPassword] = useState(editingExam?.roomPassword || '');
+  const [grade, setGrade] = useState(editingExam?.grade ? String(editingExam.grade) : '');
+  const [schoolYear, setSchoolYear] = useState(editingExam?.schoolYear || '');
+  const [deadlineAt, setDeadlineAt] = useState(editingExam?.deadlineAt ? toDatetimeLocalValue(editingExam.deadlineAt) : '');
 
   // File upload state
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -109,8 +121,9 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   const [aiTopic, setAiTopic] = useState('Kiến trúc Đám mây AWS & Kubernetes');
   const [aiQuestionCount, setAiQuestionCount] = useState(5);
 
-  // Questions list editor — starts empty; populated once a file/AI/manual source provides real questions
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  // Questions list editor — starts empty (or pre-filled when editing a draft);
+  // otherwise populated once a file/AI/manual source provides real questions
+  const [questions, setQuestions] = useState<QuizQuestion[]>(editingExam?.questions || []);
 
   // Auto-scroll to the newly added question card so teachers don't have to hunt for it
   const lastQuestionRef = useRef<HTMLDivElement | null>(null);
@@ -391,8 +404,10 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
     handleUpdateQuestion(qIndex, 'questionImage', undefined);
   };
 
-  // Final submit & save exam
-  const handleSaveExam = async () => {
+  // Final submit & save exam. publish=false saves as a draft (not shown in the
+  // student-facing Quiz Room list) so the teacher can finish it later from
+  // their profile and publish when ready.
+  const handleSaveExam = async (publish: boolean) => {
     if (!title.trim()) {
       alert('Vui lòng nhập tên đề thi.');
       return;
@@ -402,31 +417,36 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
       return;
     }
 
-    const newExam: QuizExam = {
-      id: `exam-${Date.now()}`,
+    const savedExam: QuizExam = {
+      id: editingExam?.id || `exam-${Date.now()}`,
       title: title.trim(),
       description: description.trim(),
-      category: category,
+      category: category.trim() || 'Chưa phân loại',
       difficulty: difficulty,
       durationMinutes: Number(durationMinutes) || 15,
       passScorePercent: Number(passScorePercent) || 70,
       questions: questions,
-      createdAt: new Date().toISOString(),
-      authorName: authorEmail || teacherName.trim() || 'Quản trị viên / Giảng viên',
-      schoolName: schoolName.trim() || undefined,
+      createdAt: editingExam?.createdAt || new Date().toISOString(),
+      authorName: authorName || 'Quản trị viên / Giảng viên',
+      schoolName: schoolName || undefined,
       className: className.trim() || undefined,
       roomPassword: roomPassword.trim() || undefined,
       grade: grade ? Number(grade) : undefined,
-      participantsCount: 0,
-      averageScore: 0,
-      sourceFile: uploadedFile?.name,
+      schoolYear: schoolYear.trim() || undefined,
+      deadlineAt: deadlineAt ? new Date(deadlineAt).toISOString() : undefined,
+      isDraft: !publish,
+      participantsCount: editingExam?.participantsCount ?? 0,
+      averageScore: editingExam?.averageScore ?? 0,
+      sourceFile: uploadedFile?.name || editingExam?.sourceFile,
       isFeatured: true,
       createdBy: authorId,
     };
 
     try {
-      await storageService.saveExam(newExam);
-      onExamCreated(newExam);
+      await storageService.saveExam(savedExam);
+      if (publish) {
+        onExamCreated(savedExam);
+      }
       onClose();
     } catch (err) {
       console.error('Không lưu được đề thi:', err);
@@ -446,10 +466,12 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-100">
-                Tạo Đề Thi & Phòng Thi Trắc Nghiệm
+                {editingExam ? 'Chỉnh Sửa Đề Thi (Bản Nháp)' : 'Tạo Đề Thi & Phòng Thi Trắc Nghiệm'}
               </h2>
               <p className="text-xs text-slate-400">
-                Nhập từ tệp văn bản đính kèm (.txt, .json, .csv) hoặc biên tập trực tiếp
+                {editingExam
+                  ? 'Chỉnh sửa nội dung rồi lưu nháp tiếp hoặc phát hành để mở phòng thi'
+                  : 'Nhập từ tệp văn bản đính kèm (.txt, .json, .csv) hoặc biên tập trực tiếp'}
               </p>
             </div>
           </div>
@@ -668,9 +690,9 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                 <span>Nhập Câu Hỏi Thủ Công</span>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Nhấn "Thêm câu hỏi" bên dưới để tạo từng câu. Mỗi câu hỏi có thể kèm hình ảnh minh họa —
-                dán trực tiếp ảnh chụp màn hình (Ctrl+V sau khi chụp) vào ô nội dung câu hỏi, hoặc bấm
-                "Thêm ảnh" để chọn tệp ảnh có sẵn.
+                Nhấn "Thêm câu hỏi" bên dưới để tạo từng câu. Mỗi câu hỏi có thể kèm hình ảnh minh họa hay
+                nhấn tổ hợp phím (Windows+Shift+S) để chọn vùng cần chụp sau đó nhấn (Ctrl+V) vào ô nội dung
+                câu hỏi, hoặc bấm "Thêm ảnh" để chọn tệp ảnh có sẵn.
               </p>
             </div>
           )}
@@ -723,6 +745,34 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
 
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-1">
               <div>
+                <label className="block text-xs font-medium text-slate-200 mb-1">Môn Học / Danh Mục</label>
+                <input
+                  type="text"
+                  list="quiz-category-suggestions"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="VD: Ngữ Văn, GDCD, Toán học..."
+                  className="w-full bg-slate-800 border border-slate-600 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none"
+                />
+                <datalist id="quiz-category-suggestions">
+                  <option value="Ngữ Văn" />
+                  <option value="Toán học" />
+                  <option value="Tiếng Anh" />
+                  <option value="GDCD" />
+                  <option value="Tin học" />
+                  <option value="Vật Lý" />
+                  <option value="Hóa Học" />
+                  <option value="Sinh Học" />
+                  <option value="Lịch Sử" />
+                  <option value="Địa Lý" />
+                  <option value="Công Nghệ" />
+                  <option value="Trí tuệ Nhân tạo" />
+                  <option value="An ninh Mạng" />
+                  <option value="Kiến trúc Phần mềm" />
+                </datalist>
+              </div>
+
+              <div>
                 <label className="block text-xs font-medium text-slate-200 mb-1">Khối Lớp</label>
                 <select
                   value={grade}
@@ -734,28 +784,6 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                     <option key={g} value={g}>Lớp {g}</option>
                   ))}
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-200 mb-1">Tên Trường</label>
-                <input
-                  type="text"
-                  value={schoolName}
-                  onChange={(e) => setSchoolName(e.target.value)}
-                  placeholder="VD: THCS Nguyễn Du..."
-                  className="w-full bg-slate-800 border border-slate-600 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-200 mb-1">Tên Giáo Viên</label>
-                <input
-                  type="text"
-                  value={teacherName}
-                  onChange={(e) => setTeacherName(e.target.value)}
-                  placeholder="VD: Nguyễn Văn A..."
-                  className="w-full bg-slate-800 border border-slate-600 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none"
-                />
               </div>
 
               <div>
@@ -779,6 +807,32 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                   className="w-full bg-slate-800 border border-slate-600 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none"
                 />
               </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-200 mb-1">Năm Học</label>
+                <input
+                  type="text"
+                  value={schoolYear}
+                  onChange={(e) => setSchoolYear(e.target.value)}
+                  placeholder="VD: 2025-2026"
+                  className="w-full bg-slate-800 border border-slate-600 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-200 mb-1">
+                Hạn Kết Thúc Phòng Thi
+              </label>
+              <input
+                type="datetime-local"
+                value={deadlineAt}
+                onChange={(e) => setDeadlineAt(e.target.value)}
+                className="w-full sm:w-64 bg-slate-800 border border-slate-600 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Để trống nếu phòng thi không có hạn. Sau thời điểm này, đề thi sẽ tự động chuyển thành tệp PDF và lưu vào Kho đề thi kiểm tra, đồng thời ẩn khỏi Phòng Thi Trắc Nghiệm.
+              </p>
             </div>
           </div>
 
@@ -936,14 +990,26 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
             Hủy bỏ
           </button>
 
-          <button
-            type="button"
-            onClick={handleSaveExam}
-            className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs sm:text-sm font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-cyan-600/20 transition-all hover:scale-[1.02]"
-          >
-            <Check className="w-4 h-4" />
-            <span>Phát Hành & Mở Phòng Thi ({questions.length} câu)</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleSaveExam(false)}
+              title="Lưu lại dưới dạng bản nháp, chưa mở phòng thi — có thể vào Hồ Sơ Giáo Viên để sửa và phát hành sau"
+              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl border border-slate-700 transition-colors"
+            >
+              <Save className="w-4 h-4" />
+              <span>Lưu Nháp</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSaveExam(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs sm:text-sm font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-cyan-600/20 transition-all hover:scale-[1.02]"
+            >
+              <Check className="w-4 h-4" />
+              <span>Phát Hành & Mở Phòng Thi ({questions.length} câu)</span>
+            </button>
+          </div>
         </div>
 
       </div>

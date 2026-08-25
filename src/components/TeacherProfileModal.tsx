@@ -1,0 +1,261 @@
+import React, { useEffect, useState } from 'react';
+import { X, User as UserIcon, Mail, Save, FileText } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { QuizExam, ExamAttempt } from '../types';
+import { storageService } from '../services/storageService';
+
+interface TeacherProfileModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onEditExam: (exam: QuizExam) => void;
+}
+
+export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen, onClose, onEditExam }) => {
+  const { user, profile, updateProfile } = useAuth();
+  const [fullName, setFullName] = useState('');
+  const [schoolName, setSchoolName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [myExams, setMyExams] = useState<QuizExam[]>([]);
+  const [viewingExam, setViewingExam] = useState<QuizExam | null>(null);
+  const [viewingExamAttempts, setViewingExamAttempts] = useState<ExamAttempt[]>([]);
+
+  useEffect(() => {
+    if (isOpen && profile) {
+      setFullName(profile.fullName || '');
+      setSchoolName(profile.schoolName || '');
+      setPhone(profile.phone || '');
+      setSavedMsg(null);
+      setErrorMsg(null);
+    }
+  }, [isOpen, profile]);
+
+  useEffect(() => {
+    if (!isOpen || !user) return;
+    storageService
+      .getAllExamsIncludingArchived()
+      .then((exams) => setMyExams(exams.filter((e) => e.createdBy === user.id)))
+      .catch((err) => console.error('Không tải được danh sách đề thi:', err));
+  }, [isOpen, user]);
+
+  useEffect(() => {
+    if (!viewingExam) return;
+    storageService
+      .getAttempts()
+      .then((attempts) =>
+        setViewingExamAttempts(
+          attempts
+            .filter((a) => a.examId === viewingExam.id)
+            .sort((a, b) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime())
+        )
+      )
+      .catch((err) => console.error('Không tải được lượt thi:', err));
+  }, [viewingExam]);
+
+  if (!isOpen) return null;
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSavedMsg(null);
+    setErrorMsg(null);
+    const { error } = await updateProfile({
+      fullName: fullName.trim(),
+      schoolName: schoolName.trim(),
+      phone: phone.trim(),
+    });
+    setIsSaving(false);
+    if (error) {
+      setErrorMsg(error);
+    } else {
+      setSavedMsg('Đã lưu thông tin hồ sơ.');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20">
+              <UserIcon className="w-4 h-4" />
+            </div>
+            <h2 className="text-base font-bold text-slate-100">Hồ Sơ Giáo Viên</h2>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1">Họ và Tên Giáo Viên</label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="VD: Nguyễn Văn A"
+              className="w-full bg-slate-800 border border-slate-600 focus:border-cyan-500 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1">Tên Trường</label>
+            <input
+              type="text"
+              value={schoolName}
+              onChange={(e) => setSchoolName(e.target.value)}
+              placeholder="VD: THCS Nguyễn Du"
+              className="w-full bg-slate-800 border border-slate-600 focus:border-cyan-500 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1">
+              Địa Chỉ Email (dùng để xác thực và đăng nhập)
+            </label>
+            <div className="relative">
+              <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="email"
+                value={user?.email || ''}
+                readOnly
+                disabled
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-sm text-slate-400 cursor-not-allowed"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1">Số Điện Thoại (không bắt buộc)</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="VD: 0901234567"
+              className="w-full bg-slate-800 border border-slate-600 focus:border-cyan-500 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none"
+            />
+          </div>
+
+          {errorMsg && <p className="text-xs text-rose-400 font-semibold">{errorMsg}</p>}
+          {savedMsg && <p className="text-xs text-emerald-400 font-semibold">{savedMsg}</p>}
+
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="w-full flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-bold py-2.5 rounded-xl shadow-md transition-colors"
+          >
+            <Save className="w-4 h-4" />
+            <span>{isSaving ? 'Đang lưu...' : 'Lưu Thông Tin'}</span>
+          </button>
+
+          <div className="pt-4 border-t border-slate-800">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5" />
+              <span>Đề Thi Đã Tạo ({myExams.length})</span>
+            </h3>
+            {myExams.length === 0 ? (
+              <p className="text-xs text-slate-500 py-4 text-center">Bạn chưa tạo đề thi nào.</p>
+            ) : (
+              <ul className="space-y-2">
+                {myExams.map((exam) => (
+                  <li key={exam.id}>
+                    <button
+                      onClick={() => (exam.isDraft ? onEditExam(exam) : setViewingExam(exam))}
+                      title={exam.isDraft ? 'Tiếp tục chỉnh sửa bản nháp' : 'Xem điểm thí sinh'}
+                      className="w-full bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-cyan-500/50 rounded-xl px-3 py-2 flex items-center justify-between gap-2 text-left transition-colors"
+                    >
+                      <span className="text-xs font-medium text-slate-200 line-clamp-1">{exam.title}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {exam.isDraft && (
+                          <span className="text-[10px] font-bold uppercase text-slate-300 bg-slate-700/60 border border-slate-600 px-1.5 py-0.5 rounded">
+                            Bản nháp
+                          </span>
+                        )}
+                        {exam.isArchived && (
+                          <span className="text-[10px] font-bold uppercase text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
+                            Đã lưu trữ
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Nested: scores of every student who took the selected exam */}
+      {viewingExam && (
+        <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+              <div>
+                <h3 className="text-sm font-bold text-slate-100 line-clamp-1">{viewingExam.title}</h3>
+                <p className="text-xs text-slate-400 mt-0.5">{viewingExamAttempts.length} thí sinh đã làm bài</p>
+              </div>
+              <button
+                onClick={() => setViewingExam(null)}
+                className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1">
+              {viewingExamAttempts.length === 0 ? (
+                <p className="text-xs text-slate-500 text-center py-12">Chưa có thí sinh nào làm đề thi này.</p>
+              ) : (
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0">
+                    <tr>
+                      <th className="py-3 px-4 text-center w-12">STT</th>
+                      <th className="py-3 px-4">Họ và Tên</th>
+                      <th className="py-3 px-4 text-center">Điểm</th>
+                      <th className="py-3 px-4 text-center">Thang 10</th>
+                      <th className="py-3 px-4 text-center">Kết quả</th>
+                      <th className="py-3 px-4">Ngày nộp</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/80">
+                    {viewingExamAttempts.map((attempt, idx) => (
+                      <tr key={attempt.id} className="hover:bg-slate-800/50 transition-colors">
+                        <td className="py-3 px-4 text-center text-slate-500">{idx + 1}</td>
+                        <td className="py-3 px-4 font-medium text-slate-200">{attempt.userName}</td>
+                        <td className="py-3 px-4 text-center font-mono">
+                          {attempt.score}/{attempt.maxScore} ({attempt.percentage}%)
+                        </td>
+                        <td className="py-3 px-4 text-center font-mono font-bold text-slate-100">
+                          {(attempt.percentage / 10).toFixed(1).replace('.', ',')}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                            attempt.passed ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
+                          }`}>
+                            {attempt.passed ? 'ĐẠT' : 'CHƯA ĐẠT'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-400">
+                          {new Date(attempt.completedAt).toLocaleString('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            day: 'numeric',
+                            month: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

@@ -165,3 +165,24 @@ alter table quiz_exams add column if not exists grade int;
 alter table exam_documents alter column semester type text using semester::text;
 update exam_documents set semester = 'Học kỳ 1' where semester = '1';
 update exam_documents set semester = 'Học kỳ 2' where semester = '2';
+
+-- Migration: adds class name (Lớp) and school year (Năm học) to the generic
+-- "Tải lên tài liệu" upload flow, in addition to the existing grade (Khối).
+alter table exam_documents add column if not exists class_name text;
+alter table exam_documents add column if not exists school_year text;
+
+-- Migration: adds school year (Năm học) to quiz_exams so the global search bar
+-- can find both documents and quiz rooms belonging to a given school year.
+alter table quiz_exams add column if not exists school_year text;
+
+-- Migration: adds an optional room deadline. Once it passes, the client-side
+-- lazy archiver (storageService.archiveExpiredExams, run whenever anyone opens
+-- the Quiz Room) converts the exam to a PDF in the document library and flips
+-- is_archived so it no longer shows in the active quiz room list.
+alter table quiz_exams add column if not exists deadline_at timestamptz;
+alter table quiz_exams add column if not exists is_archived boolean not null default false;
+
+-- Migration: draft exams — saved but not published to the student-facing Quiz
+-- Room list yet. The teacher finishes editing later (from their profile) and
+-- publishes when ready.
+alter table quiz_exams add column if not exists is_draft boolean not null default false;

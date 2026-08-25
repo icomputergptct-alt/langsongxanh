@@ -14,7 +14,8 @@ import {
   Cpu,
   UserCircle2,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  UploadCloud
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -26,10 +27,12 @@ interface HeaderProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   openCreateQuizModal: () => void;
+  openUploadDocumentModal: () => void;
   user: User | null;
   isAdmin: boolean;
   onOpenAuth: () => void;
   onSignOut: () => void;
+  onOpenProfile: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -41,10 +44,12 @@ export const Header: React.FC<HeaderProps> = ({
   searchQuery,
   setSearchQuery,
   openCreateQuizModal,
+  openUploadDocumentModal,
   user,
   isAdmin,
   onOpenAuth,
   onSignOut,
+  onOpenProfile,
 }) => {
   return (
     <header id="main-header" className="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 text-slate-100 transition-all">
@@ -54,7 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Logo & Brand - Bento Theme Style */}
           <div 
             id="brand-logo"
-            onClick={() => setActiveTab('news')}
+            onClick={() => setActiveTab('quiz')}
             className="flex items-center gap-2.5 cursor-pointer select-none group"
           >
             <img
@@ -109,6 +114,16 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Tạo Đề Thi từ Tệp</span>
             </button>
 
+            {/* Quick Upload Document button */}
+            <button
+              id="header-upload-doc-btn"
+              onClick={openUploadDocumentModal}
+              className="hidden lg:flex items-center gap-1.5 bg-slate-800/80 hover:bg-slate-800 text-slate-200 text-xs font-bold px-3.5 py-2 rounded-xl border border-slate-700 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <UploadCloud className="w-4 h-4" />
+              <span>Tải Lên Tài Liệu</span>
+            </button>
+
             {/* Offline Simulation Toggle */}
             <button
               id="offline-toggle-btn"
@@ -136,14 +151,21 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Account */}
             {user ? (
               <div className="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700 rounded-xl pl-2.5 pr-1.5 py-1.5">
-                {isAdmin ? (
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                ) : (
-                  <UserCircle2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                )}
-                <span className="hidden sm:inline text-xs font-medium text-slate-300 max-w-[120px] truncate">
-                  {user.email}
-                </span>
+                <button
+                  id="open-profile-btn"
+                  onClick={onOpenProfile}
+                  title="Xem hồ sơ giáo viên"
+                  className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                >
+                  {isAdmin ? (
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  ) : (
+                    <UserCircle2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  )}
+                  <span className="hidden sm:inline text-xs font-medium text-slate-300 max-w-[120px] truncate">
+                    {user.email}
+                  </span>
+                </button>
                 <button
                   id="sign-out-btn"
                   onClick={onSignOut}

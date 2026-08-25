@@ -76,3 +76,13 @@ create policy "owner or admin delete quiz_exams" on quiz_exams for delete
     created_by = auth.uid()
     or exists (select 1 from profiles where id = auth.uid() and is_admin)
   );
+
+-- Migration: teacher profile fields shown/edited in the "Hồ Sơ Giáo Viên" card.
+alter table profiles add column if not exists full_name text;
+alter table profiles add column if not exists school_name text;
+alter table profiles add column if not exists phone text;
+
+drop policy if exists "users update own profile" on profiles;
+create policy "users update own profile" on profiles for update
+  using (auth.uid() = id)
+  with check (auth.uid() = id);

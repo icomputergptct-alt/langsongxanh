@@ -89,6 +89,10 @@ export interface QuizExam {
   className?: string;
   roomPassword?: string;
   grade?: number;
+  schoolYear?: string;
+  deadlineAt?: string;
+  isArchived?: boolean;
+  isDraft?: boolean;
   participantsCount: number;
   averageScore: number;
   sourceFile?: string;
@@ -102,6 +106,8 @@ export interface ExamDocument {
   id: string;
   title: string;
   grade?: number;
+  className?: string;
+  schoolYear?: string;
   semester?: string;
   category?: string;
   description?: string;

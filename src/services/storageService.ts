@@ -1,5 +1,6 @@
 ﻿import { Article, Comment, ExamAttempt, ExamDocument, OfflineArticle, QuizExam } from '../types';
 import { supabase } from './supabaseClient';
+import { generateExamPdfBlob } from './examPdf';
 
 // Local-only state: things that are inherently per-device (offline cache,
 // the "simulate offline" dev toggle, and this browser's like/bookmark overlay
@@ -43,6 +44,24 @@ function getLikedCommentIds(): Set<string> {
 
 function setLikedCommentIds(ids: Set<string>): void {
   safeSet(LOCAL_KEYS.LIKED_COMMENTS, Array.from(ids));
+}
+
+// "nguyen thi an" and "nguyễn thị an" should count as the same student — strip
+// Vietnamese diacritics (đ/Đ don't decompose under NFD, so handled separately)
+// before comparing names.
+function normalizeNameForMatch(name: string): string {
+  const noDiacritics = name
+    .trim()
+    .toLowerCase()
+    .replace(/đ/g, 'd')
+    .normalize('NFD')
+    .split('')
+    .filter((ch) => {
+      const code = ch.codePointAt(0) || 0;
+      return code < 0x0300 || code > 0x036f; // strip combining diacritical marks
+    })
+    .join('');
+  return noDiacritics.replace(/\s+/g, ' ');
 }
 
 // --- Row <-> Model mapping ---
@@ -115,6 +134,10 @@ function rowToExam(row: any): QuizExam {
     className: row.class_name || undefined,
     roomPassword: row.room_password || undefined,
     grade: row.grade || undefined,
+    schoolYear: row.school_year || undefined,
+    deadlineAt: row.deadline_at || undefined,
+    isArchived: row.is_archived || false,
+    isDraft: row.is_draft || false,
     participantsCount: row.participants_count,
     averageScore: row.average_score,
     sourceFile: row.source_file || undefined,
@@ -164,6 +187,10 @@ function examToRow(exam: QuizExam) {
     class_name: exam.className || null,
     room_password: exam.roomPassword || null,
     grade: exam.grade || null,
+    school_year: exam.schoolYear || null,
+    deadline_at: exam.deadlineAt || null,
+    is_archived: !!exam.isArchived,
+    is_draft: !!exam.isDraft,
     participants_count: exam.participantsCount,
     average_score: exam.averageScore,
     source_file: exam.sourceFile || null,
@@ -198,6 +225,8 @@ function rowToExamDocument(row: any): ExamDocument {
     id: row.id,
     title: row.title,
     grade: row.grade || undefined,
+    className: row.class_name || undefined,
+    schoolYear: row.school_year || undefined,
     semester: row.semester || undefined,
     category: row.category || undefined,
     description: row.description || undefined,
@@ -413,9 +442,59 @@ export const storageService = {
     const { data, error } = await supabase
       .from('quiz_exams')
       .select('*')
+      .eq('is_archived', false)
+      .eq('is_draft', false)
       .order('created_at', { ascending: false });
     if (error) throw error;
     return (data || []).map(rowToExam);
+  },
+
+  // Admin management view needs archived (past-deadline) rooms too, so teachers
+  // can still open their score list even after the room itself has closed.
+  async getAllExamsIncludingArchived(): Promise<QuizExam[]> {
+    const { data, error } = await supabase
+      .from('quiz_exams')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(rowToExam);
+  },
+
+  // Rooms past their deadline get archived to a PDF in the document library and
+  // hidden from the active list. There's no background server, so this runs
+  // lazily — called whenever someone opens the Quiz Room.
+  async archiveExpiredExams(): Promise<void> {
+    const { data, error } = await supabase
+      .from('quiz_exams')
+      .select('*')
+      .eq('is_archived', false)
+      .not('deadline_at', 'is', null)
+      .lt('deadline_at', new Date().toISOString());
+    if (error || !data || data.length === 0) return;
+
+    for (const row of data) {
+      const exam = rowToExam(row);
+      try {
+        const pdfBlob = await generateExamPdfBlob(exam);
+        const fileName = `${exam.title}.pdf`;
+        const { fileUrl } = await this.uploadExamFileBlob(pdfBlob, 'pdf');
+        await this.saveExamDocument({
+          id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          title: exam.title,
+          grade: exam.grade,
+          className: exam.className,
+          schoolYear: exam.schoolYear,
+          fileUrl,
+          fileName,
+          fileType: 'pdf',
+          views: 0,
+          uploadedAt: new Date().toISOString(),
+        });
+        await supabase.from('quiz_exams').update({ is_archived: true }).eq('id', exam.id);
+      } catch (err) {
+        console.error(`Không thể lưu trữ đề thi hết hạn "${exam.title}":`, err);
+      }
+    }
   },
 
   async getExamById(examId: string): Promise<QuizExam | undefined> {
@@ -432,6 +511,23 @@ export const storageService = {
   async deleteExam(examId: string): Promise<void> {
     const { error } = await supabase.from('quiz_exams').delete().eq('id', examId);
     if (error) throw error;
+  },
+
+  // There's no student login, so "already took this exam" is checked against
+  // exam_attempts by name (case-insensitive) rather than a real account — a
+  // student who retypes their name slightly differently can still get back in.
+  async hasStudentCompletedExam(examId: string, studentName: string): Promise<boolean> {
+    const target = normalizeNameForMatch(studentName);
+    if (!target) return false;
+    const { data, error } = await supabase
+      .from('exam_attempts')
+      .select('user_name')
+      .eq('exam_id', examId);
+    if (error) {
+      console.error('Không kiểm tra được lượt thi trước đó:', error);
+      return false;
+    }
+    return (data || []).some((row) => normalizeNameForMatch(row.user_name) === target);
   },
 
   // --- Exam Attempts & Admin Progress Analytics ---
@@ -502,11 +598,23 @@ export const storageService = {
     return { fileUrl: data.publicUrl, fileName: file.name, fileType: ext };
   },
 
+  async uploadExamFileBlob(blob: Blob, ext: string): Promise<{ fileUrl: string }> {
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await supabase.storage.from('exam-files').upload(path, blob, {
+      contentType: blob.type || 'application/octet-stream',
+    });
+    if (error) throw error;
+    const { data } = supabase.storage.from('exam-files').getPublicUrl(path);
+    return { fileUrl: data.publicUrl };
+  },
+
   async saveExamDocument(doc: ExamDocument): Promise<void> {
     const row = {
       id: doc.id,
       title: doc.title,
       grade: doc.grade || null,
+      class_name: doc.className || null,
+      school_year: doc.schoolYear || null,
       semester: doc.semester || null,
       category: doc.category || null,
       description: doc.description || null,

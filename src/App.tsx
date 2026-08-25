@@ -22,20 +22,23 @@ import {
 import { Header } from './components/Header';
 import { ArticleCard } from './components/ArticleCard';
 import { ArticleDetail } from './components/ArticleDetail';
-import { ExamLibrary } from './components/ExamLibrary';
+import { ExamLibrary, ExamDocumentViewerModal } from './components/ExamLibrary';
 import { QuizRoom } from './components/QuizRoom';
 import { QuizCreatorModal } from './components/QuizCreatorModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { SoftwareUtilities } from './components/SoftwareUtilities';
 import { AuthModal } from './components/AuthModal';
-import { Article, QuizExam } from './types';
+import { TeacherProfileModal } from './components/TeacherProfileModal';
+import { DocumentUploadModal } from './components/DocumentUploadModal';
+import { SearchResults } from './components/SearchResults';
+import { Article, ExamDocument, QuizExam } from './types';
 import { storageService } from './services/storageService';
 import { useAuth } from './contexts/AuthContext';
 
 export default function App() {
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, profile, isAdmin, signOut } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities'>('news');
+  const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities'>('quiz');
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoadingArticles, setIsLoadingArticles] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
@@ -52,11 +55,33 @@ export default function App() {
   // Modal
   const [isCreateQuizModalOpen, setIsCreateQuizModalOpen] = useState(false);
   const [quizCreatorInitialMode, setQuizCreatorInitialMode] = useState<'upload' | 'manual'>('upload');
+  const [editingExam, setEditingExam] = useState<QuizExam | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const openCreateQuizModal = (mode?: 'upload' | 'manual') => {
+    setEditingExam(null);
     setQuizCreatorInitialMode(mode === 'manual' ? 'manual' : 'upload');
     setIsCreateQuizModalOpen(true);
   };
+
+  // Continuing a draft from the teacher's profile — closes the profile modal
+  // and reopens the creator pre-filled with that exam's saved content.
+  const openEditExamModal = (exam: QuizExam) => {
+    setIsProfileModalOpen(false);
+    setEditingExam(exam);
+    setQuizCreatorInitialMode('manual');
+    setIsCreateQuizModalOpen(true);
+  };
+
+  // Document upload modal ("Tải Lên Tài Liệu" quick action in the Header)
+  const [isUploadDocModalOpen, setIsUploadDocModalOpen] = useState(false);
+  const [docsRefreshKey, setDocsRefreshKey] = useState(0);
+
+  // Document opened directly from the global search results
+  const [searchViewingDoc, setSearchViewingDoc] = useState<ExamDocument | null>(null);
+
+  // Exam opened directly from the global search results
+  const [pendingExamId, setPendingExamId] = useState<string | null>(null);
 
   // Sync the selected article to the URL (/bai-viet/{slug}) so links are shareable & bookmarkable
   const selectArticle = (article: Article | null) => {
@@ -170,11 +195,22 @@ export default function App() {
   };
 
   // Creating a quiz requires an account; taking one does not.
-  const requireAuthThenOpenQuizModal = () => {
+  const requireAuthThenOpenQuizModal = (mode?: 'upload' | 'manual') => {
     if (!user) {
       setIsAuthModalOpen(true);
     } else {
+      setEditingExam(null);
+      setQuizCreatorInitialMode(mode === 'manual' ? 'manual' : 'upload');
       setIsCreateQuizModalOpen(true);
+    }
+  };
+
+  // Uploading a document requires an account, same as creating a quiz.
+  const requireAuthThenOpenUploadModal = () => {
+    if (!user) {
+      setIsAuthModalOpen(true);
+    } else {
+      setIsUploadDocModalOpen(true);
     }
   };
 
@@ -230,10 +266,12 @@ export default function App() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         openCreateQuizModal={requireAuthThenOpenQuizModal}
+        openUploadDocumentModal={requireAuthThenOpenUploadModal}
         user={user}
         isAdmin={isAdmin}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onSignOut={signOut}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
       />
 
       {/* Main Container */}
@@ -260,6 +298,25 @@ export default function App() {
           </div>
         )}
 
+        {/* Global search override — searching from any tab surfaces matching
+            articles, exams, and documents together, regardless of activeTab. */}
+        {searchQuery.trim() && !selectedArticle ? (
+          <SearchResults
+            query={searchQuery}
+            articles={articles}
+            onSelectArticle={(art) => {
+              selectArticle(art);
+              setActiveTab('news');
+            }}
+            onOpenExam={(ex) => {
+              setPendingExamId(ex.id);
+              setActiveTab('quiz');
+              setSearchQuery('');
+            }}
+            onOpenDocument={(doc) => setSearchViewingDoc(doc)}
+          />
+        ) : (
+        <>
         {/* ============================================================ */}
         {/* TAB 1: NEWS & DEEP ANALYSIS ARTICLES                         */}
         {/* ============================================================ */}
@@ -649,6 +706,8 @@ export default function App() {
               setActiveTab('news');
             }}
             onRefreshSavedCount={() => setSavedCount(storageService.getOfflineArticles().length)}
+            refreshKey={docsRefreshKey}
+            globalSearchQuery={searchQuery}
           />
         )}
 
@@ -659,6 +718,9 @@ export default function App() {
           <QuizRoom
             openCreateQuizModal={requireAuthThenOpenQuizModal}
             examsRefreshKey={examsRefreshKey}
+            globalSearchQuery={searchQuery}
+            initialExamId={pendingExamId || undefined}
+            onInitialExamConsumed={() => setPendingExamId(null)}
             onAttemptRecorded={() => {
               // triggers state update
             }}
@@ -681,6 +743,8 @@ export default function App() {
         {activeTab === 'utilities' && (
           <SoftwareUtilities />
         )}
+        </>
+        )}
 
       </main>
 
@@ -691,12 +755,37 @@ export default function App() {
           onClose={() => setIsCreateQuizModalOpen(false)}
           onExamCreated={handleExamCreated}
           authorId={user?.id}
-          authorEmail={user?.email}
+          authorName={profile?.fullName || user?.email}
+          schoolName={profile?.schoolName}
+          editingExam={editingExam}
         />
       )}
 
       {/* Auth Modal Dialog */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+
+      {/* Teacher Profile Modal */}
+      <TeacherProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onEditExam={openEditExamModal}
+      />
+
+      {/* Document Viewer — opened directly from a global search result */}
+      {searchViewingDoc && (
+        <ExamDocumentViewerModal doc={searchViewingDoc} onClose={() => setSearchViewingDoc(null)} />
+      )}
+
+      {/* Document Upload Modal — unmounted while closed so it always opens with a clean slate */}
+      {isUploadDocModalOpen && (
+        <DocumentUploadModal
+          onClose={() => setIsUploadDocModalOpen(false)}
+          onUploaded={() => {
+            setDocsRefreshKey((k) => k + 1);
+            setActiveTab('offline');
+          }}
+        />
+      )}
 
       {/* Platform Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 backdrop-blur text-slate-500 text-xs py-8 mt-auto">

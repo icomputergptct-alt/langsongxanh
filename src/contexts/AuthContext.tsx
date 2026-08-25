@@ -6,6 +6,9 @@ interface Profile {
   id: string;
   email: string;
   isAdmin: boolean;
+  fullName: string | null;
+  schoolName: string | null;
+  phone: string | null;
 }
 
 interface AuthContextValue {
@@ -16,18 +19,30 @@ interface AuthContextValue {
   signUp: (email: string, password: string) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  updateProfile: (updates: { fullName: string; schoolName: string; phone: string }) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 async function fetchProfile(userId: string, email: string): Promise<Profile> {
-  const { data } = await supabase.from('profiles').select('id, email, is_admin').eq('id', userId).maybeSingle();
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, email, is_admin, full_name, school_name, phone')
+    .eq('id', userId)
+    .maybeSingle();
   if (data) {
-    return { id: data.id, email: data.email, isAdmin: data.is_admin };
+    return {
+      id: data.id,
+      email: data.email,
+      isAdmin: data.is_admin,
+      fullName: data.full_name,
+      schoolName: data.school_name,
+      phone: data.phone,
+    };
   }
   // Profile row is created by a DB trigger on signup; it may not have landed yet
   // (e.g. right after sign-up before the trigger commits). Fall back to a safe default.
-  return { id: userId, email, isAdmin: false };
+  return { id: userId, email, isAdmin: false, fullName: null, schoolName: null, phone: null };
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -83,9 +98,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.auth.signOut();
   };
 
+  const updateProfile = async (updates: { fullName: string; schoolName: string; phone: string }) => {
+    if (!user) return { error: 'Chưa đăng nhập.' };
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        full_name: updates.fullName || null,
+        school_name: updates.schoolName || null,
+        phone: updates.phone || null,
+      })
+      .eq('id', user.id);
+    if (error) return { error: error.message };
+    setProfile((prev) =>
+      prev
+        ? { ...prev, fullName: updates.fullName || null, schoolName: updates.schoolName || null, phone: updates.phone || null }
+        : prev
+    );
+    return { error: null };
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, profile, isAdmin: !!profile?.isAdmin, isLoading, signUp, signIn, signOut }}
+      value={{ user, profile, isAdmin: !!profile?.isAdmin, isLoading, signUp, signIn, signOut, updateProfile }}
     >
       {children}
     </AuthContext.Provider>
