@@ -118,7 +118,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               id="header-upload-doc-btn"
               onClick={openUploadDocumentModal}
-              className="hidden lg:flex items-center gap-1.5 bg-slate-800/80 hover:bg-slate-800 text-slate-200 text-xs font-bold px-3.5 py-2 rounded-xl border border-slate-700 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="hidden lg:flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               <UploadCloud className="w-4 h-4" />
               <span>Tải Lên Tài Liệu</span>

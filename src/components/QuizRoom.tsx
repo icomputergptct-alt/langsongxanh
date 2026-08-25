@@ -18,7 +18,9 @@ import {
   Users,
   CheckCircle,
   Keyboard,
-  Lock
+  Lock,
+  BookOpen,
+  Target
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { QuizExam, ExamAttempt, QuizQuestion } from '../types';
@@ -282,21 +284,21 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
         
         {/* Unified Toolbar Card — hero + search/filter live in one continuous surface
             instead of separate floating white blocks, so the page reads as one panel. */}
-        <div className="bg-white border border-slate-200 rounded-2xl mb-8 shadow-xl overflow-hidden">
+        <div className="bg-transparent border border-white/15 rounded-2xl mb-8 overflow-hidden">
           {/* Hero */}
-          <div className="bg-gradient-to-r from-white via-indigo-50 to-white p-6 sm:p-8">
+          <div className="bg-transparent px-6 py-3 sm:px-8 sm:py-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
                 <div className="flex items-center gap-2.5 mb-2">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-600 border border-cyan-500/30 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 flex items-center justify-center">
                     <GraduationCap className="w-5 h-5" />
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-white">
                     Phòng Thi Trắc Nghiệm Công Nghệ Kỹ Thuật Số
                   </h2>
                 </div>
-                <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
-                  Hệ thống đánh giá năng lực công nghệ toàn diện. Thử sức với các bộ đề thi khảo sát AI, An ninh mạng, Kubernetes, Kiến trúc phần mềm và lập trình hiện đại.
+                <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+                  Phòng thi trắc nghiệm công nghệ kỹ thuật số khảo sát AI – Giải pháp đánh giá kiến thức toàn diện và chính xác cho người học. Ứng dụng đột phá của phòng thi trắc nghiệm công nghệ kỹ thuật số trong việc nâng cao chất lượng kiểm tra.
                 </p>
               </div>
 
@@ -311,7 +313,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
 
                 <button
                   onClick={() => openCreateQuizModal('manual')}
-                  className="flex items-center justify-center gap-2 bg-transparent hover:bg-slate-100 border border-slate-300 text-slate-600 hover:text-slate-900 text-xs sm:text-sm font-bold px-5 py-3 rounded-xl transition-all"
+                  className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold px-5 py-3 rounded-xl shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02]"
                 >
                   <Keyboard className="w-4 h-4" />
                   <span>Tạo Bằng Công Cụ Nhập Liệu</span>
@@ -328,58 +330,65 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
             <div
               key={exam.id}
               id={`exam-card-${exam.id}`}
-              className="group bg-white/90 hover:bg-white border border-slate-200 hover:border-cyan-500/50 rounded-2xl p-5 flex flex-col justify-between transition-all duration-200 shadow-md hover:shadow-xl hover:shadow-cyan-500/5"
+              className="group relative overflow-hidden rounded-3xl p-5 flex flex-col justify-between transition-all duration-200 shadow-lg hover:shadow-2xl hover:shadow-emerald-500/20 bg-gradient-to-b from-blue-400 to-emerald-500"
             >
-              <div>
+              {/* Decorative background accents */}
+              <BookOpen className="absolute -top-3 -right-3 w-28 h-28 text-white/15 pointer-events-none" strokeWidth={1} />
+              <Sparkles className="absolute top-9 right-16 w-4 h-4 text-white/50 pointer-events-none" />
+              <Sparkles className="absolute top-20 right-7 w-3 h-3 text-white/30 pointer-events-none" />
+              <div className="absolute top-14 right-6 w-11 h-11 rounded-xl bg-white shadow-lg flex items-center justify-center rotate-6 pointer-events-none">
+                <span className="text-blue-600 font-black text-sm">Aa</span>
+              </div>
+
+              <div className="relative z-10">
                 {/* Header tags */}
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-600 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 rounded-md">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-white px-2.5 py-1 rounded-full shadow-sm">
                     {exam.category}
                   </span>
-
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-                    exam.difficulty === 'Cơ bản' ? 'bg-emerald-500/20 text-emerald-700' :
-                    exam.difficulty === 'Trung bình' ? 'bg-blue-500/20 text-blue-700' :
-                    exam.difficulty === 'Nâng cao' ? 'bg-amber-500/20 text-amber-700' :
-                    'bg-rose-500/20 text-rose-700'
-                  }`}>
+                  <span className="text-[10px] font-bold text-white bg-white/25 backdrop-blur-sm px-2.5 py-1 rounded-full">
                     {exam.difficulty}
                   </span>
                 </div>
 
                 {/* Title */}
-                <h3 className="text-base font-bold text-slate-900 group-hover:text-cyan-600 transition-colors line-clamp-2 mb-2">
+                <h3 className="text-base sm:text-lg font-extrabold text-blue-950 leading-snug line-clamp-3 mb-1.5 pr-14">
                   {exam.title}
                 </h3>
 
-                {/* Description */}
-                <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-2">
-                  {exam.description}
-                </p>
-
                 {/* School / Teacher / Class meta, if provided */}
                 {(exam.schoolName || exam.className || exam.authorName) && (
-                  <p className="text-[11px] text-slate-400 mb-2">
-                    {[exam.schoolName, exam.className && `Lớp ${exam.className}`, exam.authorName && `GV: ${exam.authorName}`]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </p>
+                  <div className="text-[11px] text-blue-50/90 space-y-0.5 mb-4">
+                    {(exam.schoolName || exam.className) && (
+                      <p>{[exam.schoolName, exam.className && `Lớp ${exam.className}`].filter(Boolean).join(' • ')}</p>
+                    )}
+                    {exam.authorName && <p>GV: {exam.authorName}</p>}
+                  </div>
                 )}
               </div>
 
-              {/* Meta stats & CTA */}
-              <div className="pt-4 border-t border-slate-200/80 space-y-3">
-                <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                  <div className="bg-slate-50 p-2 rounded-lg border border-slate-200/80">
-                    <span className="text-[10px] text-slate-400 block">Số câu</span>
+              {/* Stats + CTA panel */}
+              <div className="relative z-10 bg-white rounded-2xl p-4 shadow-lg">
+                <div className="grid grid-cols-3 gap-2 text-xs mb-3">
+                  <div>
+                    <span className="flex items-center gap-1 text-[10px] text-slate-400 mb-0.5">
+                      <Layers className="w-3 h-3 text-blue-500" />
+                      <span>Số câu</span>
+                    </span>
                     <strong className="text-slate-800">{exam.questions.length} câu</strong>
                   </div>
-                  <div className="bg-slate-50 p-2 rounded-lg border border-slate-200/80">
-                    <span className="text-[10px] text-slate-400 block">Thời gian</span>
+                  <div>
+                    <span className="flex items-center gap-1 text-[10px] text-slate-400 mb-0.5">
+                      <Clock className="w-3 h-3 text-blue-500" />
+                      <span>Thời gian</span>
+                    </span>
                     <strong className="text-slate-800">{exam.durationMinutes} phút</strong>
                   </div>
-                  <div className="bg-slate-50 p-2 rounded-lg border border-slate-200/80">
-                    <span className="text-[10px] text-slate-400 block">Điểm đạt</span>
+                  <div>
+                    <span className="flex items-center gap-1 text-[10px] text-slate-400 mb-0.5">
+                      <Target className="w-3 h-3 text-emerald-500" />
+                      <span>Điểm đạt</span>
+                    </span>
                     <strong className="text-emerald-600">{exam.passScorePercent}%</strong>
                   </div>
                 </div>
@@ -387,7 +396,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                 <button
                   id={`start-exam-btn-${exam.id}`}
                   onClick={() => handleRequestStartExam(exam)}
-                  className="w-full flex items-center justify-center gap-2 bg-slate-100 hover:bg-cyan-600 text-slate-800 hover:text-white text-xs font-bold py-2.5 rounded-xl border border-slate-300 hover:border-cyan-500 transition-all group-hover:shadow-md"
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2.5 rounded-xl transition-all"
                 >
                   {exam.roomPassword ? (
                     <Lock className="w-3.5 h-3.5" />
@@ -415,7 +424,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                 <h3 className="text-lg font-bold text-slate-900">Thông Tin Thí Sinh</h3>
                 <p className="text-xs text-slate-500 mt-1 line-clamp-1">{pendingEntryExam.title}</p>
                 {(pendingEntryExam.schoolName || pendingEntryExam.grade || pendingEntryExam.className) && (
-                  <p className="text-[11px] text-cyan-700 font-semibold mt-1">
+                  <p className="text-sm text-cyan-700 font-semibold mt-1">
                     {[
                       pendingEntryExam.schoolName,
                       pendingEntryExam.grade && `Khối ${pendingEntryExam.grade}`,

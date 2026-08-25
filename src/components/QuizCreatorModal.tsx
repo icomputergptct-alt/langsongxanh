@@ -828,7 +828,8 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                 type="datetime-local"
                 value={deadlineAt}
                 onChange={(e) => setDeadlineAt(e.target.value)}
-                className="w-full sm:w-64 bg-slate-800 border border-slate-600 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none"
+                onClick={(e) => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+                className="w-full sm:w-64 bg-slate-800 border border-slate-600 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-white focus:outline-none cursor-pointer"
               />
               <p className="text-[11px] text-slate-400 mt-1">
                 Để trống nếu phòng thi không có hạn. Sau thời điểm này, đề thi sẽ tự động chuyển thành tệp PDF và lưu vào Kho đề thi kiểm tra, đồng thời ẩn khỏi Phòng Thi Trắc Nghiệm.
