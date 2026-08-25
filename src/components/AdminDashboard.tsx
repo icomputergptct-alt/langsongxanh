@@ -1,40 +1,50 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  BarChart3, 
-  Users, 
-  Award, 
-  CheckCircle2, 
-  XCircle, 
-  Clock, 
-  FileText, 
-  TrendingUp, 
-  Download, 
-  Trash2, 
-  Search, 
-  Calendar, 
+import {
+  BarChart3,
+  Users,
+  Award,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  FileText,
+  TrendingUp,
+  Download,
+  Trash2,
+  Search,
+  Calendar,
   Layers,
   Sparkles,
   ChevronRight,
   ShieldCheck,
-  Zap
+  Zap,
+  Newspaper,
+  PlusCircle,
+  Pencil,
+  Lock
 } from 'lucide-react';
-import { ExamAttempt, QuizExam } from '../types';
+import { Article, ExamAttempt, QuizExam } from '../types';
 import { storageService } from '../services/storageService';
+import { ArticleEditorModal } from './ArticleEditorModal';
 
 interface AdminDashboardProps {
   onOpenCreateQuiz: () => void;
+  isAdmin: boolean;
 }
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz, isAdmin }) => {
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [exams, setExams] = useState<QuizExam[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [searchCandidate, setSearchCandidate] = useState('');
   const [selectedAttempt, setSelectedAttempt] = useState<ExamAttempt | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'attempts' | 'exams' | 'analytics'>('analytics');
+  const [activeSubTab, setActiveSubTab] = useState<'attempts' | 'exams' | 'analytics' | 'news'>('analytics');
+  const [editingArticle, setEditingArticle] = useState<Article | null>(null);
+  const [isArticleEditorOpen, setIsArticleEditorOpen] = useState(false);
 
   useEffect(() => {
     storageService.getAttempts().then(setAttempts).catch((err) => console.error('Không tải được lượt thi:', err));
     storageService.getExams().then(setExams).catch((err) => console.error('Không tải được đề thi:', err));
+    storageService.getArticles().then(setArticles).catch((err) => console.error('Không tải được bài viết:', err));
   }, []);
 
   const handleDeleteExam = async (examId: string) => {
@@ -42,6 +52,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
       await storageService.deleteExam(examId);
       setExams(await storageService.getExams());
     }
+  };
+
+  const handleOpenNewArticle = () => {
+    setEditingArticle(null);
+    setIsArticleEditorOpen(true);
+  };
+
+  const handleEditArticle = (article: Article) => {
+    setEditingArticle(article);
+    setIsArticleEditorOpen(true);
+  };
+
+  const handleDeleteArticle = async (articleId: string) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa bài viết này? Bình luận liên quan cũng sẽ bị xóa.')) return;
+    try {
+      await storageService.deleteArticle(articleId);
+      setArticles(await storageService.getArticles());
+    } catch (err) {
+      console.error('Không xóa được bài viết:', err);
+      alert('Không thể xóa bài viết. Vui lòng thử lại.');
+    }
+  };
+
+  const handleArticleSaved = async () => {
+    setArticles(await storageService.getArticles());
   };
 
   // Metrics Calculations
@@ -208,6 +243,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
         >
           Quản Lý Kho Đề Thi ({exams.length})
         </button>
+
+        {isAdmin && (
+          <button
+            onClick={() => setActiveSubTab('news')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+              activeSubTab === 'news'
+                ? 'bg-slate-800 text-cyan-400 border border-slate-700 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Newspaper className="w-3.5 h-3.5" />
+            <span>Quản Lý Tin Tức ({articles.length})</span>
+          </button>
+        )}
       </div>
 
       {/* SUB-VIEW 1: Visual Analytics Charts */}
@@ -470,6 +519,104 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
           </div>
         </div>
       )}
+
+      {/* SUB-VIEW 4: News Management (admin only) */}
+      {activeSubTab === 'news' && (
+        isAdmin ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-400">
+                Hiển thị {articles.length} bài viết
+              </span>
+              <button
+                onClick={handleOpenNewArticle}
+                className="flex items-center gap-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition-colors"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Thêm Bài Viết Mới</span>
+              </button>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="py-3.5 px-4">Bài viết</th>
+                      <th className="py-3.5 px-4">Danh mục</th>
+                      <th className="py-3.5 px-4 text-center">Lượt xem</th>
+                      <th className="py-3.5 px-4 text-center">Lượt thích</th>
+                      <th className="py-3.5 px-4">Ngày đăng</th>
+                      <th className="py-3.5 px-4 text-right">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/80">
+                    {articles.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="text-center py-8 text-slate-500">
+                          Chưa có bài viết nào. Bấm "Thêm Bài Viết Mới" để bắt đầu.
+                        </td>
+                      </tr>
+                    ) : (
+                      articles.map((article) => (
+                        <tr key={article.id} className="hover:bg-slate-800/50 transition-colors">
+                          <td className="py-3 px-4 max-w-xs">
+                            <div className="flex items-center gap-2.5">
+                              <img
+                                src={article.coverImage}
+                                alt={article.title}
+                                className="w-10 h-10 rounded-lg object-cover border border-slate-700 shrink-0"
+                              />
+                              <span className="font-medium text-slate-200 line-clamp-2">{article.title}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-slate-400">{article.category}</td>
+                          <td className="py-3 px-4 text-center text-slate-300">{article.views}</td>
+                          <td className="py-3 px-4 text-center text-slate-300">{article.likes}</td>
+                          <td className="py-3 px-4 text-slate-400">
+                            {new Date(article.publishedAt).toLocaleDateString('vi-VN')}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleEditArticle(article)}
+                                title="Chỉnh sửa bài viết"
+                                className="p-1.5 hover:bg-cyan-500/20 text-slate-500 hover:text-cyan-400 rounded-lg transition-colors"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteArticle(article.id)}
+                                title="Xóa bài viết"
+                                className="p-1.5 hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-16 bg-slate-900/60 border border-slate-800 rounded-3xl p-8">
+            <Lock className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-slate-300 mb-1">Chỉ admin mới quản lý được tin tức</h3>
+            <p className="text-xs text-slate-500">Đăng nhập bằng tài khoản quản trị để thêm, sửa hoặc xóa bài viết.</p>
+          </div>
+        )
+      )}
+
+      <ArticleEditorModal
+        isOpen={isArticleEditorOpen}
+        article={editingArticle}
+        onClose={() => setIsArticleEditorOpen(false)}
+        onSaved={handleArticleSaved}
+      />
 
     </div>
   );

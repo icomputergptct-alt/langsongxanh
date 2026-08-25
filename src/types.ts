@@ -93,6 +93,7 @@ export interface QuizExam {
   averageScore: number;
   sourceFile?: string;
   isFeatured?: boolean;
+  createdBy?: string;
 }
 
 // A real uploaded .docx/.pdf exam file browsable in "Kho đề thi kiểm tra" — distinct from

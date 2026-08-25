@@ -27,6 +27,8 @@ interface QuizCreatorModalProps {
   initialMode?: 'upload' | 'ai-prompt' | 'manual';
   onClose: () => void;
   onExamCreated: (exam: QuizExam) => void;
+  authorId?: string;
+  authorEmail?: string;
 }
 
 const SAMPLE_QUIZ_TEXT = `1. Trong kiến trúc microservices hiện đại, pattern nào giúp duy trì tính nhất quán dữ liệu giữa các dịch vụ phân tán?
@@ -77,6 +79,8 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   initialMode = 'upload',
   onClose,
   onExamCreated,
+  authorId,
+  authorEmail,
 }) => {
   const [activeMode, setActiveMode] = useState<'upload' | 'ai-prompt' | 'manual'>(initialMode);
   
@@ -408,7 +412,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
       passScorePercent: Number(passScorePercent) || 70,
       questions: questions,
       createdAt: new Date().toISOString(),
-      authorName: teacherName.trim() || 'Quản trị viên / Giảng viên',
+      authorName: authorEmail || teacherName.trim() || 'Quản trị viên / Giảng viên',
       schoolName: schoolName.trim() || undefined,
       className: className.trim() || undefined,
       roomPassword: roomPassword.trim() || undefined,
@@ -417,6 +421,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
       averageScore: 0,
       sourceFile: uploadedFile?.name,
       isFeatured: true,
+      createdBy: authorId,
     };
 
     try {

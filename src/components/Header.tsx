@@ -1,16 +1,20 @@
 import React from 'react';
-import { 
-  BookOpen, 
-  Wifi, 
-  WifiOff, 
-  Search, 
+import type { User } from '@supabase/supabase-js';
+import {
+  BookOpen,
+  Wifi,
+  WifiOff,
+  Search,
   DownloadCloud,
   FileText,
   GraduationCap,
-  PlusCircle, 
-  BarChart3, 
-  Wrench, 
-  Cpu
+  PlusCircle,
+  BarChart3,
+  Wrench,
+  Cpu,
+  UserCircle2,
+  LogOut,
+  ShieldCheck
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -21,7 +25,11 @@ interface HeaderProps {
   savedOfflineCount: number;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  openCreateQuizModal: (mode?: 'upload' | 'manual') => void;
+  openCreateQuizModal: () => void;
+  user: User | null;
+  isAdmin: boolean;
+  onOpenAuth: () => void;
+  onSignOut: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -33,6 +41,10 @@ export const Header: React.FC<HeaderProps> = ({
   searchQuery,
   setSearchQuery,
   openCreateQuizModal,
+  user,
+  isAdmin,
+  onOpenAuth,
+  onSignOut,
 }) => {
   return (
     <header id="main-header" className="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 text-slate-100 transition-all">
@@ -120,6 +132,37 @@ export const Header: React.FC<HeaderProps> = ({
                 </>
               )}
             </button>
+
+            {/* Account */}
+            {user ? (
+              <div className="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700 rounded-xl pl-2.5 pr-1.5 py-1.5">
+                {isAdmin ? (
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                ) : (
+                  <UserCircle2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                )}
+                <span className="hidden sm:inline text-xs font-medium text-slate-300 max-w-[120px] truncate">
+                  {user.email}
+                </span>
+                <button
+                  id="sign-out-btn"
+                  onClick={onSignOut}
+                  title="Đăng xuất"
+                  className="p-1 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                id="header-open-auth-btn"
+                onClick={onOpenAuth}
+                className="flex items-center gap-1.5 bg-slate-800/80 hover:bg-slate-800 text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-700 transition-colors"
+              >
+                <UserCircle2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Đăng nhập</span>
+              </button>
+            )}
 
           </div>
         </div>

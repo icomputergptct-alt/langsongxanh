@@ -27,11 +27,15 @@ import { QuizRoom } from './components/QuizRoom';
 import { QuizCreatorModal } from './components/QuizCreatorModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { SoftwareUtilities } from './components/SoftwareUtilities';
+import { AuthModal } from './components/AuthModal';
 import { Article, QuizExam } from './types';
 import { storageService } from './services/storageService';
+import { useAuth } from './contexts/AuthContext';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities'>('quiz');
+  const { user, isAdmin, signOut } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities'>('news');
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoadingArticles, setIsLoadingArticles] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
@@ -165,6 +169,15 @@ export default function App() {
     setExamsRefreshKey((k) => k + 1);
   };
 
+  // Creating a quiz requires an account; taking one does not.
+  const requireAuthThenOpenQuizModal = () => {
+    if (!user) {
+      setIsAuthModalOpen(true);
+    } else {
+      setIsCreateQuizModalOpen(true);
+    }
+  };
+
   // Filter Articles
   const categories = [
     'Tất cả',
@@ -216,7 +229,11 @@ export default function App() {
         savedOfflineCount={savedCount}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        openCreateQuizModal={openCreateQuizModal}
+        openCreateQuizModal={requireAuthThenOpenQuizModal}
+        user={user}
+        isAdmin={isAdmin}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onSignOut={signOut}
       />
 
       {/* Main Container */}
@@ -394,7 +411,7 @@ export default function App() {
                             <span>Quản lý Thi cử</span>
                           </h3>
                           <button
-                            onClick={openCreateQuizModal}
+                            onClick={requireAuthThenOpenQuizModal}
                             className="p-1.5 bg-blue-500/10 text-blue-400 rounded-lg hover:bg-blue-500/20 transition-colors"
                             title="Tạo đề thi mới"
                           >
@@ -403,8 +420,8 @@ export default function App() {
                         </div>
 
                         {/* Upload trigger dropzone styled as Bento card */}
-                        <div 
-                          onClick={openCreateQuizModal}
+                        <div
+                          onClick={requireAuthThenOpenQuizModal}
                           className="border-2 border-dashed border-slate-800 hover:border-blue-500/50 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 bg-slate-950/60 cursor-pointer transition-all group/drop mb-4"
                         >
                           <span className="text-xs text-slate-400 group-hover/drop:text-slate-300">
@@ -640,7 +657,7 @@ export default function App() {
         {/* ============================================================ */}
         {activeTab === 'quiz' && (
           <QuizRoom
-            openCreateQuizModal={openCreateQuizModal}
+            openCreateQuizModal={requireAuthThenOpenQuizModal}
             examsRefreshKey={examsRefreshKey}
             onAttemptRecorded={() => {
               // triggers state update
@@ -653,7 +670,8 @@ export default function App() {
         {/* ============================================================ */}
         {activeTab === 'admin' && (
           <AdminDashboard
-            onOpenCreateQuiz={openCreateQuizModal}
+            onOpenCreateQuiz={requireAuthThenOpenQuizModal}
+            isAdmin={isAdmin}
           />
         )}
 
@@ -672,8 +690,13 @@ export default function App() {
           initialMode={quizCreatorInitialMode}
           onClose={() => setIsCreateQuizModalOpen(false)}
           onExamCreated={handleExamCreated}
+          authorId={user?.id}
+          authorEmail={user?.email}
         />
       )}
+
+      {/* Auth Modal Dialog */}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
 
       {/* Platform Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 backdrop-blur text-slate-500 text-xs py-8 mt-auto">

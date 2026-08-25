@@ -75,6 +75,30 @@ function rowToArticle(row: any, isLiked: boolean, isBookmarked: boolean): Articl
   };
 }
 
+function articleToRow(article: Article) {
+  return sanitizeDeep({
+    id: article.id,
+    title: article.title,
+    slug: article.slug,
+    summary: article.summary,
+    content: article.content,
+    author_name: article.author.name,
+    author_role: article.author.role,
+    author_avatar: article.author.avatar,
+    author_verified: !!article.author.verified,
+    published_at: article.publishedAt,
+    read_time_minutes: article.readTimeMinutes,
+    category: article.category,
+    tags: article.tags,
+    cover_image: article.coverImage,
+    views: article.views,
+    likes: article.likes,
+    is_deep_analysis: !!article.isDeepAnalysis,
+    is_trending: !!article.isTrending,
+    key_insights: article.keyInsights || [],
+  });
+}
+
 function rowToExam(row: any): QuizExam {
   return {
     id: row.id,
@@ -95,6 +119,7 @@ function rowToExam(row: any): QuizExam {
     averageScore: row.average_score,
     sourceFile: row.source_file || undefined,
     isFeatured: row.is_featured,
+    createdBy: row.created_by || undefined,
   };
 }
 
@@ -143,6 +168,7 @@ function examToRow(exam: QuizExam) {
     average_score: exam.averageScore,
     source_file: exam.sourceFile || null,
     is_featured: !!exam.isFeatured,
+    created_by: exam.createdBy || null,
   });
 }
 
@@ -228,6 +254,22 @@ export const storageService = {
     if (data) {
       await supabase.from('articles').update({ views: (data.views || 0) + 1 }).eq('id', articleId);
     }
+  },
+
+  // Admin-only (enforced by RLS): create/update/delete articles.
+  async createArticle(article: Article): Promise<void> {
+    const { error } = await supabase.from('articles').insert(articleToRow(article));
+    if (error) throw error;
+  },
+
+  async updateArticle(article: Article): Promise<void> {
+    const { error } = await supabase.from('articles').update(articleToRow(article)).eq('id', article.id);
+    if (error) throw error;
+  },
+
+  async deleteArticle(articleId: string): Promise<void> {
+    const { error } = await supabase.from('articles').delete().eq('id', articleId);
+    if (error) throw error;
   },
 
   // --- Offline Articles Cache (local-only device cache) ---
