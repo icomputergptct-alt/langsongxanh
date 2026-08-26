@@ -135,7 +135,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
     <div id="admin-dashboard-view" className="max-w-6xl mx-auto pb-16">
       
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/60 border border-slate-800 rounded-2xl p-6 sm:p-8 mb-8 shadow-xl">
+      <div className="glass-panel rounded-2xl p-6 sm:p-8 mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
             <div className="flex items-center gap-2.5 mb-2">
@@ -173,7 +173,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
         {/* 4 Metric Summary Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
           
-          <div className="bg-slate-950/80 border border-slate-800 p-4 rounded-xl">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-4 rounded-xl">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-slate-400 font-medium">Lượt thi hoàn tất</span>
               <Users className="w-4 h-4 text-cyan-400" />
@@ -182,7 +182,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
             <span className="text-[10px] text-emerald-400 mt-1 block">Tăng trưởng ổn định</span>
           </div>
 
-          <div className="bg-slate-950/80 border border-slate-800 p-4 rounded-xl">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-4 rounded-xl">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-slate-400 font-medium">Tỷ lệ Vượt qua (Pass)</span>
               <Award className="w-4 h-4 text-emerald-400" />
@@ -191,7 +191,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
             <span className="text-[10px] text-slate-400 mt-1 block">{passedAttempts} thí sinh đạt chuẩn</span>
           </div>
 
-          <div className="bg-slate-950/80 border border-slate-800 p-4 rounded-xl">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-4 rounded-xl">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-slate-400 font-medium">Điểm trung bình</span>
               <TrendingUp className="w-4 h-4 text-indigo-400" />
@@ -200,7 +200,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
             <span className="text-[10px] text-slate-400 mt-1 block">Thang điểm 100%</span>
           </div>
 
-          <div className="bg-slate-950/80 border border-slate-800 p-4 rounded-xl">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-4 rounded-xl">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-slate-400 font-medium">Đề thi sẵn sàng</span>
               <FileText className="w-4 h-4 text-amber-400" />
@@ -268,7 +268,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* Chart 1: Score Distribution Histogram */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+            <div className="glass-panel rounded-2xl p-6">
               <h3 className="text-sm sm:text-base font-bold text-slate-100 mb-1 flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-cyan-400" />
                 <span>Phân Bố Phổ Điểm Khảo Sát</span>
@@ -333,7 +333,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
             </div>
 
             {/* Chart 2: Category Proficiency Breakdown */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+            <div className="glass-panel rounded-2xl p-6">
               <h3 className="text-sm sm:text-base font-bold text-slate-100 mb-1 flex items-center gap-2">
                 <Zap className="w-4 h-4 text-indigo-400" />
                 <span>Năng Lực Theo Lĩnh Vực Công Nghệ</span>
@@ -366,7 +366,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
           </div>
 
           {/* Quick Insights Box */}
-          <div className="bg-gradient-to-r from-cyan-950/40 via-slate-900 to-indigo-950/40 border border-cyan-500/30 rounded-2xl p-6">
+          <div className="bg-cyan-950/20 backdrop-blur-md border border-cyan-400/30 rounded-2xl p-6">
             <h4 className="font-bold text-sm text-cyan-300 mb-2 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4" />
               <span>Khuyến Nghị Quản Trị Hệ Thống Đào Tạo</span>
@@ -397,7 +397,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
             </span>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+          <div className="glass-panel rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-300">
                 <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
@@ -483,7 +483,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
             {exams.map((exam) => (
               <div
                 key={exam.id}
-                className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between"
+                className="glass-panel rounded-2xl p-5 flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2">
@@ -569,7 +569,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
               </button>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            <div className="glass-panel rounded-2xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs text-slate-300">
                   <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
@@ -635,7 +635,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
             </div>
           </div>
         ) : (
-          <div className="text-center py-16 bg-slate-900/60 border border-slate-800 rounded-3xl p-8">
+          <div className="text-center py-16 glass-panel rounded-3xl p-8">
             <Lock className="w-10 h-10 text-slate-600 mx-auto mb-3" />
             <h3 className="text-base font-bold text-slate-300 mb-1">Chỉ admin mới quản lý được tin tức</h3>
             <p className="text-xs text-slate-500">Đăng nhập bằng tài khoản quản trị để thêm, sửa hoặc xóa bài viết.</p>
@@ -657,8 +657,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
           .sort((a, b) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime());
 
         return (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="glass-panel w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
                 <div>
                   <h3 className="text-sm font-bold text-slate-100 line-clamp-1">{viewingExamAttempts.title}</h3>

@@ -330,17 +330,17 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
               key={exam.id}
               id={`exam-card-${exam.id}`}
               style={{ backgroundImage: "url('/the.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}
-              className="group relative min-h-[320px] h-full overflow-hidden rounded-3xl border border-amber-400/40 p-3 flex flex-col transition-all duration-200 shadow-lg hover:shadow-2xl hover:shadow-amber-500/25 hover:scale-[1.01]"
+              className="group relative min-h-[320px] h-full overflow-hidden rounded-3xl border-2 border-amber-400/40 hover:border-amber-400/70 p-3 flex flex-col transition-all duration-200 shadow-lg hover:shadow-2xl hover:shadow-amber-500/20 hover:scale-[1.01]"
             >
-                <div className="absolute inset-0 bg-teal-950/70 pointer-events-none" />
+                <div className="absolute inset-0 bg-teal-950/50 backdrop-blur-sm pointer-events-none" />
 
                 <div className="relative z-10">
                   {/* Header tags */}
                   <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-200 bg-teal-950/70 border border-amber-400/50 px-2.5 py-1 rounded-full shadow-sm [text-shadow:_0_1px_2px_rgba(0,0,0,0.5)]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-100 bg-white/10 backdrop-blur-sm border border-white/20 px-2.5 py-1 rounded-full shadow-sm [text-shadow:_0_1px_2px_rgba(0,0,0,0.5)]">
                       {exam.category}
                     </span>
-                    <span className="text-[10px] font-bold text-amber-200 bg-teal-950/70 border border-amber-400/50 px-2.5 py-1 rounded-full [text-shadow:_0_1px_2px_rgba(0,0,0,0.5)]">
+                    <span className="text-[10px] font-bold text-slate-100 bg-white/10 backdrop-blur-sm border border-white/20 px-2.5 py-1 rounded-full [text-shadow:_0_1px_2px_rgba(0,0,0,0.5)]">
                       {exam.difficulty}
                     </span>
                   </div>
@@ -362,7 +362,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                 </div>
 
                 {/* Stats + CTA panel */}
-                <div className="relative z-10 bg-gradient-to-b from-amber-50 to-white rounded-2xl pt-4 px-2 pb-2 mt-auto shadow-lg border border-amber-300/60">
+                <div className="relative z-10 bg-white/85 backdrop-blur-sm rounded-2xl pt-4 px-2 pb-2 mt-auto shadow-lg border border-white/40">
                   <div className="grid grid-cols-3 gap-2 text-sm mb-3">
                     <div>
                       <span className="flex items-center gap-1 text-xs text-amber-700/70 mb-0.5">
@@ -390,12 +390,12 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                   <button
                     id={`start-exam-btn-${exam.id}`}
                     onClick={() => handleRequestStartExam(exam)}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-teal-800 to-emerald-800 hover:from-teal-700 hover:to-emerald-700 border border-amber-400/60 text-amber-50 text-sm font-bold py-2.5 rounded-xl transition-all"
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-teal-800 to-emerald-800 hover:from-teal-700 hover:to-emerald-700 border border-white/10 text-white text-sm font-bold py-2.5 rounded-xl transition-all"
                   >
                     {exam.roomPassword ? (
-                      <Lock className="w-3.5 h-3.5 text-amber-300" />
+                      <Lock className="w-3.5 h-3.5 text-amber-300/80" />
                     ) : (
-                      <Play className="w-3.5 h-3.5 fill-current text-amber-300" />
+                      <Play className="w-3.5 h-3.5 fill-current text-amber-300/80" />
                     )}
                     <span>Vào Phòng Thi & Làm Bài</span>
                   </button>

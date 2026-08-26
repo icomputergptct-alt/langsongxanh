@@ -53,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenProfile,
 }) => {
   return (
-    <header id="main-header" className="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 text-slate-100 transition-all">
+    <header id="main-header" className="sticky top-0 z-40 bg-slate-900/20 backdrop-blur-md border-b border-white/10 text-slate-100 transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-4">
           
@@ -109,7 +109,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               id="header-create-quiz-btn"
               onClick={openCreateQuizModal}
-              className="hidden lg:flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="hidden lg:flex items-center gap-1.5 bg-blue-600/30 hover:bg-blue-600/40 backdrop-blur-md border border-blue-400/40 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               <PlusCircle className="w-4 h-4" />
               <span>Tạo Đề Thi từ Tệp</span>
@@ -119,7 +119,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               id="header-upload-doc-btn"
               onClick={openUploadDocumentModal}
-              className="hidden lg:flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="hidden lg:flex items-center gap-1.5 bg-emerald-600/30 hover:bg-emerald-600/40 backdrop-blur-md border border-emerald-400/40 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               <UploadCloud className="w-4 h-4" />
               <span>Tải Lên Tài Liệu</span>
@@ -130,10 +130,10 @@ export const Header: React.FC<HeaderProps> = ({
               id="offline-toggle-btn"
               onClick={toggleOffline}
               title={isOffline ? 'Đang ở chế độ Ngoại tuyến (Click để bật Online)' : 'Đang Online (Click để giả lập Ngoại tuyến)'}
-              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
+              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border backdrop-blur-sm transition-all ${
                 isOffline
                   ? 'bg-amber-500/10 text-amber-300 border-amber-500/30 shadow-sm shadow-amber-500/10'
-                  : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white border-slate-700'
+                  : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border-white/10'
               }`}
             >
               {isOffline ? (
@@ -151,7 +151,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Account */}
             {user ? (
-              <div className="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700 rounded-xl pl-2.5 pr-1.5 py-1.5">
+              <div className="flex items-center gap-1.5 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl pl-2.5 pr-1.5 py-1.5">
                 <button
                   id="open-profile-btn"
                   onClick={onOpenProfile}
@@ -180,7 +180,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 id="header-open-auth-btn"
                 onClick={onOpenAuth}
-                className="flex items-center gap-1.5 bg-slate-800/80 hover:bg-slate-800 text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-700 transition-colors"
+                className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 backdrop-blur-sm text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl border border-white/10 transition-colors"
               >
                 <UserCircle2 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Đăng nhập</span>
