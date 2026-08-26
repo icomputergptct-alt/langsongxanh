@@ -755,6 +755,7 @@ export default function App() {
           <AdminDashboard
             onOpenCreateQuiz={requireAuthThenOpenQuizModal}
             isAdmin={isAdmin}
+            userId={user?.id}
           />
         )}
 

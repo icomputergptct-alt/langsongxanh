@@ -31,9 +31,10 @@ import { ArticleEditorModal } from './ArticleEditorModal';
 interface AdminDashboardProps {
   onOpenCreateQuiz: () => void;
   isAdmin: boolean;
+  userId?: string;
 }
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz, isAdmin }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz, isAdmin, userId }) => {
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [exams, setExams] = useState<QuizExam[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
@@ -82,26 +83,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
     setArticles(await storageService.getArticles());
   };
 
+  // Scope exams/attempts to the logged-in teacher's own exams; site admins (isAdmin) see everything
+  const visibleExams = isAdmin ? exams : exams.filter((e) => e.createdBy === userId);
+  const visibleExamIds = new Set(visibleExams.map((e) => e.id));
+  const visibleAttempts = isAdmin ? attempts : attempts.filter((a) => visibleExamIds.has(a.examId));
+
   // Metrics Calculations
-  const totalAttempts = attempts.length;
-  const passedAttempts = attempts.filter((a) => a.passed).length;
+  const totalAttempts = visibleAttempts.length;
+  const passedAttempts = visibleAttempts.filter((a) => a.passed).length;
   const passRate = totalAttempts > 0 ? Math.round((passedAttempts / totalAttempts) * 100) : 0;
   const averageScore = totalAttempts > 0
-    ? Math.round((attempts.reduce((acc, a) => acc + a.percentage, 0) / totalAttempts) * 10) / 10
+    ? Math.round((visibleAttempts.reduce((acc, a) => acc + a.percentage, 0) / totalAttempts) * 10) / 10
     : 0;
 
   // Score Distribution (<50%, 50-70%, 70-85%, 85-100%)
   const scoreDist = {
-    low: attempts.filter((a) => a.percentage < 50).length,
-    medium: attempts.filter((a) => a.percentage >= 50 && a.percentage < 70).length,
-    good: attempts.filter((a) => a.percentage >= 70 && a.percentage < 85).length,
-    excellent: attempts.filter((a) => a.percentage >= 85).length,
+    low: visibleAttempts.filter((a) => a.percentage < 50).length,
+    medium: visibleAttempts.filter((a) => a.percentage >= 50 && a.percentage < 70).length,
+    good: visibleAttempts.filter((a) => a.percentage >= 70 && a.percentage < 85).length,
+    excellent: visibleAttempts.filter((a) => a.percentage >= 85).length,
   };
 
   // Category statistics
   const categoryStats: Record<string, { count: number; totalScore: number }> = {};
-  attempts.forEach((a) => {
-    const exam = exams.find((e) => e.id === a.examId);
+  visibleAttempts.forEach((a) => {
+    const exam = visibleExams.find((e) => e.id === a.examId);
     const cat = exam?.category || 'Công nghệ chung';
     if (!categoryStats[cat]) {
       categoryStats[cat] = { count: 0, totalScore: 0 };
@@ -110,7 +116,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
     categoryStats[cat].totalScore += a.percentage;
   });
 
-  const filteredAttempts = attempts.filter((a) =>
+  const filteredAttempts = visibleAttempts.filter((a) =>
     a.userName.toLowerCase().includes(searchCandidate.toLowerCase()) ||
     a.examTitle.toLowerCase().includes(searchCandidate.toLowerCase())
   );
@@ -118,7 +124,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
   // Export CSV
   const handleExportCSV = () => {
     const headers = ['ID,Thí sinh,Chức vụ,Đề thi,Điểm,Tổng câu,Tỷ lệ %,Kết quả,Thời gian làm (s),Ngày thi'];
-    const rows = attempts.map((a) =>
+    const rows = visibleAttempts.map((a) =>
       `"${a.id}","${a.userName}","${a.userRole || ''}","${a.examTitle}",${a.score},${a.maxScore},${a.percentage}%,"${a.passed ? 'Đạt' : 'Chưa đạt'}",${a.durationSeconds},"${a.completedAt}"`
     );
     const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers, ...rows].join('\n');
@@ -205,7 +211,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
               <span className="text-xs text-slate-400 font-medium">Đề thi sẵn sàng</span>
               <FileText className="w-4 h-4 text-amber-400" />
             </div>
-            <div className="text-2xl font-extrabold text-amber-300">{exams.length}</div>
+            <div className="text-2xl font-extrabold text-amber-300">{visibleExams.length}</div>
             <span className="text-[10px] text-slate-400 mt-1 block">Đa dạng chuyên ngành</span>
           </div>
 
@@ -233,7 +239,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          Nhật Ký Làm Bài ({attempts.length})
+          Nhật Ký Làm Bài ({visibleAttempts.length})
         </button>
 
         <button
@@ -244,7 +250,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          Quản Lý Kho Đề Thi ({exams.length})
+          Quản Lý Kho Đề Thi ({visibleExams.length})
         </button>
 
         {isAdmin && (
@@ -480,7 +486,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
       {activeSubTab === 'exams' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {exams.map((exam) => (
+            {visibleExams.map((exam) => (
               <div
                 key={exam.id}
                 className="glass-panel rounded-2xl p-5 flex flex-col justify-between"
