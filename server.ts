@@ -29,7 +29,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`TechPulse server running on http://0.0.0.0:${PORT}`);
+    console.log(`Long Hoa Số server running on http://0.0.0.0:${PORT}`);
   });
 }
 

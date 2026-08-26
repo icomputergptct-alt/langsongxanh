@@ -1,5 +1,5 @@
 {
-  "name": "TechPulse - Nền tảng Công nghệ & Khảo thí",
+  "name": "Long Hoa Số - Nền tảng Công nghệ & Khảo thí",
   "description": "Nền tảng công nghệ kỹ thuật số: Tin tức & bài viết phân tích sâu, đọc offline, bình luận trực tiếp, tạo đề thi trắc nghiệm từ file, phòng thi trực quan, dashboard quản trị tiến độ và bộ tiện ích phần mềm có hướng dẫn chi tiết.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

@@ -35,7 +35,7 @@ export const SoftwareUtilities: React.FC = () => {
   // TOOL 1: CODE / JSON / SQL FORMATTER STATE
   // ==========================================
   const [fmtLang, setFmtLang] = useState<'json' | 'sql' | 'js'>('json');
-  const [fmtInput, setFmtInput] = useState(`{"platform":"TechPulse","version":2026,"capabilities":{"deepAnalysis":true,"offlineVault":true,"examRoom":true,"geminiAI":true},"tags":["AI","Security","Cloud"]}`);
+  const [fmtInput, setFmtInput] = useState(`{"platform":"Long Hoa Số","version":2026,"capabilities":{"deepAnalysis":true,"offlineVault":true,"examRoom":true,"geminiAI":true},"tags":["AI","Security","Cloud"]}`);
   const [fmtOutput, setFmtOutput] = useState('');
   const [fmtError, setFmtError] = useState<string | null>(null);
   const [fmtIndent, setFmtIndent] = useState<2 | 4>(2);
@@ -103,7 +103,7 @@ export const SoftwareUtilities: React.FC = () => {
   // TOOL 3: ENCODER & HASH SUITE
   // ==========================================
   const [encSubTab, setEncSubTab] = useState<'base64' | 'url' | 'sha256' | 'md5'>('base64');
-  const [encInput, setEncInput] = useState('TechPulse Nền tảng Tri thức Công nghệ Số 2026');
+  const [encInput, setEncInput] = useState('Long Hoa Số Nền tảng Tri thức Công nghệ Số 2026');
   const [encOutput, setEncOutput] = useState('');
 
   const handleRunEncoder = async (inputStr: string, mode: 'base64' | 'url' | 'sha256' | 'md5') => {
