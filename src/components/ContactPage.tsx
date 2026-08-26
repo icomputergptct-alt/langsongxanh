@@ -52,36 +52,44 @@ export const ContactPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* Contact info + map */}
         <div className="space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-            <h2 className="text-sm font-bold text-slate-200 uppercase tracking-wide">Thông Tin Liên Hệ</h2>
+          <div className="relative overflow-hidden rounded-2xl border border-slate-800">
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: "url('/lien_he.png')" }}
+            />
+            <div className="absolute inset-0 bg-slate-950/85" />
 
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
-                <Mail className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-xs text-slate-500">Email</div>
-                <div className="text-sm text-slate-200 font-medium">{CONTACT_INFO.email || 'Đang cập nhật'}</div>
-              </div>
-            </div>
+            <div className="relative p-6 space-y-4">
+              <h2 className="text-sm font-bold text-slate-200 uppercase tracking-wide">Thông Tin Liên Hệ</h2>
 
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
-                <Phone className="w-4 h-4" />
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400">Email</div>
+                  <div className="text-sm text-slate-100 font-medium">{CONTACT_INFO.email || 'Đang cập nhật'}</div>
+                </div>
               </div>
-              <div>
-                <div className="text-xs text-slate-500">Số điện thoại</div>
-                <div className="text-sm text-slate-200 font-medium">{CONTACT_INFO.phone || 'Đang cập nhật'}</div>
-              </div>
-            </div>
 
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
-                <MapPin className="w-4 h-4" />
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                  <Phone className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400">Số điện thoại</div>
+                  <div className="text-sm text-slate-100 font-medium">{CONTACT_INFO.phone || 'Đang cập nhật'}</div>
+                </div>
               </div>
-              <div>
-                <div className="text-xs text-slate-500">Địa chỉ</div>
-                <div className="text-sm text-slate-200 font-medium">{CONTACT_INFO.address || 'Đang cập nhật'}</div>
+
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs text-slate-400">Địa chỉ</div>
+                  <div className="text-sm text-slate-100 font-medium">{CONTACT_INFO.address || 'Đang cập nhật'}</div>
+                </div>
               </div>
             </div>
           </div>
