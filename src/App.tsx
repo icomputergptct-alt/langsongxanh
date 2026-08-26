@@ -50,6 +50,19 @@ export default function App() {
     }
   }, [user, activeTab]);
 
+  // Supabase clears the OAuth token from the URL fragment via `location.hash = ''`,
+  // which leaves a trailing bare "#" in the address bar. Strip it once it appears.
+  useEffect(() => {
+    const stripTrailingHash = () => {
+      if (window.location.href.endsWith('#')) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    };
+    stripTrailingHash();
+    window.addEventListener('hashchange', stripTrailingHash);
+    return () => window.removeEventListener('hashchange', stripTrailingHash);
+  }, []);
+
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tất cả');
