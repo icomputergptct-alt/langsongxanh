@@ -1,4 +1,4 @@
-﻿import { Article, Comment, ExamAttempt, ExamDocument, OfflineArticle, QuizExam } from '../types';
+﻿import { Article, Comment, ContactMessage, ExamAttempt, ExamDocument, OfflineArticle, QuizExam } from '../types';
 import { supabase } from './supabaseClient';
 import { generateExamPdfBlob } from './examPdf';
 
@@ -651,6 +651,21 @@ export const storageService = {
     };
     const { error } = await supabase.from('contact_messages').insert(row);
     if (error) throw error;
+  },
+
+  async getContactMessages(): Promise<ContactMessage[]> {
+    const { data, error } = await supabase
+      .from('contact_messages')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map((row) => ({
+      id: row.id,
+      title: row.title,
+      content: row.content,
+      email: row.email,
+      createdAt: row.created_at,
+    }));
   },
 
   // --- Simulated Offline Mode Toggle (local-only) ---

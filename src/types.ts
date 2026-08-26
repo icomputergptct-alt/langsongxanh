@@ -118,6 +118,15 @@ export interface ExamDocument {
   uploadedAt: string;
 }
 
+// A message submitted through the public "Liên Hệ Hệ Thống" contact form
+export interface ContactMessage {
+  id: string;
+  title: string;
+  content: string;
+  email: string;
+  createdAt: string;
+}
+
 export interface UserExamAnswer {
   questionId: string;
   selectedOptionId: string;

@@ -22,9 +22,10 @@ import {
   Pencil,
   Lock,
   Eye,
-  X
+  X,
+  Mail
 } from 'lucide-react';
-import { Article, ExamAttempt, QuizExam } from '../types';
+import { Article, ContactMessage, ExamAttempt, QuizExam } from '../types';
 import { storageService } from '../services/storageService';
 import { ArticleEditorModal } from './ArticleEditorModal';
 
@@ -38,9 +39,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [exams, setExams] = useState<QuizExam[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
+  const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
   const [searchCandidate, setSearchCandidate] = useState('');
   const [selectedAttempt, setSelectedAttempt] = useState<ExamAttempt | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'attempts' | 'exams' | 'analytics' | 'news'>('analytics');
+  const [activeSubTab, setActiveSubTab] = useState<'attempts' | 'exams' | 'analytics' | 'news' | 'contact'>('analytics');
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [isArticleEditorOpen, setIsArticleEditorOpen] = useState(false);
   const [viewingExamAttempts, setViewingExamAttempts] = useState<QuizExam | null>(null);
@@ -49,7 +51,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
     storageService.getAttempts().then(setAttempts).catch((err) => console.error('Không tải được lượt thi:', err));
     storageService.getAllExamsIncludingArchived().then(setExams).catch((err) => console.error('Không tải được đề thi:', err));
     storageService.getArticles().then(setArticles).catch((err) => console.error('Không tải được bài viết:', err));
-  }, []);
+    if (isAdmin) {
+      storageService.getContactMessages().then(setContactMessages).catch((err) => console.error('Không tải được tin nhắn liên hệ:', err));
+    }
+  }, [isAdmin]);
 
   const handleDeleteExam = async (examId: string) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa đề thi này?')) {
@@ -264,6 +269,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
           >
             <Newspaper className="w-3.5 h-3.5" />
             <span>Quản Lý Tin Tức ({articles.length})</span>
+          </button>
+        )}
+
+        {isAdmin && (
+          <button
+            onClick={() => setActiveSubTab('contact')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+              activeSubTab === 'contact'
+                ? 'bg-slate-800 text-cyan-400 border border-slate-700 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Mail className="w-3.5 h-3.5" />
+            <span>Tin Nhắn Liên Hệ ({contactMessages.length})</span>
           </button>
         )}
       </div>
@@ -645,6 +664,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
             <Lock className="w-10 h-10 text-slate-600 mx-auto mb-3" />
             <h3 className="text-base font-bold text-slate-300 mb-1">Chỉ admin mới quản lý được tin tức</h3>
             <p className="text-xs text-slate-500">Đăng nhập bằng tài khoản quản trị để thêm, sửa hoặc xóa bài viết.</p>
+          </div>
+        )
+      )}
+
+      {/* SUB-VIEW 5: Contact Messages (admin only) */}
+      {activeSubTab === 'contact' && (
+        isAdmin ? (
+          <div className="space-y-4">
+            <span className="text-xs text-slate-400">
+              Hiển thị {contactMessages.length} tin nhắn liên hệ
+            </span>
+
+            {contactMessages.length === 0 ? (
+              <div className="text-center py-16 glass-panel rounded-3xl p-8">
+                <Mail className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                <h3 className="text-base font-bold text-slate-300 mb-1">Chưa có tin nhắn liên hệ nào</h3>
+                <p className="text-xs text-slate-500">Các yêu cầu gửi từ trang "Liên Hệ Hệ Thống" sẽ hiện tại đây.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {contactMessages.map((msg) => (
+                  <div key={msg.id} className="glass-panel rounded-2xl p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                      <h4 className="font-bold text-slate-100 text-sm sm:text-base">{msg.title}</h4>
+                      <span className="text-[10px] text-slate-400 shrink-0">
+                        {new Date(msg.createdAt).toLocaleDateString('vi-VN', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          day: 'numeric',
+                          month: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap mb-3">
+                      {msg.content}
+                    </p>
+                    <a
+                      href={`mailto:${msg.email}`}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-400 hover:text-cyan-300"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      <span>{msg.email}</span>
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-16 glass-panel rounded-3xl p-8">
+            <Lock className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-slate-300 mb-1">Chỉ admin mới xem được tin nhắn liên hệ</h3>
+            <p className="text-xs text-slate-500">Đăng nhập bằng tài khoản quản trị để xem các yêu cầu hỗ trợ.</p>
           </div>
         )
       )}
