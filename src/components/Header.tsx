@@ -198,8 +198,8 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setActiveTab('quiz')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
               activeTab === 'quiz'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                ? 'bg-blue-600/30 backdrop-blur-md border border-blue-400/40 text-white shadow-md shadow-blue-600/20'
+                : 'border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
             <GraduationCap className="w-4 h-4" />
@@ -211,8 +211,8 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setActiveTab('offline')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all relative ${
               activeTab === 'offline'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                ? 'bg-blue-600/30 backdrop-blur-md border border-blue-400/40 text-white shadow-md shadow-blue-600/20'
+                : 'border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
             <FileText className="w-4 h-4" />
@@ -231,8 +231,8 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setActiveTab('news')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
               activeTab === 'news'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                ? 'bg-blue-600/30 backdrop-blur-md border border-blue-400/40 text-white shadow-md shadow-blue-600/20'
+                : 'border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
             <BookOpen className="w-4 h-4" />
@@ -245,8 +245,8 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => setActiveTab('admin')}
               className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
                 activeTab === 'admin'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  ? 'bg-blue-600/30 backdrop-blur-md border border-blue-400/40 text-white shadow-md shadow-blue-600/20'
+                  : 'border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
             >
               <BarChart3 className="w-4 h-4" />
@@ -259,8 +259,8 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setActiveTab('utilities')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
               activeTab === 'utilities'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                ? 'bg-blue-600/30 backdrop-blur-md border border-blue-400/40 text-white shadow-md shadow-blue-600/20'
+                : 'border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
             <Wrench className="w-4 h-4" />
@@ -272,8 +272,8 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setActiveTab('contact')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
               activeTab === 'contact'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                ? 'bg-blue-600/30 backdrop-blur-md border border-blue-400/40 text-white shadow-md shadow-blue-600/20'
+                : 'border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
             <Phone className="w-4 h-4" />

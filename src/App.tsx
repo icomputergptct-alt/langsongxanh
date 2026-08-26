@@ -369,7 +369,7 @@ export default function App() {
                       <section
                         id="bento-hero-featured"
                         onClick={() => selectArticle(featuredArticle)}
-                        className="md:col-span-12 lg:col-span-8 bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 relative overflow-hidden group cursor-pointer transition-all duration-300 hover:border-blue-500/60 hover:shadow-2xl hover:shadow-blue-500/10 min-h-[380px] flex flex-col justify-end"
+                        className="glass-panel md:col-span-12 lg:col-span-8 rounded-3xl p-6 sm:p-8 relative overflow-hidden group cursor-pointer transition-all duration-300 hover:border-blue-500/60 hover:shadow-2xl hover:shadow-blue-500/10 min-h-[380px] flex flex-col justify-end"
                       >
                         {/* Cover Image Background with dark overlay */}
                         <div className="absolute inset-0 z-0">
@@ -421,7 +421,7 @@ export default function App() {
                     )}
 
                     {/* BENTO 2: Live Tech News Pulse (4 cols) */}
-                    <section className="md:col-span-12 lg:col-span-4 bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-slate-700/80 transition-colors">
+                    <section className="glass-panel md:col-span-12 lg:col-span-4 rounded-3xl p-6 flex flex-col justify-between hover:border-slate-600/60 transition-colors">
                       <div>
                         <h3 className="text-base font-bold mb-4 flex items-center gap-2 text-slate-100">
                           <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>
@@ -481,7 +481,7 @@ export default function App() {
                     </section>
 
                     {/* BENTO 3: Quiz Management Widget (4 cols) */}
-                    <section className="md:col-span-6 lg:col-span-4 bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-slate-700/80 transition-colors">
+                    <section className="glass-panel md:col-span-6 lg:col-span-4 rounded-3xl p-6 flex flex-col justify-between hover:border-slate-600/60 transition-colors">
                       <div>
                         <div className="flex justify-between items-center mb-4">
                           <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
@@ -534,7 +534,7 @@ export default function App() {
                     </section>
 
                     {/* BENTO 4: Software Utilities Widget (4 cols) */}
-                    <section className="md:col-span-6 lg:col-span-4 bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-slate-700/80 transition-colors">
+                    <section className="glass-panel md:col-span-6 lg:col-span-4 rounded-3xl p-6 flex flex-col justify-between hover:border-slate-600/60 transition-colors">
                       <div>
                         <h3 className="text-base font-bold mb-4 text-slate-100 flex items-center gap-2">
                           <Wrench className="w-4 h-4 text-blue-400" />
@@ -577,7 +577,7 @@ export default function App() {
                     </section>
 
                     {/* BENTO 5: Admin Dashboard Progress Highlight (4 cols) */}
-                    <section className="md:col-span-12 lg:col-span-4 bg-blue-600 rounded-3xl p-6 text-white shadow-xl shadow-blue-600/20 flex flex-col justify-between">
+                    <section className="md:col-span-12 lg:col-span-4 bg-blue-600/30 backdrop-blur-md border border-blue-400/30 rounded-3xl p-6 text-white shadow-xl shadow-blue-600/20 flex flex-col justify-between">
                       <div className="space-y-4">
                         <h3 className="text-base font-bold flex items-center gap-2">
                           <BarChart3 className="w-4 h-4 text-white" />

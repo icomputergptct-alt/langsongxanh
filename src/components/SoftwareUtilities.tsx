@@ -265,7 +265,7 @@ interface SystemConfig {
     <div id="software-utilities-view" className="max-w-6xl mx-auto pb-16">
       
       {/* Top Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 mb-8 shadow-xl">
+      <div className="glass-panel rounded-2xl p-6 sm:p-8 mb-8">
         <div className="flex items-center gap-2.5 mb-2">
           <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 flex items-center justify-center">
             <Wrench className="w-5 h-5" />
@@ -295,10 +295,10 @@ interface SystemConfig {
                 key={tool.id}
                 id={`utility-select-btn-${tool.id}`}
                 onClick={() => setSelectedToolId(tool.id)}
-                className={`w-full text-left p-4 rounded-xl border transition-all duration-200 flex items-center justify-between group ${
+                className={`w-full text-left p-4 rounded-xl border backdrop-blur-sm transition-all duration-200 flex items-center justify-between group ${
                   isSelected
-                    ? 'bg-slate-900 border-cyan-500 shadow-md shadow-cyan-500/10'
-                    : 'bg-slate-950/80 hover:bg-slate-900 border-slate-800 text-slate-300'
+                    ? 'bg-white/10 border-cyan-500 shadow-md shadow-cyan-500/10'
+                    : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -337,7 +337,7 @@ interface SystemConfig {
         <div className="lg:col-span-8 space-y-6">
           
           {/* Active Tool Interactive Card */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+          <div className="glass-panel rounded-2xl p-6">
             
             {/* Header info */}
             <div className="flex items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
@@ -760,7 +760,7 @@ interface SystemConfig {
           {/* ========================================== */}
           {/* COMPREHENSIVE USER GUIDES ACCORDION        */}
           {/* ========================================== */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+          <div className="glass-panel rounded-2xl p-6 space-y-6">
             <div className="flex items-center gap-2 text-indigo-400 font-bold text-sm sm:text-base border-b border-slate-800 pb-3">
               <BookOpen className="w-4 h-4" />
               <span>Cẩm Nang & Hướng Dẫn Sử Dụng Chi Tiết: {activeTool.name}</span>

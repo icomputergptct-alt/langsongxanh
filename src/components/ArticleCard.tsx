@@ -29,7 +29,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
     <article
       id={`article-card-${article.id}`}
       onClick={() => onSelectArticle(article)}
-      className="group relative bg-slate-900 hover:bg-slate-900/90 border border-slate-800 hover:border-blue-500/50 rounded-3xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 flex flex-col"
+      className="group relative bg-slate-900 hover:bg-slate-900/90 border border-amber-400/40 hover:border-amber-400/70 rounded-3xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl hover:shadow-amber-500/20 flex flex-col"
     >
       {/* Cover Image & Badges */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-950">
