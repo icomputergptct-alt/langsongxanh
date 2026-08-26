@@ -8,12 +8,13 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signUp, signInWithGoogle, signInWithFacebook } = useAuth();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const [isFacebookSubmitting, setIsFacebookSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
@@ -36,6 +37,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     if (err) {
       setError(err);
       setIsGoogleSubmitting(false);
+    }
+  };
+
+  const handleFacebookSignIn = async () => {
+    setError(null);
+    setInfoMessage(null);
+    setIsFacebookSubmitting(true);
+    const { error: err } = await signInWithFacebook();
+    if (err) {
+      setError(err);
+      setIsFacebookSubmitting(false);
     }
   };
 
@@ -96,7 +108,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           <button
             type="button"
             onClick={handleGoogleSignIn}
-            disabled={isGoogleSubmitting || isSubmitting}
+            disabled={isGoogleSubmitting || isFacebookSubmitting || isSubmitting}
             className="w-full flex items-center justify-center gap-2.5 bg-white hover:bg-slate-100 disabled:opacity-50 text-slate-800 text-sm font-semibold py-2.5 rounded-xl shadow-md transition-colors"
           >
             <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
@@ -106,6 +118,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               <path fill="#EA4335" d="M12 4.77c1.76 0 3.35.61 4.6 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0 7.29 0 3.24 2.7 1.26 6.62l4.01 3.11C6.22 6.88 8.87 4.77 12 4.77Z" />
             </svg>
             {isGoogleSubmitting ? 'Đang chuyển hướng...' : 'Đăng nhập bằng Google'}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleFacebookSignIn}
+            disabled={isGoogleSubmitting || isFacebookSubmitting || isSubmitting}
+            className="w-full flex items-center justify-center gap-2.5 bg-[#1877F2] hover:bg-[#166FE0] disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-xl shadow-md transition-colors mt-2.5"
+          >
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M24 12.07C24 5.68 18.63.4 12 .4S0 5.68 0 12.07c0 5.77 4.39 10.56 10.13 11.45v-8.1H7.08v-3.35h3.05V9.41c0-3 1.79-4.67 4.53-4.67 1.31 0 2.68.24 2.68.24v2.92h-1.51c-1.49 0-1.95.92-1.95 1.87v2.24h3.32l-.53 3.35h-2.79v8.1C19.61 22.63 24 17.84 24 12.07Z" />
+            </svg>
+            {isFacebookSubmitting ? 'Đang chuyển hướng...' : 'Đăng nhập bằng Facebook'}
           </button>
 
           <div className="relative flex items-center gap-3 mt-4">
