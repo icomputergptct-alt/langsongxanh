@@ -821,7 +821,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <img src="/logo.png" alt="Long Hoa Số" className="w-6 h-6 rounded-lg" />
             <span className="font-semibold text-slate-300">Long Hoa Số</span>
-            <span className="text-slate-600">| Nền tảng Tri thức Công nghệ Số</span>
+            <span className="text-slate-600">| Nền tảng kết nối Tri thức Công nghệ Số</span>
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-400">
