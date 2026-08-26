@@ -5,8 +5,8 @@ import { storageService } from '../services/storageService';
 // Real contact details go here.
 const CONTACT_INFO = {
   email: 'icomputer.gpt.ct@gmail.com',
-  phone: '',
-  address: '',
+  phone: '0772 162 969',
+  address: 'Khu vực Long Hòa, phường Long Phú 1, thành phố Cần Thơ',
   mapEmbedUrl:
     'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1653.7960562586852!2d105.6174575912564!3d9.64578677329545!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31a0fbf7c77b126d%3A0x8b9ef5d2f35928dd!2zRFYgQ8O0bmcgTmdo4buHIFPhu5EgLSBJbmZvcm1hdGlvbiBUZWNobm9sb3J5!5e0!3m2!1svi!2s!4v1787711340623!5m2!1svi!2s',
 };
