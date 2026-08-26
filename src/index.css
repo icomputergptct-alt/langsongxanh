@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+@layer components {
+  /* Frosted-glass decorative surface: barely-there white tint + blur so the
+     page's background art shows through while text laid on top stays legible.
+     Reuse this for any decorative panel/card that should sit on the busy
+     hero background instead of re-picking bg-white/opacity values by hand. */
+  .glass-panel {
+    @apply bg-white/10 backdrop-blur-sm border border-white/30 rounded-2xl shadow-lg;
+  }
+}
+
 /* Basic readable styling for mammoth-rendered .docx content in the exam library viewer
    (no @tailwindcss/typography plugin installed, so style the raw tags directly). */
 .docx-preview h1, .docx-preview h2, .docx-preview h3 {

@@ -283,20 +283,20 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
         
         {/* Unified Toolbar Card — hero + search/filter live in one continuous surface
             instead of separate floating white blocks, so the page reads as one panel. */}
-        <div className="bg-transparent border border-white/15 rounded-2xl mb-8 overflow-hidden">
+        <div className="glass-panel mb-8 overflow-hidden">
           {/* Hero */}
-          <div className="bg-transparent px-6 py-3 sm:px-8 sm:py-4">
+          <div className="px-6 py-3 sm:px-8 sm:py-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
                 <div className="flex items-center gap-2.5 mb-2">
                   <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 flex items-center justify-center">
                     <GraduationCap className="w-5 h-5" />
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-extrabold text-white">
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-white [text-shadow:_0_1px_4px_rgba(0,0,0,0.6)]">
                     "Hệ thống Trắc nghiệm của Rồng – Đồng hành Nâng tầm tri thức Việt"
                   </h2>
                 </div>
-                <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+                <p className="text-xs sm:text-sm text-slate-100 max-w-2xl leading-relaxed [text-shadow:_0_1px_3px_rgba(0,0,0,0.6)]">
                   Khám phá bản thân qua các bài kiểm tra cùng Rồng Thần bằng phòng thi trắc nghiệm công nghệ kỹ thuật số khảo sát AI – Ứng dụng đột phá của phòng thi trắc nghiệm số trong việc nâng cao chất lượng kiểm tra. Bây giờ hãy bước vào hang Rồng mở khóa tri thức, nhận ngọc quý và Sẵn sàng nghênh chiến với bộ câu hỏi của Rồng chưa?
                 </p>
               </div>

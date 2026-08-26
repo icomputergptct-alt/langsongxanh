@@ -455,8 +455,8 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   };
 
   return (
-    <div id="quiz-creator-modal-overlay" className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+    <div id="quiz-creator-modal-overlay" className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+      <div className="glass-panel w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
         
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
@@ -532,7 +532,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-slate-700 hover:border-cyan-500/80 bg-slate-950/60 hover:bg-slate-950 rounded-2xl p-8 text-center cursor-pointer transition-all group"
+                className="border-2 border-dashed border-slate-700 hover:border-cyan-500/80 bg-white/5 hover:bg-white/10 backdrop-blur-sm rounded-2xl p-8 text-center cursor-pointer transition-all group"
               >
                 <input
                   type="file"
@@ -837,8 +837,10 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
             </div>
           </div>
 
-          {/* Questions Visual Editor — shown once there are real questions, or always in manual mode */}
-          {(questions.length > 0 || activeMode === 'manual') && (
+          {/* Questions Visual Editor — shown in manual mode, and on the upload tab once a
+              parse has actually run there (so extracting a file still shows its results
+              inline). Keeps manually-entered questions from leaking into a fresh upload tab. */}
+          {(activeMode === 'manual' || (activeMode === 'upload' && !!parseMessage)) && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="font-bold text-sm text-slate-100 flex items-center gap-2">

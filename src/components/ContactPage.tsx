@@ -52,13 +52,7 @@ export const ContactPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* Contact info + map */}
         <div className="space-y-6">
-          <div className="relative overflow-hidden rounded-2xl border border-slate-800">
-            <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: "url('/lien_he.png')" }}
-            />
-            <div className="absolute inset-0 bg-slate-950/85" />
-
+          <div className="glass-panel relative overflow-hidden">
             <div className="relative p-6 space-y-4">
               <h2 className="text-sm font-bold text-slate-200 uppercase tracking-wide">Thông Tin Liên Hệ</h2>
 
@@ -94,7 +88,7 @@ export const ContactPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+          <div className="glass-panel p-6">
             <h2 className="text-sm font-bold text-slate-200 uppercase tracking-wide mb-4">Bản Đồ Vị Trí</h2>
             {CONTACT_INFO.mapEmbedUrl ? (
               <iframe
@@ -113,7 +107,7 @@ export const ContactPage: React.FC = () => {
         </div>
 
         {/* Contact form */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <div className="glass-panel p-6">
           <h2 className="text-sm font-bold text-slate-200 uppercase tracking-wide mb-4">Gửi Thông Tin Liên Hệ</h2>
 
           {isSent ? (
