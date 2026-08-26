@@ -15,12 +15,13 @@ import {
   UserCircle2,
   LogOut,
   ShieldCheck,
-  UploadCloud
+  UploadCloud,
+  Phone
 } from 'lucide-react';
 
 interface HeaderProps {
-  activeTab: 'news' | 'offline' | 'quiz' | 'admin' | 'utilities';
-  setActiveTab: (tab: 'news' | 'offline' | 'quiz' | 'admin' | 'utilities') => void;
+  activeTab: 'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'contact';
+  setActiveTab: (tab: 'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'contact') => void;
   isOffline: boolean;
   toggleOffline: () => void;
   savedOfflineCount: number;
@@ -264,6 +265,19 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Wrench className="w-4 h-4" />
             <span>Tiện Ích Phần Mềm</span>
+          </button>
+
+          <button
+            id="tab-contact-btn"
+            onClick={() => setActiveTab('contact')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+              activeTab === 'contact'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <Phone className="w-4 h-4" />
+            <span>Liên Hệ Hệ Thống</span>
           </button>
 
         </nav>

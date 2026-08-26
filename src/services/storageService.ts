@@ -640,6 +640,19 @@ export const storageService = {
     }
   },
 
+  // --- Contact Messages ("Liên Hệ Hệ Thống" page) ---
+  async sendContactMessage(title: string, content: string, email: string): Promise<void> {
+    const row = {
+      id: 'contact-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      title: title.trim(),
+      content: content.trim(),
+      email: email.trim(),
+      created_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from('contact_messages').insert(row);
+    if (error) throw error;
+  },
+
   // --- Simulated Offline Mode Toggle (local-only) ---
   getIsSimulatedOffline(): boolean {
     return safeGet<boolean>(LOCAL_KEYS.SIMULATED_OFFLINE, false);

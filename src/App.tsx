@@ -31,6 +31,7 @@ import { AuthModal } from './components/AuthModal';
 import { TeacherProfileModal } from './components/TeacherProfileModal';
 import { DocumentUploadModal } from './components/DocumentUploadModal';
 import { SearchResults } from './components/SearchResults';
+import { ContactPage } from './components/ContactPage';
 import { Article, ExamDocument, QuizExam } from './types';
 import { storageService } from './services/storageService';
 import { useAuth } from './contexts/AuthContext';
@@ -38,7 +39,7 @@ import { useAuth } from './contexts/AuthContext';
 export default function App() {
   const { user, profile, isAdmin, signOut } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities'>('quiz');
+  const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'contact'>('quiz');
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoadingArticles, setIsLoadingArticles] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
@@ -762,6 +763,13 @@ export default function App() {
         {/* ============================================================ */}
         {activeTab === 'utilities' && (
           <SoftwareUtilities />
+        )}
+
+        {/* ============================================================ */}
+        {/* TAB 6: SYSTEM CONTACT PAGE                                   */}
+        {/* ============================================================ */}
+        {activeTab === 'contact' && (
+          <ContactPage />
         )}
         </>
         )}

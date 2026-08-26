@@ -86,3 +86,22 @@ drop policy if exists "users update own profile" on profiles;
 create policy "users update own profile" on profiles for update
   using (auth.uid() = id)
   with check (auth.uid() = id);
+
+-- Migration: "Liên Hệ Hệ Thống" contact page — anyone can submit (no login
+-- required), but only an admin can read the submitted messages back.
+create table if not exists contact_messages (
+  id text primary key,
+  title text not null,
+  content text not null,
+  email text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table contact_messages enable row level security;
+
+drop policy if exists "public write contact_messages" on contact_messages;
+create policy "public write contact_messages" on contact_messages for insert with check (true);
+
+drop policy if exists "admin read contact_messages" on contact_messages;
+create policy "admin read contact_messages" on contact_messages for select
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin));
