@@ -294,11 +294,11 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                     <GraduationCap className="w-5 h-5" />
                   </div>
                   <h2 className="text-xl sm:text-2xl font-extrabold text-white">
-                    Phòng Thi Trắc Nghiệm Công Nghệ Kỹ Thuật Số
+                    "Hệ thống Trắc nghiệm của Rồng – Đồng hành Nâng tầm tri thức Việt"
                   </h2>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-                  Phòng thi trắc nghiệm công nghệ kỹ thuật số khảo sát AI – Giải pháp đánh giá kiến thức toàn diện và chính xác cho người học. Ứng dụng đột phá của phòng thi trắc nghiệm công nghệ kỹ thuật số trong việc nâng cao chất lượng kiểm tra.
+                  Khám phá bản thân qua các bài kiểm tra cùng Rồng Thần bằng phòng thi trắc nghiệm công nghệ kỹ thuật số khảo sát AI – Ứng dụng đột phá của phòng thi trắc nghiệm số trong việc nâng cao chất lượng kiểm tra. Bây giờ hãy bước vào hang Rồng mở khóa tri thức, nhận ngọc quý và Sẵn sàng nghênh chiến với bộ câu hỏi của Rồng chưa?
                 </p>
               </div>
 
