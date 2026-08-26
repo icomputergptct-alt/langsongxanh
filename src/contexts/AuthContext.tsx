@@ -18,6 +18,7 @@ interface AuthContextValue {
   isLoading: boolean;
   signUp: (email: string, password: string) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: { fullName: string; schoolName: string; phone: string }) => Promise<{ error: string | null }>;
 }
@@ -94,6 +95,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: error ? error.message : null };
   };
 
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+    return { error: error ? error.message : null };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
@@ -119,7 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, isAdmin: !!profile?.isAdmin, isLoading, signUp, signIn, signOut, updateProfile }}
+      value={{ user, profile, isAdmin: !!profile?.isAdmin, isLoading, signUp, signIn, signInWithGoogle, signOut, updateProfile }}
     >
       {children}
     </AuthContext.Provider>
