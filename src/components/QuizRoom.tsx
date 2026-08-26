@@ -19,7 +19,6 @@ import {
   CheckCircle,
   Keyboard,
   Lock,
-  BookOpen,
   Target
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -330,83 +329,77 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
             <div
               key={exam.id}
               id={`exam-card-${exam.id}`}
-              className="group relative overflow-hidden rounded-3xl p-5 flex flex-col justify-between transition-all duration-200 shadow-lg hover:shadow-2xl hover:shadow-emerald-500/20 bg-gradient-to-b from-blue-400 to-emerald-500"
+              style={{ backgroundImage: "url('/the.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+              className="group relative min-h-[320px] h-full overflow-hidden rounded-3xl border border-amber-400/40 p-3 flex flex-col transition-all duration-200 shadow-lg hover:shadow-2xl hover:shadow-amber-500/25 hover:scale-[1.01]"
             >
-              {/* Decorative background accents */}
-              <BookOpen className="absolute -top-3 -right-3 w-28 h-28 text-white/15 pointer-events-none" strokeWidth={1} />
-              <Sparkles className="absolute top-9 right-16 w-4 h-4 text-white/50 pointer-events-none" />
-              <Sparkles className="absolute top-20 right-7 w-3 h-3 text-white/30 pointer-events-none" />
-              <div className="absolute top-14 right-6 w-11 h-11 rounded-xl bg-white shadow-lg flex items-center justify-center rotate-6 pointer-events-none">
-                <span className="text-blue-600 font-black text-sm">Aa</span>
-              </div>
+                <div className="absolute inset-0 bg-teal-950/70 pointer-events-none" />
 
-              <div className="relative z-10">
-                {/* Header tags */}
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-white px-2.5 py-1 rounded-full shadow-sm">
-                    {exam.category}
-                  </span>
-                  <span className="text-[10px] font-bold text-white bg-white/25 backdrop-blur-sm px-2.5 py-1 rounded-full">
-                    {exam.difficulty}
-                  </span>
-                </div>
-
-                {/* Title */}
-                <h3 className="text-base sm:text-lg font-extrabold text-blue-950 leading-snug line-clamp-3 mb-1.5 pr-14">
-                  {exam.title}
-                </h3>
-
-                {/* School / Teacher / Class meta, if provided */}
-                {(exam.schoolName || exam.className || exam.authorName) && (
-                  <div className="text-[11px] text-blue-50/90 space-y-0.5 mb-4">
-                    {(exam.schoolName || exam.className) && (
-                      <p>{[exam.schoolName, exam.className && `Lớp ${exam.className}`].filter(Boolean).join(' • ')}</p>
-                    )}
-                    {exam.authorName && <p>GV: {exam.authorName}</p>}
-                  </div>
-                )}
-              </div>
-
-              {/* Stats + CTA panel */}
-              <div className="relative z-10 bg-white rounded-2xl p-4 shadow-lg">
-                <div className="grid grid-cols-3 gap-2 text-xs mb-3">
-                  <div>
-                    <span className="flex items-center gap-1 text-[10px] text-slate-400 mb-0.5">
-                      <Layers className="w-3 h-3 text-blue-500" />
-                      <span>Số câu</span>
+                <div className="relative z-10">
+                  {/* Header tags */}
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-200 bg-teal-950/70 border border-amber-400/50 px-2.5 py-1 rounded-full shadow-sm [text-shadow:_0_1px_2px_rgba(0,0,0,0.5)]">
+                      {exam.category}
                     </span>
-                    <strong className="text-slate-800">{exam.questions.length} câu</strong>
-                  </div>
-                  <div>
-                    <span className="flex items-center gap-1 text-[10px] text-slate-400 mb-0.5">
-                      <Clock className="w-3 h-3 text-blue-500" />
-                      <span>Thời gian</span>
+                    <span className="text-[10px] font-bold text-amber-200 bg-teal-950/70 border border-amber-400/50 px-2.5 py-1 rounded-full [text-shadow:_0_1px_2px_rgba(0,0,0,0.5)]">
+                      {exam.difficulty}
                     </span>
-                    <strong className="text-slate-800">{exam.durationMinutes} phút</strong>
                   </div>
-                  <div>
-                    <span className="flex items-center gap-1 text-[10px] text-slate-400 mb-0.5">
-                      <Target className="w-3 h-3 text-emerald-500" />
-                      <span>Điểm đạt</span>
-                    </span>
-                    <strong className="text-emerald-600">{exam.passScorePercent}%</strong>
-                  </div>
-                </div>
 
-                <button
-                  id={`start-exam-btn-${exam.id}`}
-                  onClick={() => handleRequestStartExam(exam)}
-                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2.5 rounded-xl transition-all"
-                >
-                  {exam.roomPassword ? (
-                    <Lock className="w-3.5 h-3.5" />
-                  ) : (
-                    <Play className="w-3.5 h-3.5 fill-current" />
+                  {/* Title */}
+                  <h3 className="text-base sm:text-lg font-extrabold text-white leading-snug mt-8 mb-1.5 pr-14 [text-shadow:_0_1px_4px_rgba(0,0,0,0.8)]">
+                    {exam.title}
+                  </h3>
+
+                  {/* School / Teacher / Class meta, if provided */}
+                  {(exam.schoolName || exam.className || exam.authorName) && (
+                    <div className="text-sm font-bold text-amber-50 space-y-0.5 mb-4 [text-shadow:_0_1px_3px_rgba(0,0,0,0.7)]">
+                      {(exam.schoolName || exam.className) && (
+                        <p>{[exam.schoolName, exam.className && `Lớp ${exam.className}`].filter(Boolean).join(' • ')}</p>
+                      )}
+                      {exam.authorName && <p>GV: {exam.authorName}</p>}
+                    </div>
                   )}
-                  <span>Vào Phòng Thi & Làm Bài</span>
-                </button>
-              </div>
+                </div>
 
+                {/* Stats + CTA panel */}
+                <div className="relative z-10 bg-gradient-to-b from-amber-50 to-white rounded-2xl pt-4 px-2 pb-2 mt-auto shadow-lg border border-amber-300/60">
+                  <div className="grid grid-cols-3 gap-2 text-sm mb-3">
+                    <div>
+                      <span className="flex items-center gap-1 text-xs text-amber-700/70 mb-0.5">
+                        <Layers className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Số câu</span>
+                      </span>
+                      <strong className="text-base font-extrabold text-teal-900">{exam.questions.length} câu</strong>
+                    </div>
+                    <div>
+                      <span className="flex items-center gap-1 text-xs text-amber-700/70 mb-0.5">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Thời gian</span>
+                      </span>
+                      <strong className="text-base font-extrabold text-teal-900">{exam.durationMinutes} phút</strong>
+                    </div>
+                    <div>
+                      <span className="flex items-center gap-1 text-xs text-amber-700/70 mb-0.5">
+                        <Target className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Điểm đạt</span>
+                      </span>
+                      <strong className="text-base font-extrabold text-emerald-700">{exam.passScorePercent}%</strong>
+                    </div>
+                  </div>
+
+                  <button
+                    id={`start-exam-btn-${exam.id}`}
+                    onClick={() => handleRequestStartExam(exam)}
+                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-teal-800 to-emerald-800 hover:from-teal-700 hover:to-emerald-700 border border-amber-400/60 text-amber-50 text-sm font-bold py-2.5 rounded-xl transition-all"
+                  >
+                    {exam.roomPassword ? (
+                      <Lock className="w-3.5 h-3.5 text-amber-300" />
+                    ) : (
+                      <Play className="w-3.5 h-3.5 fill-current text-amber-300" />
+                    )}
+                    <span>Vào Phòng Thi & Làm Bài</span>
+                  </button>
+                </div>
             </div>
           ))}
         </div>
