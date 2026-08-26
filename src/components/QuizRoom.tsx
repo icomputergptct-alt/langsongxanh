@@ -407,17 +407,17 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
         {/* Exam Entry Gate — shows the room's school/grade/class and collects the
             student's name (plus a password, if the room has one) before starting */}
         {pendingEntryExam && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white border border-slate-300 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
-              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-600 border border-cyan-500/30 flex items-center justify-center mx-auto">
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="glass-panel max-w-sm w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 flex items-center justify-center mx-auto">
                 {pendingEntryExam.roomPassword ? <Lock className="w-6 h-6" /> : <Play className="w-6 h-6 fill-current" />}
               </div>
 
               <div className="text-center">
-                <h3 className="text-lg font-bold text-slate-900">Thông Tin Thí Sinh</h3>
-                <p className="text-xs text-slate-500 mt-1 line-clamp-1">{pendingEntryExam.title}</p>
+                <h3 className="text-lg font-bold text-white">Thông Tin Thí Sinh</h3>
+                <p className="text-xs text-slate-300 mt-1 line-clamp-1">{pendingEntryExam.title}</p>
                 {(pendingEntryExam.schoolName || pendingEntryExam.grade || pendingEntryExam.className) && (
-                  <p className="text-sm text-cyan-700 font-semibold mt-1">
+                  <p className="text-sm text-cyan-300 font-semibold mt-1">
                     {[
                       pendingEntryExam.schoolName,
                       pendingEntryExam.grade && `Khối ${pendingEntryExam.grade}`,
@@ -430,7 +430,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Họ và Tên</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Họ và Tên</label>
                 <input
                   type="text"
                   autoFocus
@@ -441,18 +441,18 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                   }}
                   onKeyDown={(e) => e.key === 'Enter' && !pendingEntryExam.roomPassword && handleConfirmEntry()}
                   placeholder="Nhập họ và tên của bạn..."
-                  className={`w-full bg-slate-50 border rounded-xl px-3 py-2.5 text-sm text-slate-800 uppercase focus:outline-none ${
-                    studentNameError ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-cyan-500'
+                  className={`w-full bg-white/10 border rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-400 uppercase focus:outline-none ${
+                    studentNameError ? 'border-rose-400 focus:border-rose-500' : 'border-white/20 focus:border-cyan-500'
                   }`}
                 />
                 {studentNameError && (
-                  <p className="text-xs text-rose-600 font-semibold mt-1.5">Vui lòng nhập họ và tên trước khi vào phòng thi.</p>
+                  <p className="text-xs text-rose-400 font-semibold mt-1.5">Vui lòng nhập họ và tên trước khi vào phòng thi.</p>
                 )}
               </div>
 
               {pendingEntryExam.roomPassword && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Mật Mã Phòng Thi</label>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">Mật Mã Phòng Thi</label>
                   <input
                     type="text"
                     value={passwordAttempt}
@@ -462,18 +462,18 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                     }}
                     onKeyDown={(e) => e.key === 'Enter' && handleConfirmEntry()}
                     placeholder="Nhập mật mã phòng thi..."
-                    className={`w-full bg-slate-50 border rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none ${
-                      passwordError ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-cyan-500'
+                    className={`w-full bg-white/10 border rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none ${
+                      passwordError ? 'border-rose-400 focus:border-rose-500' : 'border-white/20 focus:border-cyan-500'
                     }`}
                   />
                   {passwordError && (
-                    <p className="text-xs text-rose-600 font-semibold mt-1.5">Sai mật mã phòng thi. Vui lòng thử lại.</p>
+                    <p className="text-xs text-rose-400 font-semibold mt-1.5">Sai mật mã phòng thi. Vui lòng thử lại.</p>
                   )}
                 </div>
               )}
 
               {alreadyTookError && (
-                <p className="text-xs text-rose-600 font-semibold bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+                <p className="text-xs text-rose-300 font-semibold bg-rose-500/10 border border-rose-500/30 rounded-xl px-3 py-2">
                   Thí sinh "{studentName.trim()}" đã nộp bài đề thi này rồi, không thể vào lại phòng thi.
                 </p>
               )}
@@ -482,7 +482,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                 <button
                   type="button"
                   onClick={() => setPendingEntryExam(null)}
-                  className="flex-1 text-xs font-semibold text-slate-500 hover:text-slate-800 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
+                  className="flex-1 text-xs font-semibold text-slate-300 hover:text-white py-2.5 rounded-xl border border-white/20 hover:bg-white/10 transition-colors"
                 >
                   Hủy bỏ
                 </button>

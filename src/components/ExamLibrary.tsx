@@ -371,8 +371,8 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
           {/* Main column */}
           <div className="space-y-6 min-w-0">
             {/* Featured grade grid */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xl">
-              <h2 className="text-sm sm:text-base font-extrabold text-slate-900 mb-4">
+            <div className="glass-panel p-5 sm:p-6">
+              <h2 className="text-sm sm:text-base font-extrabold text-white mb-4">
                 Đề thi, đề kiểm tra nổi bật
               </h2>
               <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3">
@@ -386,8 +386,8 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
                       onClick={() => setGradeFilter(isActive ? null : g)}
                       className={`group flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
                         isActive
-                          ? 'border-cyan-500 bg-cyan-50 shadow-md'
-                          : 'border-slate-100 bg-slate-50 hover:border-slate-200 hover:bg-white hover:shadow-md'
+                          ? 'border-cyan-400 bg-cyan-500/15 shadow-md'
+                          : 'border-white/10 bg-white/5 hover:border-white/25 hover:bg-white/10 hover:shadow-md'
                       }`}
                     >
                       <div
@@ -395,7 +395,7 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
                       >
                         <Icon className="w-5 h-5 text-white" strokeWidth={2} />
                       </div>
-                      <span className={`text-[11px] sm:text-xs font-bold ${isActive ? 'text-cyan-700' : 'text-slate-700'}`}>
+                      <span className={`text-[11px] sm:text-xs font-bold ${isActive ? 'text-cyan-300' : 'text-slate-200'}`}>
                         Lớp {g}
                       </span>
                     </button>
@@ -405,16 +405,16 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
             </div>
 
             {/* Newest exam files list */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xl">
+            <div className="glass-panel p-5 sm:p-6">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm sm:text-base font-extrabold text-slate-900">
+                <h2 className="text-sm sm:text-base font-extrabold text-white">
                   Đề thi, đề kiểm tra mới nhất
-                  {gradeFilter && <span className="text-cyan-600"> — Lớp {gradeFilter}</span>}
+                  {gradeFilter && <span className="text-cyan-300"> — Lớp {gradeFilter}</span>}
                 </h2>
                 {gradeFilter && (
                   <button
                     onClick={() => setGradeFilter(null)}
-                    className="text-xs font-semibold text-cyan-600 hover:text-cyan-700"
+                    className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
                   >
                     Xóa lọc
                   </button>
@@ -422,7 +422,7 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
               </div>
 
               {newestDocs.length === 0 ? (
-                <p className="text-xs text-slate-500 py-6 text-center">
+                <p className="text-xs text-slate-300 py-6 text-center">
                   {searchTerm
                     ? `Không tìm thấy tài liệu nào khớp với "${globalSearchQuery}".`
                     : gradeFilter
@@ -430,21 +430,21 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
                     : 'Chưa có đề thi nào được tải lên.'}
                 </p>
               ) : (
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y divide-white/10">
                   {newestDocs.map((doc) => (
                     <li key={doc.id}>
                       <button
                         onClick={() => setViewingDoc(doc)}
                         className="w-full flex items-center gap-3 py-2.5 text-left group"
                       >
-                        <FileText className="w-4 h-4 text-blue-500 shrink-0" />
-                        <span className="flex-1 text-xs sm:text-sm text-slate-700 group-hover:text-cyan-600 group-hover:underline line-clamp-1">
+                        <FileText className="w-4 h-4 text-blue-400 shrink-0" />
+                        <span className="flex-1 text-xs sm:text-sm text-slate-200 group-hover:text-cyan-300 group-hover:underline line-clamp-1">
                           {doc.title}
                         </span>
                         {doc.grade && (
                           <span className="text-[10px] font-semibold text-slate-400 shrink-0">Lớp {doc.grade}</span>
                         )}
-                        <Eye className="w-3.5 h-3.5 text-slate-300 group-hover:text-cyan-500 shrink-0" />
+                        <Eye className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 shrink-0" />
                       </button>
                     </li>
                   ))}
@@ -455,14 +455,14 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
 
           {/* Sidebar */}
           <div className="space-y-4">
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xl">
-              <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5 mb-3">
-                <Flame className="w-4 h-4 text-amber-500" />
+            <div className="glass-panel p-5">
+              <h3 className="text-sm font-extrabold text-white flex items-center gap-1.5 mb-3">
+                <Flame className="w-4 h-4 text-amber-400" />
                 <span>Đề thi được xem nhiều trong tuần</span>
               </h3>
 
               {mostViewed.length === 0 ? (
-                <p className="text-xs text-slate-500">Chưa có dữ liệu.</p>
+                <p className="text-xs text-slate-300">Chưa có dữ liệu.</p>
               ) : (
                 <ol className="space-y-3">
                   {mostViewed.map((doc, idx) => (
@@ -471,10 +471,10 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
                         onClick={() => setViewingDoc(doc)}
                         className="w-full flex items-start gap-2.5 text-left group"
                       >
-                        <span className="text-xs font-bold text-slate-300 group-hover:text-cyan-600 shrink-0 pt-0.5">
+                        <span className="text-xs font-bold text-slate-500 group-hover:text-cyan-300 shrink-0 pt-0.5">
                           {String(idx + 1).padStart(2, '0')}.
                         </span>
-                        <span className="flex-1 text-xs text-slate-700 group-hover:text-cyan-600 group-hover:underline line-clamp-2">
+                        <span className="flex-1 text-xs text-slate-200 group-hover:text-cyan-300 group-hover:underline line-clamp-2">
                           {doc.title}
                         </span>
                       </button>
