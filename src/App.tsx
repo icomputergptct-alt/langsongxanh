@@ -43,6 +43,13 @@ export default function App() {
   const [isLoadingArticles, setIsLoadingArticles] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
 
+  // "Quản Trị & Tiến Độ" requires login; bounce back if the session ends while it's open.
+  useEffect(() => {
+    if (!user && activeTab === 'admin') {
+      setActiveTab('quiz');
+    }
+  }, [user, activeTab]);
+
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tất cả');

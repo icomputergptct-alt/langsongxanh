@@ -238,18 +238,20 @@ export const Header: React.FC<HeaderProps> = ({
             <span>Bảng Điều Khiển & Bài Viết</span>
           </button>
 
-          <button
-            id="tab-dashboard-btn"
-            onClick={() => setActiveTab('admin')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
-              activeTab === 'admin'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            <span>Quản Trị & Tiến Độ</span>
-          </button>
+          {user && (
+            <button
+              id="tab-dashboard-btn"
+              onClick={() => setActiveTab('admin')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+                activeTab === 'admin'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Quản Trị & Tiến Độ</span>
+            </button>
+          )}
 
           <button
             id="tab-utilities-btn"
