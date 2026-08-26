@@ -72,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
                 LONG HOA <span className="text-blue-400">SỐ</span>
               </span>
               <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 tracking-wider hidden sm:inline-block">
-                VAULT
+                Trắc nghiệm của rồng
               </span>
             </div>
           </div>
