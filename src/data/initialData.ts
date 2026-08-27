@@ -915,7 +915,7 @@ export const SOFTWARE_UTILITIES: SoftwareUtility[] = [
       'Phím S⇔D chuyển đổi kết quả qua lại giữa dạng thập phân và phân số tối giản gần đúng',
       'Xem nhanh kết quả dưới dạng Thập phân/Nhị phân/Bát phân/Thập lục phân (DEC/BIN/OCT/HEX) với số nguyên không âm',
       'Chuyển đổi tức thời giữa chế độ Độ (DEG) và Radian (RAD), xem trước kết quả khi đang nhập, lưu lịch sử phép tính gần đây',
-      'Giải nhanh phương trình bậc hai (ax² + bx + c = 0): nhập hệ số a, b, c để ra nghiệm thực hoặc nghiệm phức kèm giá trị Δ'
+      'Chế độ EQN: giải phương trình bậc hai (ax² + bx + c = 0) theo đúng thao tác của máy tính vật lý — bấm mode, nhập từng hệ số rồi nhấn "=" để chuyển bước'
     ],
     useCases: [
       'Tính toán lượng giác, logarit nhanh khi học tập hoặc làm bài tập kỹ thuật',
@@ -948,9 +948,9 @@ export const SOFTWARE_UTILITIES: SoftwareUtility[] = [
       },
       {
         step: 5,
-        title: 'Giải phương trình bậc hai',
-        instruction: 'Kéo xuống khối "Giải phương trình bậc hai" ở cuối, nhập hệ số a, b, c rồi bấm "Giải phương trình". Kết quả hiển thị giá trị Δ và nghiệm tương ứng (hai nghiệm thực, nghiệm kép, hoặc hai nghiệm phức nếu Δ âm).',
-        tip: 'Đây là công thức nghiệm đóng cho riêng phương trình bậc hai, khác với chức năng SOLVE tổng quát trên máy tính vật lý (giải mọi phương trình bằng phương pháp lặp) — công cụ hiện chưa hỗ trợ SOLVE tổng quát.'
+        title: 'Giải phương trình bậc hai (chế độ EQN)',
+        instruction: 'Bấm nút "EQN — Giải phương trình bậc 2" ở hàng điều khiển để vào chế độ giải phương trình. Màn hình sẽ nhắc "Nhập hệ số a" — gõ giá trị a rồi nhấn "=", tiếp tục nhập b nhấn "=", rồi nhập c nhấn "=" để ra nghiệm.',
+        tip: 'Sau khi có nghiệm, nhấn "=" tiếp để xem lần lượt x₁ rồi x₂ (Δ hiển thị ngay phía trên). Bấm lại nút EQN để thoát chế độ và quay về máy tính bình thường. Δ âm sẽ cho hai nghiệm phức dạng a+bi.'
       }
     ]
   }

@@ -792,45 +792,85 @@ interface SystemConfig {
   }
 
   // ==========================================
-  // QUADRATIC EQUATION SOLVER (ax² + bx + c = 0)
+  // QUADRATIC EQUATION SOLVER MODE (ax² + bx + c = 0)
+  // Mirrors a physical calculator's EQN mode: press the mode key, then
+  // type each coefficient followed by "=" to advance (a -> b -> c -> roots),
+  // and "=" again cycles through the roots once solved.
   // ==========================================
-  const [quadA, setQuadA] = useState('1');
-  const [quadB, setQuadB] = useState('-5');
-  const [quadC, setQuadC] = useState('6');
-  const [quadError, setQuadError] = useState<string | null>(null);
-  const [quadResult, setQuadResult] = useState<{ discriminant: number; roots: string[] } | null>(null);
+  const [eqnMode, setEqnMode] = useState(false);
+  const [eqnStage, setEqnStage] = useState<'a' | 'b' | 'c' | 'result'>('a');
+  const [eqnCoeffs, setEqnCoeffs] = useState<{ a?: number; b?: number }>({});
+  const [eqnRoots, setEqnRoots] = useState<string[]>([]);
+  const [eqnRootIndex, setEqnRootIndex] = useState(0);
+  const [eqnDiscriminant, setEqnDiscriminant] = useState<number | null>(null);
 
-  const handleSolveQuadratic = () => {
-    const a = parseFloat(quadA);
-    const b = parseFloat(quadB);
-    const c = parseFloat(quadC);
-    if ([a, b, c].some((v) => Number.isNaN(v))) {
-      setQuadError('Vui lòng nhập đầy đủ hệ số a, b, c hợp lệ.');
-      setQuadResult(null);
+  const toggleEqnMode = () => {
+    setEqnMode((prev) => !prev);
+    setCalcExpr('');
+    setCalcError(null);
+    setEqnStage('a');
+    setEqnCoeffs({});
+    setEqnRoots([]);
+    setEqnRootIndex(0);
+    setEqnDiscriminant(null);
+  };
+
+  const handleEqnEquals = () => {
+    if (eqnStage === 'result') {
+      const nextIndex = (eqnRootIndex + 1) % eqnRoots.length;
+      setEqnRootIndex(nextIndex);
+      setCalcExpr(eqnRoots[nextIndex]);
       return;
     }
-    if (a === 0) {
-      setQuadError('Hệ số a phải khác 0 (a = 0 không phải phương trình bậc hai).');
-      setQuadResult(null);
+
+    const val = parseFloat(calcExpr);
+    if (calcExpr.trim() === '' || Number.isNaN(val)) {
+      setCalcError('Vui lòng nhập một số hợp lệ.');
       return;
     }
-    const delta = b * b - 4 * a * c;
-    let roots: string[];
-    if (delta > 0) {
-      const sq = Math.sqrt(delta);
-      roots = [
-        `x₁ = ${formatCalcResult((-b + sq) / (2 * a))}`,
-        `x₂ = ${formatCalcResult((-b - sq) / (2 * a))}`
-      ];
-    } else if (delta === 0) {
-      roots = [`x = ${formatCalcResult(-b / (2 * a))} (nghiệm kép)`];
-    } else {
-      const re = formatCalcResult(-b / (2 * a));
-      const im = formatCalcResult(Math.sqrt(-delta) / (2 * a));
-      roots = [`x₁ = ${re} + ${im}i`, `x₂ = ${re} − ${im}i`];
+
+    if (eqnStage === 'a') {
+      if (val === 0) {
+        setCalcError('Hệ số a phải khác 0 (a = 0 không phải phương trình bậc hai).');
+        return;
+      }
+      setEqnCoeffs({ a: val });
+      setEqnStage('b');
+      setCalcExpr('');
+      setCalcError(null);
+    } else if (eqnStage === 'b') {
+      setEqnCoeffs((prev) => ({ ...prev, b: val }));
+      setEqnStage('c');
+      setCalcExpr('');
+      setCalcError(null);
+    } else if (eqnStage === 'c') {
+      const a = eqnCoeffs.a!;
+      const b = eqnCoeffs.b!;
+      const c = val;
+      const delta = b * b - 4 * a * c;
+      let roots: string[];
+      if (delta > 0) {
+        const sq = Math.sqrt(delta);
+        roots = [formatCalcResult((-b + sq) / (2 * a)), formatCalcResult((-b - sq) / (2 * a))];
+      } else if (delta === 0) {
+        roots = [formatCalcResult(-b / (2 * a))];
+      } else {
+        const re = formatCalcResult(-b / (2 * a));
+        const im = formatCalcResult(Math.sqrt(-delta) / (2 * a));
+        roots = [`${re}+${im}i`, `${re}-${im}i`];
+      }
+      setEqnDiscriminant(delta);
+      setEqnRoots(roots);
+      setEqnRootIndex(0);
+      setEqnStage('result');
+      setCalcExpr(roots[0]);
+      setCalcError(null);
     }
-    setQuadResult({ discriminant: delta, roots });
-    setQuadError(null);
+  };
+
+  const handleCalcOrEqnEquals = () => {
+    if (eqnMode) handleEqnEquals();
+    else handleCalcEquals();
   };
 
   type CalcBtnVariant = 'num' | 'op' | 'fn' | 'eq' | 'danger' | 'mem';
@@ -838,6 +878,7 @@ interface SystemConfig {
     label: string;
     onClick: () => void;
     variant: CalcBtnVariant;
+    fullWidth?: boolean;
   }
 
   const calcBtnClass = (variant: CalcBtnVariant) => {
@@ -862,7 +903,9 @@ interface SystemConfig {
     { label: 'S⇔D', onClick: handleCalcToggleFraction, variant: 'mem' },
     { label: 'HEX', onClick: () => toggleCalcBaseView('hex'), variant: calcBaseView === 'hex' ? 'op' : 'mem' },
     { label: 'OCT', onClick: () => toggleCalcBaseView('oct'), variant: calcBaseView === 'oct' ? 'op' : 'mem' },
-    { label: 'BIN', onClick: () => toggleCalcBaseView('bin'), variant: calcBaseView === 'bin' ? 'op' : 'mem' }
+    { label: 'BIN', onClick: () => toggleCalcBaseView('bin'), variant: calcBaseView === 'bin' ? 'op' : 'mem' },
+
+    { label: eqnMode ? 'Thoát chế độ EQN' : 'EQN — Giải phương trình bậc 2', onClick: toggleEqnMode, variant: eqnMode ? 'eq' : 'mem', fullWidth: true }
   ];
 
   const calcMainGrid: CalcBtn[] = [
@@ -918,7 +961,7 @@ interface SystemConfig {
     { label: '.', onClick: () => appendToCalc('.'), variant: 'num' },
     { label: 'Ans', onClick: () => appendToCalc(formatCalcResult(calcAns)), variant: 'fn' },
     { label: '+', onClick: () => appendToCalc('+'), variant: 'op' },
-    { label: '=', onClick: handleCalcEquals, variant: 'eq' }
+    { label: '=', onClick: handleCalcOrEqnEquals, variant: 'eq' }
   ];
 
   // Initialize tool outputs
@@ -1715,7 +1758,13 @@ interface SystemConfig {
               <div className="space-y-4 max-w-md mx-auto">
                 <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-1">
                   <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>{calcAngleMode.toUpperCase()}</span>
+                    <span className={eqnMode ? 'text-indigo-400 font-semibold' : ''}>
+                      {eqnMode
+                        ? (eqnStage === 'result'
+                            ? `PT BẬC 2 — Nghiệm x${eqnRootIndex + 1}/${eqnRoots.length}`
+                            : `PT BẬC 2 — Nhập hệ số ${eqnStage}`)
+                        : calcAngleMode.toUpperCase()}
+                    </span>
                     {calcMemory !== 0 && (
                       <span className="text-indigo-400 font-semibold">M = {formatCalcResult(calcMemory)}</span>
                     )}
@@ -1724,15 +1773,17 @@ interface SystemConfig {
                     type="text"
                     value={calcExpr}
                     onChange={(e) => { setCalcExpr(e.target.value); setCalcError(null); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleCalcEquals(); }}
-                    placeholder="0"
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleCalcOrEqnEquals(); }}
+                    placeholder={eqnMode && eqnStage !== 'result' ? `Nhập hệ số ${eqnStage}` : '0'}
                     spellCheck={false}
                     className="w-full bg-transparent text-right text-3xl sm:text-4xl font-mono text-slate-100 focus:outline-none tracking-wide"
                   />
                   <div className="text-right text-base sm:text-lg font-mono min-h-[1.5rem]">
                     {calcError ? (
                       <span className="text-rose-400">{calcError}</span>
-                    ) : calcPreview !== null && calcPreview !== calcExpr.trim() ? (
+                    ) : eqnMode && eqnStage === 'result' ? (
+                      <span className="text-indigo-300">Δ = {formatCalcResult(eqnDiscriminant ?? 0)}</span>
+                    ) : !eqnMode && calcPreview !== null && calcPreview !== calcExpr.trim() ? (
                       <span className="text-emerald-400">= {calcPreview}</span>
                     ) : (
                       <span>&nbsp;</span>
@@ -1750,7 +1801,7 @@ interface SystemConfig {
                     <button
                       key={i}
                       onClick={btn.onClick}
-                      className={`py-1.5 sm:py-2 rounded-lg font-bold transition-colors ${calcBtnClass(btn.variant)}`}
+                      className={`py-1.5 sm:py-2 rounded-lg font-bold transition-colors ${btn.fullWidth ? 'col-span-5 !text-xs sm:!text-sm' : ''} ${calcBtnClass(btn.variant)}`}
                     >
                       {btn.label}
                     </button>
@@ -1791,70 +1842,13 @@ interface SystemConfig {
                   Đang ở chế độ góc {calcAngleMode === 'deg' ? 'Độ (DEG)' : 'Radian (RAD)'}. Ký hiệu "%" chia giá trị liền trước cho 100 theo kiểu đơn giản, không tính phần trăm theo ngữ cảnh như một số máy tính vật lý.
                 </p>
 
-                <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-300">
-                    Giải phương trình bậc hai: ax² + bx + c = 0
-                  </h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="block text-[11px] text-slate-500 mb-1">Hệ số a</label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={quadA}
-                        onChange={(e) => setQuadA(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-lg px-2 py-1.5 text-sm font-mono text-cyan-300 focus:outline-none text-center"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-slate-500 mb-1">Hệ số b</label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={quadB}
-                        onChange={(e) => setQuadB(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-lg px-2 py-1.5 text-sm font-mono text-cyan-300 focus:outline-none text-center"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-slate-500 mb-1">Hệ số c</label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={quadC}
-                        onChange={(e) => setQuadC(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-lg px-2 py-1.5 text-sm font-mono text-cyan-300 focus:outline-none text-center"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleSolveQuadratic}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm py-2 rounded-lg transition-colors"
-                  >
-                    Giải phương trình
-                  </button>
-
-                  {quadError && (
-                    <div className="bg-rose-950/40 border border-rose-500/40 text-rose-300 p-2.5 rounded-lg text-xs">
-                      ⚠️ {quadError}
-                    </div>
-                  )}
-
-                  {quadResult && (
-                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 space-y-1.5">
-                      <div className="text-xs text-slate-400">
-                        Δ = {formatCalcResult(quadResult.discriminant)}
-                        {quadResult.discriminant > 0 && ' (Δ > 0 — hai nghiệm phân biệt)'}
-                        {quadResult.discriminant === 0 && ' (Δ = 0 — nghiệm kép)'}
-                        {quadResult.discriminant < 0 && ' (Δ < 0 — hai nghiệm phức liên hợp)'}
-                      </div>
-                      {quadResult.roots.map((r, i) => (
-                        <div key={i} className="text-sm font-mono text-emerald-400">{r}</div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {eqnMode && (
+                  <p className="text-[11px] text-indigo-300 italic">
+                    {eqnStage === 'result'
+                      ? 'Nhấn "=" để xem nghiệm tiếp theo, hoặc bấm nút EQN để thoát và tính bình thường trở lại.'
+                      : `Nhập giá trị hệ số ${eqnStage} rồi nhấn "=" để chuyển sang ${eqnStage === 'a' ? 'hệ số b' : 'hệ số c'}.`}
+                  </p>
+                )}
               </div>
             )}
 
