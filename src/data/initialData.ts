@@ -670,6 +670,50 @@ export const SOFTWARE_UTILITIES: SoftwareUtility[] = [
     ]
   },
   {
+    id: 'util-pass-gen',
+    name: 'Trình Tạo Mật Khẩu Mạnh & Token Bảo Mật',
+    slug: 'password-token-generator',
+    category: 'Bảo mật & Mã hoá',
+    icon: 'KeyRound',
+    shortDesc: 'Tạo mật khẩu ngẫu nhiên độ an toàn cao, API secret key, UUID v4, hoặc kiểm tra độ mạnh/yếu của một mật khẩu bạn đã có.',
+    detailedDesc: 'Sử dụng bộ sinh số ngẫu nhiên mật mã (Web Crypto API CSPRNG) đảm bảo mật khẩu và token không thể đoán trước, phòng chống tấn công brute-force và từ điển. Ngoài chế độ tạo mới, công cụ còn có chế độ "Kiểm tra mật khẩu" để đánh giá ngay một mật khẩu bạn đang dùng.',
+    badge: 'Bảo mật cao',
+    features: [
+      'Sinh mật khẩu tùy biến: chữ hoa, chữ thường, số, ký tự đặc biệt',
+      'Sinh chuỗi Hex, Base64 Token, UUID v4 ngẫu nhiên',
+      'Chế độ "Kiểm tra mật khẩu": nhập mật khẩu bất kỳ để chấm điểm Entropy, phát hiện mật khẩu phổ biến/dễ đoán và ước tính thời gian bị dò ra',
+      '100% xử lý cục bộ trên trình duyệt, không gửi dữ liệu qua mạng — kể cả khi kiểm tra mật khẩu đã có'
+    ],
+    useCases: [
+      'Tạo Secret Key an toàn cho JWT, Webhook, API Gateway',
+      'Tạo mật khẩu quản trị cơ sở dữ liệu và máy chủ Linux',
+      'Kiểm tra nhanh mật khẩu cá nhân/công ty đang dùng có đủ mạnh hay nằm trong danh sách dễ đoán không'
+    ],
+    guides: [
+      {
+        step: 1,
+        title: 'Chọn chế độ Tạo mật khẩu hoặc Kiểm tra mật khẩu',
+        instruction: 'Dùng tab "Tạo mật khẩu" để sinh chuỗi ngẫu nhiên mới, hoặc tab "Kiểm tra mật khẩu" để đánh giá một mật khẩu bạn đã có sẵn.'
+      },
+      {
+        step: 2,
+        title: 'Tạo mới: thiết lập độ dài và bộ ký tự',
+        instruction: 'Kéo thanh trượt để chọn độ dài (khuyến nghị từ 16 ký tự trở lên) và tích chọn các nhóm ký tự mong muốn, sau đó quan sát thanh đo Entropy (Rất mạnh > 90 bits).'
+      },
+      {
+        step: 3,
+        title: 'Kiểm tra: nhập mật khẩu cần đánh giá',
+        instruction: 'Gõ hoặc dán mật khẩu vào ô nhập liệu (có thể bấm biểu tượng mắt để hiện/ẩn). Kết quả đánh giá — mức độ mạnh yếu, thời gian ước tính bị dò ra và các điểm yếu cụ thể — hiện ra ngay lập tức, xử lý hoàn toàn trên trình duyệt.',
+        tip: 'Không nên nhập mật khẩu đang dùng cho tài khoản quan trọng vào bất kỳ công cụ online nào (kể cả công cụ này) nếu bạn không chắc nó xử lý cục bộ. Tốt nhất nên đổi mật khẩu ngay sau khi kiểm tra nếu phát hiện điểm yếu.'
+      },
+      {
+        step: 4,
+        title: 'Sao chép an toàn',
+        instruction: 'Nhấn nút sao chép với mật khẩu vừa tạo. Khuyến khích lưu trữ mật khẩu trong Password Manager chuyên dụng.'
+      }
+    ]
+  },
+  {
     id: 'util-code-formatter',
     name: 'Trình Định Dạng & Làm Đẹp Mã Nguồn (Code Formatter)',
     slug: 'code-formatter',
@@ -819,50 +863,6 @@ export const SOFTWARE_UTILITIES: SoftwareUtility[] = [
         step: 2,
         title: 'Phân tích bảng kết quả mạng con',
         instruction: 'Quan sát chi tiết: Địa chỉ mạng, Broadcast, Dải IP cho máy trạm, Tổng số host và Biểu diễn nhị phân.'
-      }
-    ]
-  },
-  {
-    id: 'util-pass-gen',
-    name: 'Trình Tạo Mật Khẩu Mạnh & Token Bảo Mật',
-    slug: 'password-token-generator',
-    category: 'Bảo mật & Mã hoá',
-    icon: 'KeyRound',
-    shortDesc: 'Tạo mật khẩu ngẫu nhiên độ an toàn cao, API secret key, UUID v4, hoặc kiểm tra độ mạnh/yếu của một mật khẩu bạn đã có.',
-    detailedDesc: 'Sử dụng bộ sinh số ngẫu nhiên mật mã (Web Crypto API CSPRNG) đảm bảo mật khẩu và token không thể đoán trước, phòng chống tấn công brute-force và từ điển. Ngoài chế độ tạo mới, công cụ còn có chế độ "Kiểm tra mật khẩu" để đánh giá ngay một mật khẩu bạn đang dùng.',
-    badge: 'Bảo mật cao',
-    features: [
-      'Sinh mật khẩu tùy biến: chữ hoa, chữ thường, số, ký tự đặc biệt',
-      'Sinh chuỗi Hex, Base64 Token, UUID v4 ngẫu nhiên',
-      'Chế độ "Kiểm tra mật khẩu": nhập mật khẩu bất kỳ để chấm điểm Entropy, phát hiện mật khẩu phổ biến/dễ đoán và ước tính thời gian bị dò ra',
-      '100% xử lý cục bộ trên trình duyệt, không gửi dữ liệu qua mạng — kể cả khi kiểm tra mật khẩu đã có'
-    ],
-    useCases: [
-      'Tạo Secret Key an toàn cho JWT, Webhook, API Gateway',
-      'Tạo mật khẩu quản trị cơ sở dữ liệu và máy chủ Linux',
-      'Kiểm tra nhanh mật khẩu cá nhân/công ty đang dùng có đủ mạnh hay nằm trong danh sách dễ đoán không'
-    ],
-    guides: [
-      {
-        step: 1,
-        title: 'Chọn chế độ Tạo mật khẩu hoặc Kiểm tra mật khẩu',
-        instruction: 'Dùng tab "Tạo mật khẩu" để sinh chuỗi ngẫu nhiên mới, hoặc tab "Kiểm tra mật khẩu" để đánh giá một mật khẩu bạn đã có sẵn.'
-      },
-      {
-        step: 2,
-        title: 'Tạo mới: thiết lập độ dài và bộ ký tự',
-        instruction: 'Kéo thanh trượt để chọn độ dài (khuyến nghị từ 16 ký tự trở lên) và tích chọn các nhóm ký tự mong muốn, sau đó quan sát thanh đo Entropy (Rất mạnh > 90 bits).'
-      },
-      {
-        step: 3,
-        title: 'Kiểm tra: nhập mật khẩu cần đánh giá',
-        instruction: 'Gõ hoặc dán mật khẩu vào ô nhập liệu (có thể bấm biểu tượng mắt để hiện/ẩn). Kết quả đánh giá — mức độ mạnh yếu, thời gian ước tính bị dò ra và các điểm yếu cụ thể — hiện ra ngay lập tức, xử lý hoàn toàn trên trình duyệt.',
-        tip: 'Không nên nhập mật khẩu đang dùng cho tài khoản quan trọng vào bất kỳ công cụ online nào (kể cả công cụ này) nếu bạn không chắc nó xử lý cục bộ. Tốt nhất nên đổi mật khẩu ngay sau khi kiểm tra nếu phát hiện điểm yếu.'
-      },
-      {
-        step: 4,
-        title: 'Sao chép an toàn',
-        instruction: 'Nhấn nút sao chép với mật khẩu vừa tạo. Khuyến khích lưu trữ mật khẩu trong Password Manager chuyên dụng.'
       }
     ]
   },
