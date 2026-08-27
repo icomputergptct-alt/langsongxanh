@@ -115,6 +115,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   const [rawFileText, setRawFileText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [parseMessage, setParseMessage] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [processProgress, setProcessProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -152,11 +153,13 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   };
 
   const loadFileAsText = async (file: File) => {
+    setFileError(null);
+
     // The native file picker's "All Files" option (and drag-and-drop) can bypass
     // the input's accept filter, so enforce the .doc/.docx restriction here too.
     const lowerName = file.name.toLowerCase();
     if (!lowerName.endsWith('.doc') && !lowerName.endsWith('.docx')) {
-      alert(`Tệp "${file.name}" không đúng định dạng. Chỉ hỗ trợ tệp Word (.doc, .docx).`);
+      setFileError('Bạn vừa chọn file không được hệ thống hỗ trợ. Chỉ hỗ trợ tệp Word (.doc, .docx).');
       return;
     }
 
@@ -171,7 +174,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
         setRawFileText(result.value || '');
       } catch (err) {
         console.error('Failed to extract .docx text:', err);
-        alert(`Không thể đọc nội dung tệp "${file.name}". Vui lòng copy nội dung câu hỏi rồi dán trực tiếp vào ô bên dưới.`);
+        setFileError(`Không thể đọc nội dung tệp "${file.name}". Vui lòng copy nội dung câu hỏi rồi dán trực tiếp vào ô bên dưới.`);
         setUploadedFile(null);
         setRawFileText('');
       }
@@ -182,7 +185,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
     reader.onload = (event) => {
       const content = (event.target?.result as string) || '';
       if (isLikelyBinary(content)) {
-        alert(
+        setFileError(
           `Tệp "${file.name}" có định dạng Word 97-2003 (.doc) cũ mà trình duyệt không đọc trực tiếp được. Vui lòng mở tệp bằng Word rồi lưu lại (Save As) dưới dạng .docx, hoặc copy nội dung câu hỏi rồi dán trực tiếp vào ô bên dưới.`
         );
         setUploadedFile(null);
@@ -626,6 +629,13 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                       />
                     </div>
                   )}
+                </div>
+              )}
+
+              {fileError && (
+                <div className="bg-rose-950/50 border border-rose-500/30 text-rose-200 text-xs p-3 rounded-xl flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <span>{fileError}</span>
                 </div>
               )}
 
