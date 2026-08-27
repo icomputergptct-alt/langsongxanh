@@ -398,6 +398,57 @@ function toSimpleFraction(value: number, maxDenominator = 100000): [number, numb
   return [sign * h1, k1];
 }
 
+interface EqnRoot {
+  re: number;
+  im: number;
+}
+
+function snapZero(v: number): number {
+  return Math.abs(v) < 1e-9 ? 0 : v;
+}
+
+function formatEqnRoot(root: EqnRoot): string {
+  const re = snapZero(root.re);
+  const im = snapZero(root.im);
+  const reStr = formatCalcResult(re);
+  if (im === 0) return reStr;
+  const imAbs = formatCalcResult(Math.abs(im));
+  return `${reStr}${im >= 0 ? '+' : '-'}${imAbs}i`;
+}
+
+// Cardano's method for ax³ + bx² + cx + d = 0.
+// The returned `discriminant` uses the cubic sign convention, which is the
+// OPPOSITE of the quadratic one: D > 0 means one real root (+ 2 complex),
+// D < 0 means three distinct real roots, D ≈ 0 means repeated real roots.
+function solveCubic(a: number, b: number, c: number, d: number): { roots: EqnRoot[]; discriminant: number } {
+  const p = (3 * a * c - b * b) / (3 * a * a);
+  const q = (2 * b * b * b - 9 * a * b * c + 27 * a * a * d) / (27 * a * a * a);
+  const shift = b / (3 * a);
+  const D = (q * q) / 4 + (p * p * p) / 27;
+  const EPS = 1e-9;
+
+  let roots: EqnRoot[];
+  if (D > EPS) {
+    const sqrtD = Math.sqrt(D);
+    const u = Math.cbrt(-q / 2 + sqrtD);
+    const v = Math.cbrt(-q / 2 - sqrtD);
+    const reC = -(u + v) / 2;
+    const imC = ((u - v) * Math.sqrt(3)) / 2;
+    roots = [{ re: u + v, im: 0 }, { re: reC, im: imC }, { re: reC, im: -imC }];
+  } else if (D < -EPS) {
+    const r = Math.sqrt(-(p * p * p) / 27);
+    const cosArg = Math.max(-1, Math.min(1, -q / (2 * r)));
+    const phi = Math.acos(cosArg);
+    const m = 2 * Math.sqrt(-p / 3);
+    roots = [0, 1, 2].map((k) => ({ re: m * Math.cos((phi - 2 * Math.PI * k) / 3), im: 0 }));
+  } else {
+    const u = Math.cbrt(-q / 2);
+    roots = [{ re: 2 * u, im: 0 }, { re: -u, im: 0 }, { re: -u, im: 0 }];
+  }
+
+  return { roots: roots.map(({ re, im }) => ({ re: re - shift, im })), discriminant: D };
+}
+
 export const SoftwareUtilities: React.FC = () => {
   const [utilities] = useState<SoftwareUtility[]>(SOFTWARE_UTILITIES);
   const [selectedToolId, setSelectedToolId] = useState<string>('util-url-scanner');
@@ -792,20 +843,20 @@ interface SystemConfig {
   }
 
   // ==========================================
-  // QUADRATIC EQUATION SOLVER MODE (ax² + bx + c = 0)
+  // QUADRATIC/CUBIC EQUATION SOLVER MODE (ax² + bx + c = 0 / ax³ + bx² + cx + d = 0)
   // Mirrors a physical calculator's EQN mode: press the mode key, then
-  // type each coefficient followed by "=" to advance (a -> b -> c -> roots),
+  // type each coefficient followed by "=" to advance (a -> b -> c[-> d] -> roots),
   // and "=" again cycles through the roots once solved.
   // ==========================================
-  const [eqnMode, setEqnMode] = useState(false);
-  const [eqnStage, setEqnStage] = useState<'a' | 'b' | 'c' | 'result'>('a');
-  const [eqnCoeffs, setEqnCoeffs] = useState<{ a?: number; b?: number }>({});
-  const [eqnRoots, setEqnRoots] = useState<string[]>([]);
+  const [eqnDegree, setEqnDegree] = useState<2 | 3 | null>(null);
+  const [eqnStage, setEqnStage] = useState<'a' | 'b' | 'c' | 'd' | 'result'>('a');
+  const [eqnCoeffs, setEqnCoeffs] = useState<{ a?: number; b?: number; c?: number }>({});
+  const [eqnRoots, setEqnRoots] = useState<EqnRoot[]>([]);
   const [eqnRootIndex, setEqnRootIndex] = useState(0);
   const [eqnDiscriminant, setEqnDiscriminant] = useState<number | null>(null);
 
-  const toggleEqnMode = () => {
-    setEqnMode((prev) => !prev);
+  const toggleEqnMode = (degree: 2 | 3) => {
+    setEqnDegree((prev) => (prev === degree ? null : degree));
     setCalcExpr('');
     setCalcError(null);
     setEqnStage('a');
@@ -819,7 +870,7 @@ interface SystemConfig {
     if (eqnStage === 'result') {
       const nextIndex = (eqnRootIndex + 1) % eqnRoots.length;
       setEqnRootIndex(nextIndex);
-      setCalcExpr(eqnRoots[nextIndex]);
+      setCalcExpr(formatEqnRoot(eqnRoots[nextIndex]));
       return;
     }
 
@@ -831,47 +882,93 @@ interface SystemConfig {
 
     if (eqnStage === 'a') {
       if (val === 0) {
-        setCalcError('Hệ số a phải khác 0 (a = 0 không phải phương trình bậc hai).');
+        setCalcError('Hệ số a phải khác 0.');
         return;
       }
       setEqnCoeffs({ a: val });
       setEqnStage('b');
       setCalcExpr('');
       setCalcError(null);
-    } else if (eqnStage === 'b') {
+      return;
+    }
+
+    if (eqnStage === 'b') {
       setEqnCoeffs((prev) => ({ ...prev, b: val }));
       setEqnStage('c');
       setCalcExpr('');
       setCalcError(null);
-    } else if (eqnStage === 'c') {
+      return;
+    }
+
+    if (eqnStage === 'c') {
+      if (eqnDegree === 3) {
+        setEqnCoeffs((prev) => ({ ...prev, c: val }));
+        setEqnStage('d');
+        setCalcExpr('');
+        setCalcError(null);
+        return;
+      }
+
+      // Degree 2: c is the last coefficient — solve now.
       const a = eqnCoeffs.a!;
       const b = eqnCoeffs.b!;
       const c = val;
       const delta = b * b - 4 * a * c;
-      let roots: string[];
+      let roots: EqnRoot[];
       if (delta > 0) {
         const sq = Math.sqrt(delta);
-        roots = [formatCalcResult((-b + sq) / (2 * a)), formatCalcResult((-b - sq) / (2 * a))];
+        roots = [{ re: (-b + sq) / (2 * a), im: 0 }, { re: (-b - sq) / (2 * a), im: 0 }];
       } else if (delta === 0) {
-        roots = [formatCalcResult(-b / (2 * a))];
+        roots = [{ re: -b / (2 * a), im: 0 }];
       } else {
-        const re = formatCalcResult(-b / (2 * a));
-        const im = formatCalcResult(Math.sqrt(-delta) / (2 * a));
-        roots = [`${re}+${im}i`, `${re}-${im}i`];
+        const re = -b / (2 * a);
+        const im = Math.sqrt(-delta) / (2 * a);
+        roots = [{ re, im }, { re, im: -im }];
       }
       setEqnDiscriminant(delta);
       setEqnRoots(roots);
       setEqnRootIndex(0);
       setEqnStage('result');
-      setCalcExpr(roots[0]);
+      setCalcExpr(formatEqnRoot(roots[0]));
+      setCalcError(null);
+      return;
+    }
+
+    if (eqnStage === 'd') {
+      // Degree 3: d is the last coefficient — solve now via Cardano's method.
+      const a = eqnCoeffs.a!;
+      const b = eqnCoeffs.b!;
+      const c = eqnCoeffs.c!;
+      const d = val;
+      const { roots, discriminant } = solveCubic(a, b, c, d);
+      setEqnDiscriminant(discriminant);
+      setEqnRoots(roots);
+      setEqnRootIndex(0);
+      setEqnStage('result');
+      setCalcExpr(formatEqnRoot(roots[0]));
       setCalcError(null);
     }
   };
 
   const handleCalcOrEqnEquals = () => {
-    if (eqnMode) handleEqnEquals();
+    if (eqnDegree !== null) handleEqnEquals();
     else handleCalcEquals();
   };
+
+  let eqnInstructionText: string | null = null;
+  if (eqnDegree !== null) {
+    if (eqnStage === 'result') {
+      eqnInstructionText = `Nhấn "=" để xem nghiệm tiếp theo (${eqnRoots.length} nghiệm), hoặc bấm lại nút EQN để thoát và tính bình thường trở lại.`;
+    } else {
+      const isLastStage = (eqnDegree === 2 && eqnStage === 'c') || (eqnDegree === 3 && eqnStage === 'd');
+      if (isLastStage) {
+        eqnInstructionText = `Nhập giá trị hệ số ${eqnStage} rồi nhấn "=" để giải phương trình.`;
+      } else {
+        const nextLabel = eqnStage === 'a' ? 'hệ số b' : 'hệ số c';
+        eqnInstructionText = `Nhập giá trị hệ số ${eqnStage} rồi nhấn "=" để chuyển sang ${nextLabel}.`;
+      }
+    }
+  }
 
   type CalcBtnVariant = 'num' | 'op' | 'fn' | 'eq' | 'danger' | 'mem';
   interface CalcBtn {
@@ -905,7 +1002,18 @@ interface SystemConfig {
     { label: 'OCT', onClick: () => toggleCalcBaseView('oct'), variant: calcBaseView === 'oct' ? 'op' : 'mem' },
     { label: 'BIN', onClick: () => toggleCalcBaseView('bin'), variant: calcBaseView === 'bin' ? 'op' : 'mem' },
 
-    { label: eqnMode ? 'Thoát chế độ EQN' : 'EQN — Giải phương trình bậc 2', onClick: toggleEqnMode, variant: eqnMode ? 'eq' : 'mem', fullWidth: true }
+    {
+      label: eqnDegree === 2 ? 'Thoát EQN (đang giải PT bậc 2)' : 'EQN — Giải phương trình bậc 2',
+      onClick: () => toggleEqnMode(2),
+      variant: eqnDegree === 2 ? 'eq' : 'mem',
+      fullWidth: true
+    },
+    {
+      label: eqnDegree === 3 ? 'Thoát EQN (đang giải PT bậc 3)' : 'EQN — Giải phương trình bậc 3',
+      onClick: () => toggleEqnMode(3),
+      variant: eqnDegree === 3 ? 'eq' : 'mem',
+      fullWidth: true
+    }
   ];
 
   const calcMainGrid: CalcBtn[] = [
@@ -1758,11 +1866,11 @@ interface SystemConfig {
               <div className="space-y-4 max-w-md mx-auto">
                 <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-1">
                   <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span className={eqnMode ? 'text-indigo-400 font-semibold' : ''}>
-                      {eqnMode
+                    <span className={eqnDegree !== null ? 'text-indigo-400 font-semibold' : ''}>
+                      {eqnDegree !== null
                         ? (eqnStage === 'result'
-                            ? `PT BẬC 2 — Nghiệm x${eqnRootIndex + 1}/${eqnRoots.length}`
-                            : `PT BẬC 2 — Nhập hệ số ${eqnStage}`)
+                            ? `PT BẬC ${eqnDegree} — Nghiệm x${eqnRootIndex + 1}/${eqnRoots.length}`
+                            : `PT BẬC ${eqnDegree} — Nhập hệ số ${eqnStage}`)
                         : calcAngleMode.toUpperCase()}
                     </span>
                     {calcMemory !== 0 && (
@@ -1774,16 +1882,16 @@ interface SystemConfig {
                     value={calcExpr}
                     onChange={(e) => { setCalcExpr(e.target.value); setCalcError(null); }}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleCalcOrEqnEquals(); }}
-                    placeholder={eqnMode && eqnStage !== 'result' ? `Nhập hệ số ${eqnStage}` : '0'}
+                    placeholder={eqnDegree !== null && eqnStage !== 'result' ? `Nhập hệ số ${eqnStage}` : '0'}
                     spellCheck={false}
                     className="w-full bg-transparent text-right text-3xl sm:text-4xl font-mono text-slate-100 focus:outline-none tracking-wide"
                   />
                   <div className="text-right text-base sm:text-lg font-mono min-h-[1.5rem]">
                     {calcError ? (
                       <span className="text-rose-400">{calcError}</span>
-                    ) : eqnMode && eqnStage === 'result' ? (
-                      <span className="text-indigo-300">Δ = {formatCalcResult(eqnDiscriminant ?? 0)}</span>
-                    ) : !eqnMode && calcPreview !== null && calcPreview !== calcExpr.trim() ? (
+                    ) : eqnDegree !== null && eqnStage === 'result' ? (
+                      <span className="text-indigo-300">{eqnDegree === 2 ? 'Δ' : 'D'} = {formatCalcResult(eqnDiscriminant ?? 0)}</span>
+                    ) : eqnDegree === null && calcPreview !== null && calcPreview !== calcExpr.trim() ? (
                       <span className="text-emerald-400">= {calcPreview}</span>
                     ) : (
                       <span>&nbsp;</span>
@@ -1842,12 +1950,8 @@ interface SystemConfig {
                   Đang ở chế độ góc {calcAngleMode === 'deg' ? 'Độ (DEG)' : 'Radian (RAD)'}. Ký hiệu "%" chia giá trị liền trước cho 100 theo kiểu đơn giản, không tính phần trăm theo ngữ cảnh như một số máy tính vật lý.
                 </p>
 
-                {eqnMode && (
-                  <p className="text-[11px] text-indigo-300 italic">
-                    {eqnStage === 'result'
-                      ? 'Nhấn "=" để xem nghiệm tiếp theo, hoặc bấm nút EQN để thoát và tính bình thường trở lại.'
-                      : `Nhập giá trị hệ số ${eqnStage} rồi nhấn "=" để chuyển sang ${eqnStage === 'a' ? 'hệ số b' : 'hệ số c'}.`}
-                  </p>
+                {eqnInstructionText && (
+                  <p className="text-[11px] text-indigo-300 italic">{eqnInstructionText}</p>
                 )}
               </div>
             )}

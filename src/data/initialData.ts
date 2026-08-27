@@ -915,14 +915,14 @@ export const SOFTWARE_UTILITIES: SoftwareUtility[] = [
       'Phím S⇔D chuyển đổi kết quả qua lại giữa dạng thập phân và phân số tối giản gần đúng',
       'Xem nhanh kết quả dưới dạng Thập phân/Nhị phân/Bát phân/Thập lục phân (DEC/BIN/OCT/HEX) với số nguyên không âm',
       'Chuyển đổi tức thời giữa chế độ Độ (DEG) và Radian (RAD), xem trước kết quả khi đang nhập, lưu lịch sử phép tính gần đây',
-      'Chế độ EQN: giải phương trình bậc hai (ax² + bx + c = 0) theo đúng thao tác của máy tính vật lý — bấm mode, nhập từng hệ số rồi nhấn "=" để chuyển bước'
+      'Chế độ EQN: giải phương trình bậc hai (ax² + bx + c = 0) và bậc ba (ax³ + bx² + cx + d = 0) theo đúng thao tác của máy tính vật lý — bấm mode, nhập từng hệ số rồi nhấn "=" để chuyển bước và xem nghiệm'
     ],
     useCases: [
       'Tính toán lượng giác, logarit nhanh khi học tập hoặc làm bài tập kỹ thuật',
       'Kiểm tra nhanh công thức toán học khi không có máy tính vật lý bên cạnh',
       'Tính lãi suất, hàm mũ, căn bậc trong các bài toán tài chính/kỹ thuật cơ bản',
       'Đổi nhanh một số nguyên sang hệ Nhị phân/Bát phân/Thập lục phân khi lập trình',
-      'Giải bài tập phương trình bậc hai mà không cần tự tính tay công thức nghiệm'
+      'Giải bài tập phương trình bậc hai hoặc bậc ba mà không cần tự tính tay công thức nghiệm'
     ],
     guides: [
       {
@@ -951,6 +951,12 @@ export const SOFTWARE_UTILITIES: SoftwareUtility[] = [
         title: 'Giải phương trình bậc hai (chế độ EQN)',
         instruction: 'Bấm nút "EQN — Giải phương trình bậc 2" ở hàng điều khiển để vào chế độ giải phương trình. Màn hình sẽ nhắc "Nhập hệ số a" — gõ giá trị a rồi nhấn "=", tiếp tục nhập b nhấn "=", rồi nhập c nhấn "=" để ra nghiệm.',
         tip: 'Sau khi có nghiệm, nhấn "=" tiếp để xem lần lượt x₁ rồi x₂ (Δ hiển thị ngay phía trên). Bấm lại nút EQN để thoát chế độ và quay về máy tính bình thường. Δ âm sẽ cho hai nghiệm phức dạng a+bi.'
+      },
+      {
+        step: 6,
+        title: 'Giải phương trình bậc ba (chế độ EQN³)',
+        instruction: 'Bấm nút "EQN — Giải phương trình bậc 3" để giải ax³ + bx² + cx + d = 0. Nhập lần lượt hệ số a, b, c, d — mỗi lần nhấn "=" để chuyển sang hệ số kế tiếp. Sau khi nhập xong d và nhấn "=", máy hiện nghiệm đầu tiên; nhấn "=" liên tiếp để xem cả 3 nghiệm.',
+        tip: 'Giá trị D hiển thị dùng công thức Cardano cho bậc ba, quy ước dấu ngược với Δ ở bậc hai: D > 0 nghĩa là có 1 nghiệm thực và 2 nghiệm phức; D < 0 nghĩa là có 3 nghiệm thực phân biệt; D ≈ 0 là trường hợp có nghiệm lặp.'
       }
     ]
   }
