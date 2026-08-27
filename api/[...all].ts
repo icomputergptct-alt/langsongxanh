@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { createApiApp } from "./_app";
+import { createApiApp } from "./_app.js";
 
 dotenv.config();
 
