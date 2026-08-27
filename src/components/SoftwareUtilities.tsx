@@ -791,6 +791,48 @@ interface SystemConfig {
     }
   }
 
+  // ==========================================
+  // QUADRATIC EQUATION SOLVER (ax² + bx + c = 0)
+  // ==========================================
+  const [quadA, setQuadA] = useState('1');
+  const [quadB, setQuadB] = useState('-5');
+  const [quadC, setQuadC] = useState('6');
+  const [quadError, setQuadError] = useState<string | null>(null);
+  const [quadResult, setQuadResult] = useState<{ discriminant: number; roots: string[] } | null>(null);
+
+  const handleSolveQuadratic = () => {
+    const a = parseFloat(quadA);
+    const b = parseFloat(quadB);
+    const c = parseFloat(quadC);
+    if ([a, b, c].some((v) => Number.isNaN(v))) {
+      setQuadError('Vui lòng nhập đầy đủ hệ số a, b, c hợp lệ.');
+      setQuadResult(null);
+      return;
+    }
+    if (a === 0) {
+      setQuadError('Hệ số a phải khác 0 (a = 0 không phải phương trình bậc hai).');
+      setQuadResult(null);
+      return;
+    }
+    const delta = b * b - 4 * a * c;
+    let roots: string[];
+    if (delta > 0) {
+      const sq = Math.sqrt(delta);
+      roots = [
+        `x₁ = ${formatCalcResult((-b + sq) / (2 * a))}`,
+        `x₂ = ${formatCalcResult((-b - sq) / (2 * a))}`
+      ];
+    } else if (delta === 0) {
+      roots = [`x = ${formatCalcResult(-b / (2 * a))} (nghiệm kép)`];
+    } else {
+      const re = formatCalcResult(-b / (2 * a));
+      const im = formatCalcResult(Math.sqrt(-delta) / (2 * a));
+      roots = [`x₁ = ${re} + ${im}i`, `x₂ = ${re} − ${im}i`];
+    }
+    setQuadResult({ discriminant: delta, roots });
+    setQuadError(null);
+  };
+
   type CalcBtnVariant = 'num' | 'op' | 'fn' | 'eq' | 'danger' | 'mem';
   interface CalcBtn {
     label: string;
@@ -1748,6 +1790,71 @@ interface SystemConfig {
                 <p className="text-[11px] text-slate-500 italic">
                   Đang ở chế độ góc {calcAngleMode === 'deg' ? 'Độ (DEG)' : 'Radian (RAD)'}. Ký hiệu "%" chia giá trị liền trước cho 100 theo kiểu đơn giản, không tính phần trăm theo ngữ cảnh như một số máy tính vật lý.
                 </p>
+
+                <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                  <h4 className="text-xs font-bold text-slate-300">
+                    Giải phương trình bậc hai: ax² + bx + c = 0
+                  </h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[11px] text-slate-500 mb-1">Hệ số a</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={quadA}
+                        onChange={(e) => setQuadA(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-lg px-2 py-1.5 text-sm font-mono text-cyan-300 focus:outline-none text-center"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-500 mb-1">Hệ số b</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={quadB}
+                        onChange={(e) => setQuadB(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-lg px-2 py-1.5 text-sm font-mono text-cyan-300 focus:outline-none text-center"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-500 mb-1">Hệ số c</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={quadC}
+                        onChange={(e) => setQuadC(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-lg px-2 py-1.5 text-sm font-mono text-cyan-300 focus:outline-none text-center"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleSolveQuadratic}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm py-2 rounded-lg transition-colors"
+                  >
+                    Giải phương trình
+                  </button>
+
+                  {quadError && (
+                    <div className="bg-rose-950/40 border border-rose-500/40 text-rose-300 p-2.5 rounded-lg text-xs">
+                      ⚠️ {quadError}
+                    </div>
+                  )}
+
+                  {quadResult && (
+                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 space-y-1.5">
+                      <div className="text-xs text-slate-400">
+                        Δ = {formatCalcResult(quadResult.discriminant)}
+                        {quadResult.discriminant > 0 && ' (Δ > 0 — hai nghiệm phân biệt)'}
+                        {quadResult.discriminant === 0 && ' (Δ = 0 — nghiệm kép)'}
+                        {quadResult.discriminant < 0 && ' (Δ < 0 — hai nghiệm phức liên hợp)'}
+                      </div>
+                      {quadResult.roots.map((r, i) => (
+                        <div key={i} className="text-sm font-mono text-emerald-400">{r}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

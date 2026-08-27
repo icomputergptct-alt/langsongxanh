@@ -914,13 +914,15 @@ export const SOFTWARE_UTILITIES: SoftwareUtility[] = [
       'Bộ nhớ độc lập STO/M+/M-/MR/MC và phím Ans lấy lại kết quả gần nhất',
       'Phím S⇔D chuyển đổi kết quả qua lại giữa dạng thập phân và phân số tối giản gần đúng',
       'Xem nhanh kết quả dưới dạng Thập phân/Nhị phân/Bát phân/Thập lục phân (DEC/BIN/OCT/HEX) với số nguyên không âm',
-      'Chuyển đổi tức thời giữa chế độ Độ (DEG) và Radian (RAD), xem trước kết quả khi đang nhập, lưu lịch sử phép tính gần đây'
+      'Chuyển đổi tức thời giữa chế độ Độ (DEG) và Radian (RAD), xem trước kết quả khi đang nhập, lưu lịch sử phép tính gần đây',
+      'Giải nhanh phương trình bậc hai (ax² + bx + c = 0): nhập hệ số a, b, c để ra nghiệm thực hoặc nghiệm phức kèm giá trị Δ'
     ],
     useCases: [
       'Tính toán lượng giác, logarit nhanh khi học tập hoặc làm bài tập kỹ thuật',
       'Kiểm tra nhanh công thức toán học khi không có máy tính vật lý bên cạnh',
       'Tính lãi suất, hàm mũ, căn bậc trong các bài toán tài chính/kỹ thuật cơ bản',
-      'Đổi nhanh một số nguyên sang hệ Nhị phân/Bát phân/Thập lục phân khi lập trình'
+      'Đổi nhanh một số nguyên sang hệ Nhị phân/Bát phân/Thập lục phân khi lập trình',
+      'Giải bài tập phương trình bậc hai mà không cần tự tính tay công thức nghiệm'
     ],
     guides: [
       {
@@ -943,6 +945,12 @@ export const SOFTWARE_UTILITIES: SoftwareUtility[] = [
         step: 4,
         title: 'Chuyển đổi phân số và hệ đếm',
         instruction: 'Sau khi nhấn "=", bấm S⇔D để xem kết quả dưới dạng phân số tối giản gần đúng (bấm lại để quay về thập phân). Bấm HEX/OCT/BIN để xem kết quả nguyên không âm gần nhất ở hệ thập lục phân/bát phân/nhị phân; bấm lại nút đó để ẩn đi.'
+      },
+      {
+        step: 5,
+        title: 'Giải phương trình bậc hai',
+        instruction: 'Kéo xuống khối "Giải phương trình bậc hai" ở cuối, nhập hệ số a, b, c rồi bấm "Giải phương trình". Kết quả hiển thị giá trị Δ và nghiệm tương ứng (hai nghiệm thực, nghiệm kép, hoặc hai nghiệm phức nếu Δ âm).',
+        tip: 'Đây là công thức nghiệm đóng cho riêng phương trình bậc hai, khác với chức năng SOLVE tổng quát trên máy tính vật lý (giải mọi phương trình bằng phương pháp lặp) — công cụ hiện chưa hỗ trợ SOLVE tổng quát.'
       }
     ]
   }
