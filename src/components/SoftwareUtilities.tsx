@@ -1625,12 +1625,12 @@ interface SystemConfig {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap justify-between gap-1.5 sm:gap-2">
+                <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
                   {calcControlRow.map((btn, i) => (
                     <button
                       key={i}
                       onClick={btn.onClick}
-                      className={`px-3 py-1.5 sm:py-2 rounded-lg font-bold transition-colors ${calcBtnClass(btn.variant)}`}
+                      className={`py-1.5 sm:py-2 rounded-lg font-bold transition-colors ${calcBtnClass(btn.variant)}`}
                     >
                       {btn.label}
                     </button>
