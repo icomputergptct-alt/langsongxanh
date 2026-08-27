@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Wrench,
   Code2,
@@ -258,26 +258,60 @@ interface SystemConfig {
   const [urlScanLoading, setUrlScanLoading] = useState(false);
   const [urlScanError, setUrlScanError] = useState<string | null>(null);
   const [urlScanResult, setUrlScanResult] = useState<UrlSecurityScanResult | null>(null);
+  const [urlScanProgress, setUrlScanProgress] = useState(0);
+  const [urlScanStageLabel, setUrlScanStageLabel] = useState('');
+  const urlScanTimerRef = useRef<number | null>(null);
+
+  const URL_SCAN_STAGES = [
+    { at: 0, label: 'Đang phân giải tên miền (DNS)...' },
+    { at: 18, label: 'Đang dò kết nối máy chủ đích...' },
+    { at: 40, label: 'Đang kiểm tra chứng chỉ SSL/TLS...' },
+    { at: 62, label: 'Đang đối chiếu dấu hiệu lừa đảo & giả mạo thương hiệu...' },
+    { at: 84, label: 'Đang tổng hợp báo cáo rủi ro...' }
+  ];
+  const URL_SCAN_MIN_DURATION_MS = 6000;
 
   const handleScanUrl = async () => {
     if (!urlToScan.trim() || urlScanLoading) return;
     setUrlScanLoading(true);
     setUrlScanError(null);
     setUrlScanResult(null);
+    setUrlScanProgress(0);
+    setUrlScanStageLabel(URL_SCAN_STAGES[0].label);
+
+    const startedAt = Date.now();
+    urlScanTimerRef.current = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const pct = Math.min(97, Math.round((elapsed / URL_SCAN_MIN_DURATION_MS) * 100));
+      setUrlScanProgress(pct);
+      const stage = [...URL_SCAN_STAGES].reverse().find((s) => pct >= s.at);
+      if (stage) setUrlScanStageLabel(stage.label);
+    }, 100);
+
     try {
-      const res = await fetch('/api/security/analyze-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: urlToScan.trim() })
-      });
+      const [res] = await Promise.all([
+        fetch('/api/security/analyze-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: urlToScan.trim() })
+        }),
+        new Promise((resolve) => setTimeout(resolve, URL_SCAN_MIN_DURATION_MS))
+      ]);
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.error || 'Không thể phân tích URL.');
       }
+      setUrlScanProgress(100);
+      setUrlScanStageLabel('Hoàn tất phân tích.');
+      await new Promise((resolve) => setTimeout(resolve, 300));
       setUrlScanResult(data.data);
     } catch (e: any) {
       setUrlScanError(e.message || 'Đã xảy ra lỗi khi phân tích URL.');
     } finally {
+      if (urlScanTimerRef.current) {
+        window.clearInterval(urlScanTimerRef.current);
+        urlScanTimerRef.current = null;
+      }
       setUrlScanLoading(false);
     }
   };
@@ -815,6 +849,24 @@ interface SystemConfig {
                     <span>{urlScanLoading ? 'Đang phân tích...' : 'Phân tích'}</span>
                   </button>
                 </div>
+
+                {urlScanLoading && (
+                  <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
+                    <div className="flex items-center justify-between gap-3 text-xs">
+                      <span className="text-cyan-300 font-medium flex items-center gap-1.5">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                        <span>{urlScanStageLabel}</span>
+                      </span>
+                      <span className="text-slate-400 font-mono shrink-0">{urlScanProgress}%</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-cyan-500 transition-all duration-150 ease-linear"
+                        style={{ width: `${urlScanProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {urlScanError && (
                   <div className="bg-rose-950/40 border border-rose-500/40 text-rose-300 p-3 rounded-xl text-xs">
