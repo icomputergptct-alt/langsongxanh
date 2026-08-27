@@ -1630,7 +1630,7 @@ interface SystemConfig {
                     <button
                       key={i}
                       onClick={btn.onClick}
-                      className={`py-2.5 sm:py-3 rounded-lg font-bold transition-colors ${calcBtnClass(btn.variant)}`}
+                      className={`py-1.5 sm:py-2 rounded-lg font-bold transition-colors ${calcBtnClass(btn.variant)}`}
                     >
                       {btn.label}
                     </button>
@@ -1642,7 +1642,7 @@ interface SystemConfig {
                     <button
                       key={i}
                       onClick={btn.onClick}
-                      className={`py-3 sm:py-4 rounded-lg font-bold transition-colors ${calcBtnClass(btn.variant)}`}
+                      className={`py-1.5 sm:py-2 rounded-lg font-bold transition-colors ${calcBtnClass(btn.variant)}`}
                     >
                       {btn.label}
                     </button>
