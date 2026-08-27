@@ -24,10 +24,132 @@ import {
   Loader2,
   ShieldAlert,
   ShieldX,
-  ServerCog
+  ServerCog,
+  EyeOff
 } from 'lucide-react';
 import { SoftwareUtility, UrlSecurityScanResult } from '../types';
 import { SOFTWARE_UTILITIES } from '../data/initialData';
+
+const COMMON_PASSWORDS = new Set([
+  '123456', '123456789', '12345678', '12345', '1234567', 'password', '111111', '123123',
+  'abc123', '1234567890', '1q2w3e4r', 'qwerty', 'qwertyuiop', '000000', 'iloveyou',
+  'admin', 'welcome', 'monkey', 'dragon', 'football', 'letmein', 'password1', '123321',
+  '654321', '666666', '7777777', '888888', 'princess', '1qaz2wsx', 'ninja', 'azerty',
+  'trustno1', '123qwe', '1234', '12345678910', 'matkhau', '123abc', 'qwe123',
+  'vietnam', 'vietnam123', 'saigon', 'hanoi', '01234', 'a12345678'
+]);
+
+const KEYBOARD_PATTERNS = ['qwerty', 'asdfgh', 'zxcvbn', 'qazwsx', '1qaz2wsx', 'poiuyt'];
+
+function estimateCrackTime(entropyBits: number): string {
+  const guesses = Math.pow(2, entropyBits) / 2;
+  const guessesPerSecond = 1e10; // giả định máy chủ bẻ khóa offline tốc độ cao (GPU cluster)
+  const seconds = guesses / guessesPerSecond;
+
+  if (seconds < 1) return 'Dưới 1 giây';
+  const minutes = seconds / 60;
+  if (seconds < 60) return `${Math.round(seconds)} giây`;
+  const hours = minutes / 60;
+  if (minutes < 60) return `${Math.round(minutes)} phút`;
+  const days = hours / 24;
+  if (hours < 24) return `${Math.round(hours)} giờ`;
+  const years = days / 365;
+  if (days < 365) return `${Math.round(days)} ngày`;
+  if (years < 1000) return `${Math.round(years)} năm`;
+  if (years < 1e6) return `${Math.round(years / 1000)} nghìn năm`;
+  if (years < 1e9) return `${Math.round(years / 1e6)} triệu năm`;
+  return 'Hàng tỷ năm (gần như không thể)';
+}
+
+interface PasswordAnalysis {
+  length: number;
+  hasUpper: boolean;
+  hasLower: boolean;
+  hasDigit: boolean;
+  hasSymbol: boolean;
+  entropy: number;
+  verdict: 'Rất yếu' | 'Yếu' | 'Trung bình' | 'Mạnh' | 'Rất mạnh';
+  reasons: string[];
+  crackTime: string;
+}
+
+function analyzePasswordStrength(pw: string): PasswordAnalysis {
+  const reasons: string[] = [];
+
+  const hasUpper = /[A-Z]/.test(pw);
+  const hasLower = /[a-z]/.test(pw);
+  const hasDigit = /[0-9]/.test(pw);
+  const hasSymbol = /[^A-Za-z0-9]/.test(pw);
+
+  let charsetSize = 0;
+  if (hasUpper) charsetSize += 26;
+  if (hasLower) charsetSize += 26;
+  if (hasDigit) charsetSize += 10;
+  if (hasSymbol) charsetSize += 32;
+  if (charsetSize === 0) charsetSize = 1;
+
+  let entropy = Math.round(pw.length * Math.log2(charsetSize));
+
+  const lower = pw.toLowerCase();
+  if (COMMON_PASSWORDS.has(lower)) {
+    reasons.push('Đây là một trong những mật khẩu phổ biến nhất thế giới — bị dò ra gần như ngay lập tức (Dictionary Attack).');
+    entropy = Math.min(entropy, 8);
+  }
+
+  for (const pattern of KEYBOARD_PATTERNS) {
+    if (lower.includes(pattern)) {
+      reasons.push(`Chứa chuỗi bàn phím dễ đoán ("${pattern}").`);
+      entropy = Math.round(entropy * 0.5);
+      break;
+    }
+  }
+
+  if (/(.)\1{2,}/.test(pw)) {
+    reasons.push('Chứa ký tự lặp lại liên tiếp từ 3 lần trở lên (ví dụ: aaa, 111).');
+    entropy = Math.round(entropy * 0.7);
+  }
+
+  if (/012|123|234|345|456|567|678|789|890/.test(pw) || /abc|bcd|cde|def|efg/i.test(pw)) {
+    reasons.push('Chứa dãy số hoặc chữ liên tiếp dễ đoán (ví dụ: 123, abc).');
+    entropy = Math.round(entropy * 0.8);
+  }
+
+  if (pw.length < 8) {
+    reasons.push('Độ dài dưới 8 ký tự — quá ngắn để chống lại tấn công dò brute-force hiện đại.');
+  }
+
+  const varietyCount = [hasUpper, hasLower, hasDigit, hasSymbol].filter(Boolean).length;
+  if (varietyCount <= 1) {
+    reasons.push('Chỉ dùng một loại ký tự — nên kết hợp chữ hoa, chữ thường, số và ký hiệu đặc biệt.');
+  } else if (varietyCount === 2) {
+    reasons.push('Nên bổ sung thêm loại ký tự khác (chữ hoa/số/ký hiệu) để tăng độ khó đoán.');
+  }
+
+  entropy = Math.max(0, entropy);
+
+  let verdict: PasswordAnalysis['verdict'];
+  if (entropy < 28) verdict = 'Rất yếu';
+  else if (entropy < 46) verdict = 'Yếu';
+  else if (entropy < 66) verdict = 'Trung bình';
+  else if (entropy < 90) verdict = 'Mạnh';
+  else verdict = 'Rất mạnh';
+
+  if (reasons.length === 0) {
+    reasons.push('Không phát hiện điểm yếu rõ ràng qua phân tích tự động. Mật khẩu có cấu trúc tốt.');
+  }
+
+  return {
+    length: pw.length,
+    hasUpper,
+    hasLower,
+    hasDigit,
+    hasSymbol,
+    entropy,
+    verdict,
+    reasons,
+    crackTime: estimateCrackTime(entropy)
+  };
+}
 
 export const SoftwareUtilities: React.FC = () => {
   const [utilities] = useState<SoftwareUtility[]>(SOFTWARE_UTILITIES);
@@ -207,6 +329,10 @@ export const SoftwareUtilities: React.FC = () => {
   const [includeSymbols, setIncludeSymbols] = useState(true);
   const [generatedPass, setGeneratedPass] = useState('');
   const [entropyScore, setEntropyScore] = useState(105);
+  const [passToolMode, setPassToolMode] = useState<'generate' | 'check'>('generate');
+  const [checkPasswordInput, setCheckPasswordInput] = useState('');
+  const [showCheckPassword, setShowCheckPassword] = useState(false);
+  const passwordAnalysis = checkPasswordInput ? analyzePasswordStrength(checkPasswordInput) : null;
 
   const handleGeneratePassword = () => {
     let charset = '';
@@ -704,84 +830,211 @@ interface SystemConfig {
             {/* ========================================== */}
             {activeTool.id === 'util-pass-gen' && (
               <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-sm sm:text-base text-cyan-300 select-all tracking-wider break-all">
-                    {generatedPass}
-                  </div>
-
+                <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800">
                   <button
-                    onClick={handleGeneratePassword}
-                    className="p-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl shadow transition-colors"
-                    title="Tạo chuỗi mới"
+                    onClick={() => setPassToolMode('generate')}
+                    className={`flex-1 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${
+                      passToolMode === 'generate' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                    }`}
                   >
-                    <RotateCcw className="w-5 h-5" />
+                    Tạo mật khẩu
                   </button>
-
                   <button
-                    onClick={() => copyToClipboard(generatedPass, 'pass')}
-                    className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700 transition-colors"
-                    title="Sao chép"
+                    onClick={() => setPassToolMode('check')}
+                    className={`flex-1 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${
+                      passToolMode === 'check' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                    }`}
                   >
-                    {copiedKey === 'pass' ? <Check className="w-5 h-5 text-emerald-400" /> : <Copy className="w-5 h-5" />}
+                    Kiểm tra mật khẩu
                   </button>
                 </div>
 
-                <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span>Độ dài mật khẩu: <strong>{passLength} ký tự</strong></span>
-                    <span className="text-emerald-400 font-bold">Độ mạnh Entropy: {entropyScore} bits (Rất an toàn)</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={8}
-                    max={64}
-                    value={passLength}
-                    onChange={(e) => {
-                      setPassLength(Number(e.target.value));
-                      setTimeout(handleGeneratePassword, 10);
-                    }}
-                    className="w-full accent-cyan-500"
-                  />
+                {passToolMode === 'generate' && (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-sm sm:text-base text-cyan-300 select-all tracking-wider break-all">
+                        {generatedPass}
+                      </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-                    <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+                      <button
+                        onClick={handleGeneratePassword}
+                        className="p-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl shadow transition-colors"
+                        title="Tạo chuỗi mới"
+                      >
+                        <RotateCcw className="w-5 h-5" />
+                      </button>
+
+                      <button
+                        onClick={() => copyToClipboard(generatedPass, 'pass')}
+                        className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700 transition-colors"
+                        title="Sao chép"
+                      >
+                        {copiedKey === 'pass' ? <Check className="w-5 h-5 text-emerald-400" /> : <Copy className="w-5 h-5" />}
+                      </button>
+                    </div>
+
+                    <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span>Độ dài mật khẩu: <strong>{passLength} ký tự</strong></span>
+                        <span className="text-emerald-400 font-bold">Độ mạnh Entropy: {entropyScore} bits (Rất an toàn)</span>
+                      </div>
                       <input
-                        type="checkbox"
-                        checked={includeUpper}
-                        onChange={(e) => setIncludeUpper(e.target.checked)}
-                        className="accent-cyan-500"
+                        type="range"
+                        min={8}
+                        max={64}
+                        value={passLength}
+                        onChange={(e) => {
+                          setPassLength(Number(e.target.value));
+                          setTimeout(handleGeneratePassword, 10);
+                        }}
+                        className="w-full accent-cyan-500"
                       />
-                      <span>Chữ hoa (A-Z)</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
+                        <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={includeUpper}
+                            onChange={(e) => setIncludeUpper(e.target.checked)}
+                            className="accent-cyan-500"
+                          />
+                          <span>Chữ hoa (A-Z)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={includeLower}
+                            onChange={(e) => setIncludeLower(e.target.checked)}
+                            className="accent-cyan-500"
+                          />
+                          <span>Chữ thường (a-z)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={includeNumbers}
+                            onChange={(e) => setIncludeNumbers(e.target.checked)}
+                            className="accent-cyan-500"
+                          />
+                          <span>Chữ số (0-9)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={includeSymbols}
+                            onChange={(e) => setIncludeSymbols(e.target.checked)}
+                            className="accent-cyan-500"
+                          />
+                          <span>Ký tự đặc biệt</span>
+                        </label>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {passToolMode === 'check' && (
+                  <div className="space-y-4">
+                    <div className="relative">
                       <input
-                        type="checkbox"
-                        checked={includeLower}
-                        onChange={(e) => setIncludeLower(e.target.checked)}
-                        className="accent-cyan-500"
+                        type={showCheckPassword ? 'text' : 'password'}
+                        value={checkPasswordInput}
+                        onChange={(e) => setCheckPasswordInput(e.target.value)}
+                        placeholder="Nhập mật khẩu cần kiểm tra độ mạnh..."
+                        autoComplete="new-password"
+                        spellCheck={false}
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2.5 pr-11 text-sm font-mono text-cyan-300 focus:outline-none"
                       />
-                      <span>Chữ thường (a-z)</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={includeNumbers}
-                        onChange={(e) => setIncludeNumbers(e.target.checked)}
-                        className="accent-cyan-500"
-                      />
-                      <span>Chữ số (0-9)</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={includeSymbols}
-                        onChange={(e) => setIncludeSymbols(e.target.checked)}
-                        className="accent-cyan-500"
-                      />
-                      <span>Ký tự đặc biệt</span>
-                    </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowCheckPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                        title={showCheckPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                      >
+                        {showCheckPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-500 italic">
+                      Mật khẩu được phân tích hoàn toàn cục bộ ngay trên trình duyệt của bạn — không gửi đi bất kỳ máy chủ nào.
+                    </p>
+
+                    {passwordAnalysis && (
+                      <div className="space-y-4">
+                        <div className={`rounded-xl p-4 border ${
+                          passwordAnalysis.verdict === 'Mạnh' || passwordAnalysis.verdict === 'Rất mạnh'
+                            ? 'bg-emerald-950/30 border-emerald-500/40'
+                            : passwordAnalysis.verdict === 'Trung bình'
+                            ? 'bg-amber-950/30 border-amber-500/40'
+                            : 'bg-rose-950/30 border-rose-500/40'
+                        }`}>
+                          <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                            <span className={`font-extrabold text-sm sm:text-base ${
+                              passwordAnalysis.verdict === 'Mạnh' || passwordAnalysis.verdict === 'Rất mạnh'
+                                ? 'text-emerald-300'
+                                : passwordAnalysis.verdict === 'Trung bình'
+                                ? 'text-amber-300'
+                                : 'text-rose-300'
+                            }`}>
+                              {passwordAnalysis.verdict}
+                            </span>
+                            <span className="text-[11px] font-mono text-slate-400">~{passwordAnalysis.entropy} bits entropy</span>
+                          </div>
+                          <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${
+                                passwordAnalysis.verdict === 'Mạnh' || passwordAnalysis.verdict === 'Rất mạnh'
+                                  ? 'bg-emerald-500'
+                                  : passwordAnalysis.verdict === 'Trung bình'
+                                  ? 'bg-amber-500'
+                                  : 'bg-rose-500'
+                              }`}
+                              style={{ width: `${Math.max(4, Math.min(100, Math.round((passwordAnalysis.entropy / 120) * 100)))}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px]">
+                          <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-center">
+                            <span className="block text-slate-400">Độ dài</span>
+                            <strong className="text-slate-200">{passwordAnalysis.length}</strong>
+                          </div>
+                          <div className={`bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-center ${passwordAnalysis.hasUpper ? 'text-emerald-400' : 'text-slate-500'}`}>
+                            <span className="block text-slate-400">Chữ hoa</span>
+                            <strong>{passwordAnalysis.hasUpper ? '✓' : '✗'}</strong>
+                          </div>
+                          <div className={`bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-center ${passwordAnalysis.hasLower ? 'text-emerald-400' : 'text-slate-500'}`}>
+                            <span className="block text-slate-400">Chữ thường</span>
+                            <strong>{passwordAnalysis.hasLower ? '✓' : '✗'}</strong>
+                          </div>
+                          <div className={`bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-center ${passwordAnalysis.hasDigit ? 'text-emerald-400' : 'text-slate-500'}`}>
+                            <span className="block text-slate-400">Chữ số</span>
+                            <strong>{passwordAnalysis.hasDigit ? '✓' : '✗'}</strong>
+                          </div>
+                          <div className={`bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-center ${passwordAnalysis.hasSymbol ? 'text-emerald-400' : 'text-slate-500'}`}>
+                            <span className="block text-slate-400">Ký hiệu</span>
+                            <strong>{passwordAnalysis.hasSymbol ? '✓' : '✗'}</strong>
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs">
+                          <span className="text-slate-400 block mb-1">Thời gian ước tính để dò ra (kịch bản tấn công offline tốc độ cao):</span>
+                          <strong className="text-amber-300">{passwordAnalysis.crackTime}</strong>
+                        </div>
+
+                        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                          <span className="font-semibold text-xs text-slate-300 block mb-2">Chi tiết phân tích:</span>
+                          <ul className="space-y-1.5 text-xs text-slate-300">
+                            {passwordAnalysis.reasons.map((r, i) => (
+                              <li key={i} className="flex items-start gap-1.5">
+                                <span className="text-cyan-500 font-bold">•</span>
+                                <span>{r}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
               </div>
             )}
 
