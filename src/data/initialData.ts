@@ -631,6 +631,45 @@ export const INITIAL_ATTEMPTS: ExamAttempt[] = [
 
 export const SOFTWARE_UTILITIES: SoftwareUtility[] = [
   {
+    id: 'util-url-scanner',
+    name: 'Trình Phân Tích & Kiểm Tra An Toàn URL',
+    slug: 'url-security-scanner',
+    category: 'An ninh Mạng',
+    icon: 'Globe',
+    shortDesc: 'Nhập một đường dẫn (URL) bất kỳ để phân tích máy chủ đích, chứng chỉ bảo mật và các dấu hiệu lừa đảo (phishing) tiềm ẩn.',
+    detailedDesc: 'Công cụ phân giải tên miền thực tế phía máy chủ (DNS), kiểm tra chuỗi chuyển hướng, chứng chỉ SSL/TLS và đối chiếu với các mẫu hành vi lừa đảo phổ biến (giả mạo thương hiệu, tên miền rút gọn, Punycode, IP trực tiếp...) để đưa ra cảnh báo mức độ rủi ro tham khảo.',
+    badge: 'Mới',
+    features: [
+      'Phân giải DNS để xác định địa chỉ IP máy chủ thực sự đang lưu trữ đường dẫn',
+      'Theo dõi toàn bộ chuỗi chuyển hướng (redirect chain) đến đích cuối cùng',
+      'Kiểm tra chứng chỉ SSL/TLS: tổ chức phát hành, thời hạn hiệu lực, tính hợp lệ',
+      'Chấm điểm rủi ro tự động dựa trên các dấu hiệu giả mạo thương hiệu, IP nội bộ, Punycode, tên miền rút gọn, TLD đáng ngờ...'
+    ],
+    useCases: [
+      'Kiểm tra liên kết lạ nhận được qua tin nhắn, email hoặc mạng xã hội trước khi bấm vào',
+      'Xác minh đường dẫn giả danh ngân hàng, ví điện tử (Vietcombank, MoMo, Zalo...) trước khi đăng nhập',
+      'Rà soát nhanh các liên kết rút gọn không rõ nguồn gốc'
+    ],
+    guides: [
+      {
+        step: 1,
+        title: 'Nhập đường dẫn cần kiểm tra',
+        instruction: 'Dán URL đầy đủ (hoặc chỉ tên miền) vào ô nhập liệu, ví dụ: vietcombank-verify.tk hoặc https://example.com/login.'
+      },
+      {
+        step: 2,
+        title: 'Nhấn Phân Tích và chờ kết quả',
+        instruction: 'Hệ thống sẽ phân giải DNS, kết nối thử tới máy chủ đích và kiểm tra chứng chỉ bảo mật trong vài giây.'
+      },
+      {
+        step: 3,
+        title: 'Đọc kết quả và mức độ rủi ro',
+        instruction: 'Xem điểm rủi ro, danh sách lý do cụ thể và kết luận (An toàn / Cần thận trọng / Nguy hiểm) để quyết định có nên truy cập tiếp hay không.',
+        tip: 'Đây là công cụ phân tích tham khảo dựa trên heuristic, không thay thế hoàn toàn các dịch vụ chuyên biệt như Google Safe Browsing. Luôn thận trọng khi nhập thông tin tài khoản, mật khẩu.'
+      }
+    ]
+  },
+  {
     id: 'util-code-formatter',
     name: 'Trình Định Dạng & Làm Đẹp Mã Nguồn (Code Formatter)',
     slug: 'code-formatter',

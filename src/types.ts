@@ -164,7 +164,7 @@ export interface SoftwareUtility {
   id: string;
   name: string;
   slug: string;
-  category: 'Lập trình & Mã nguồn' | 'Mạng & Hạ tầng' | 'Bảo mật & Mã hoá' | 'Định dạng Dữ liệu' | 'Nội dung & Tài liệu';
+  category: 'Lập trình & Mã nguồn' | 'Mạng & Hạ tầng' | 'Bảo mật & Mã hoá' | 'Định dạng Dữ liệu' | 'Nội dung & Tài liệu' | 'An ninh Mạng';
   icon: string;
   shortDesc: string;
   detailedDesc: string;
@@ -173,6 +173,27 @@ export interface SoftwareUtility {
   useCases: string[];
   guides: UtilityStepGuide[];
   keyShortcuts?: { key: string; action: string }[];
+}
+
+export interface UrlSecurityScanResult {
+  inputUrl: string;
+  normalizedUrl: string;
+  hostname: string;
+  resolvedIps: string[];
+  finalUrl: string;
+  redirectChain: string[];
+  httpStatus: number | null;
+  tls: {
+    issuer: string | null;
+    subject: string | null;
+    validFrom: string | null;
+    validTo: string | null;
+    authorized: boolean | null;
+  } | null;
+  riskScore: number;
+  verdict: 'An toàn' | 'Cần thận trọng' | 'Nguy hiểm' | 'Không xác định';
+  reasons: string[];
+  checkedAt: string;
 }
 
 export interface UserProfile {

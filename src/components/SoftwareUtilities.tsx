@@ -1,32 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Wrench, 
-  Code2, 
-  Terminal, 
-  ShieldCheck, 
-  Network, 
-  KeyRound, 
-  FileText, 
-  Copy, 
-  Check, 
-  BookOpen, 
-  Sparkles, 
-  Play, 
-  RotateCcw, 
-  Layers, 
-  ChevronRight, 
+import {
+  Wrench,
+  Code2,
+  Terminal,
+  ShieldCheck,
+  Network,
+  KeyRound,
+  FileText,
+  Copy,
+  Check,
+  BookOpen,
+  Sparkles,
+  Play,
+  RotateCcw,
+  Layers,
+  ChevronRight,
   HelpCircle,
   Hash,
   Download,
   Eye,
-  Sliders
+  Sliders,
+  Globe,
+  Loader2,
+  ShieldAlert,
+  ShieldX,
+  ServerCog
 } from 'lucide-react';
-import { SoftwareUtility } from '../types';
+import { SoftwareUtility, UrlSecurityScanResult } from '../types';
 import { SOFTWARE_UTILITIES } from '../data/initialData';
 
 export const SoftwareUtilities: React.FC = () => {
   const [utilities] = useState<SoftwareUtility[]>(SOFTWARE_UTILITIES);
-  const [selectedToolId, setSelectedToolId] = useState<string>('util-code-formatter');
+  const [selectedToolId, setSelectedToolId] = useState<string>('util-url-scanner');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const activeTool = utilities.find((u) => u.id === selectedToolId) || utilities[0];
@@ -246,6 +251,37 @@ interface SystemConfig {
 
 > **Khuyến nghị an toàn:** Luôn bật mTLS giữa các Pod trong Service Mesh.`);
 
+  // ==========================================
+  // TOOL 7: URL SECURITY SCANNER STATE
+  // ==========================================
+  const [urlToScan, setUrlToScan] = useState('');
+  const [urlScanLoading, setUrlScanLoading] = useState(false);
+  const [urlScanError, setUrlScanError] = useState<string | null>(null);
+  const [urlScanResult, setUrlScanResult] = useState<UrlSecurityScanResult | null>(null);
+
+  const handleScanUrl = async () => {
+    if (!urlToScan.trim() || urlScanLoading) return;
+    setUrlScanLoading(true);
+    setUrlScanError(null);
+    setUrlScanResult(null);
+    try {
+      const res = await fetch('/api/security/analyze-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: urlToScan.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || 'Không thể phân tích URL.');
+      }
+      setUrlScanResult(data.data);
+    } catch (e: any) {
+      setUrlScanError(e.message || 'Đã xảy ra lỗi khi phân tích URL.');
+    } finally {
+      setUrlScanLoading(false);
+    }
+  };
+
   // Initialize tool outputs
   useEffect(() => {
     handleFormatCode(fmtInput, fmtLang, fmtIndent);
@@ -311,6 +347,7 @@ interface SystemConfig {
                     {tool.icon === 'Network' && <Network className="w-4 h-4" />}
                     {tool.icon === 'KeyRound' && <KeyRound className="w-4 h-4" />}
                     {tool.icon === 'FileText' && <FileText className="w-4 h-4" />}
+                    {tool.icon === 'Globe' && <Globe className="w-4 h-4" />}
                   </div>
 
                   <div>
@@ -752,6 +789,137 @@ interface SystemConfig {
                     })}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* ========================================== */}
+            {/* 7. URL SECURITY SCANNER SANDBOX           */}
+            {/* ========================================== */}
+            {activeTool.id === 'util-url-scanner' && (
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row items-stretch gap-3">
+                  <input
+                    type="text"
+                    value={urlToScan}
+                    onChange={(e) => setUrlToScan(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleScanUrl(); }}
+                    placeholder="Dán URL cần kiểm tra, ví dụ: https://example.com"
+                    className="flex-1 bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2.5 text-xs sm:text-sm font-mono text-cyan-300 focus:outline-none"
+                  />
+                  <button
+                    onClick={handleScanUrl}
+                    disabled={urlScanLoading || !urlToScan.trim()}
+                    className="flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold px-5 py-2.5 rounded-xl shadow transition-colors text-xs sm:text-sm shrink-0"
+                  >
+                    {urlScanLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+                    <span>{urlScanLoading ? 'Đang phân tích...' : 'Phân tích'}</span>
+                  </button>
+                </div>
+
+                {urlScanError && (
+                  <div className="bg-rose-950/40 border border-rose-500/40 text-rose-300 p-3 rounded-xl text-xs">
+                    ⚠️ {urlScanError}
+                  </div>
+                )}
+
+                {urlScanResult && (
+                  <div className="space-y-4">
+                    {/* Verdict banner */}
+                    <div className={`rounded-xl p-4 border flex items-start gap-3 ${
+                      urlScanResult.verdict === 'An toàn'
+                        ? 'bg-emerald-950/30 border-emerald-500/40'
+                        : urlScanResult.verdict === 'Cần thận trọng'
+                        ? 'bg-amber-950/30 border-amber-500/40'
+                        : 'bg-rose-950/30 border-rose-500/40'
+                    }`}>
+                      {urlScanResult.verdict === 'An toàn' ? (
+                        <ShieldCheck className="w-6 h-6 text-emerald-400 shrink-0" />
+                      ) : urlScanResult.verdict === 'Cần thận trọng' ? (
+                        <ShieldAlert className="w-6 h-6 text-amber-400 shrink-0" />
+                      ) : (
+                        <ShieldX className="w-6 h-6 text-rose-400 shrink-0" />
+                      )}
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span className={`font-extrabold text-sm sm:text-base ${
+                            urlScanResult.verdict === 'An toàn' ? 'text-emerald-300'
+                            : urlScanResult.verdict === 'Cần thận trọng' ? 'text-amber-300'
+                            : 'text-rose-300'
+                          }`}>
+                            {urlScanResult.verdict}
+                          </span>
+                          <span className="text-[11px] font-mono text-slate-400">
+                            Điểm rủi ro: {urlScanResult.riskScore}/100
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              urlScanResult.verdict === 'An toàn' ? 'bg-emerald-500'
+                              : urlScanResult.verdict === 'Cần thận trọng' ? 'bg-amber-500'
+                              : 'bg-rose-500'
+                            }`}
+                            style={{ width: `${Math.max(4, urlScanResult.riskScore)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Server details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[11px] text-slate-400 flex items-center gap-1.5"><ServerCog className="w-3.5 h-3.5" /> Tên miền</span>
+                        <strong className="font-mono text-xs text-slate-200 break-all">{urlScanResult.hostname || '—'}</strong>
+                      </div>
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[11px] text-slate-400 block">Địa chỉ IP máy chủ</span>
+                        <strong className="font-mono text-xs text-cyan-400 break-all">
+                          {urlScanResult.resolvedIps.length > 0 ? urlScanResult.resolvedIps.join(', ') : 'Không xác định / bị chặn'}
+                        </strong>
+                      </div>
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[11px] text-slate-400 block">Trạng thái HTTP</span>
+                        <strong className="font-mono text-xs text-slate-200">{urlScanResult.httpStatus ?? 'Không kết nối được'}</strong>
+                      </div>
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[11px] text-slate-400 block">Chứng chỉ SSL/TLS</span>
+                        <strong className="font-mono text-xs text-slate-200">
+                          {urlScanResult.tls ? `${urlScanResult.tls.issuer || 'Không rõ tổ chức'} · ${urlScanResult.tls.authorized ? 'Hợp lệ' : 'Không hợp lệ'}` : 'Không có (HTTP)'}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {urlScanResult.redirectChain.length > 1 && (
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[11px] text-slate-400 block mb-1.5">Chuỗi chuyển hướng (Redirect Chain)</span>
+                        <div className="space-y-1">
+                          {urlScanResult.redirectChain.map((hop, i) => (
+                            <div key={i} className="text-[11px] font-mono text-slate-300 break-all">
+                              {i + 1}. {hop}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Reasons */}
+                    <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                      <span className="font-semibold text-xs text-slate-300 block mb-2">Chi tiết phân tích:</span>
+                      <ul className="space-y-1.5 text-xs text-slate-300">
+                        {urlScanResult.reasons.map((r, i) => (
+                          <li key={i} className="flex items-start gap-1.5">
+                            <span className="text-cyan-500 font-bold">•</span>
+                            <span>{r}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 italic">
+                      Đây là công cụ phân tích tham khảo dựa trên heuristic, không thay thế hoàn toàn các dịch vụ chuyên biệt như Google Safe Browsing. Luôn thận trọng khi nhập thông tin tài khoản, mật khẩu trên các đường dẫn lạ.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

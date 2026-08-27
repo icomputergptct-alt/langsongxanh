@@ -1,4 +1,8 @@
 import express from "express";
+import dns from "dns";
+import net from "net";
+import http from "http";
+import https from "https";
 import { GoogleGenAI } from "@google/genai";
 
 function getGeminiClient(): GoogleGenAI | null {
@@ -15,6 +19,25 @@ function getGeminiClient(): GoogleGenAI | null {
     },
   });
 }
+
+// Simple in-memory sliding-window limiter: max requests per IP within a time window.
+// Good enough for a single-instance deployment; resets on redeploy/restart.
+function createRateLimiter(maxRequests: number, windowMs: number) {
+  const hits = new Map<string, number[]>();
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
+    const now = Date.now();
+    const timestamps = (hits.get(ip) || []).filter((t) => now - t < windowMs);
+    if (timestamps.length >= maxRequests) {
+      return res.status(429).json({ error: "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau ít phút." });
+    }
+    timestamps.push(now);
+    hits.set(ip, timestamps);
+    next();
+  };
+}
+
+const urlScanRateLimiter = createRateLimiter(10, 60_000);
 
 export function createApiApp() {
   const app = express();
@@ -228,7 +251,374 @@ Hãy trả về JSON với cấu trúc:
     }
   });
 
+  // URL Security Scanner — analyzes a user-supplied link for phishing/scam indicators.
+  // This route makes real outbound network requests on the caller's behalf, so it gets
+  // its own per-IP rate limit to stop it being abused as an anonymous scanning relay.
+  app.post("/api/security/analyze-url", urlScanRateLimiter, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url || typeof url !== "string" || !url.trim()) {
+        return res.status(400).json({ error: "Vui lòng nhập địa chỉ URL cần kiểm tra." });
+      }
+      const result = await analyzeUrlSecurity(url.trim());
+      return res.json({ success: true, data: result });
+    } catch (err: any) {
+      console.error("Error in analyze-url:", err);
+      res.status(500).json({ error: "Không thể phân tích URL", details: err?.message });
+    }
+  });
+
   return app;
+}
+
+// ==========================================================
+// URL SECURITY SCANNER — heuristic phishing/scam analysis
+// ==========================================================
+
+const URL_SHORTENER_DOMAINS = new Set([
+  "bit.ly", "tinyurl.com", "is.gd", "t.co", "ow.ly", "buff.ly", "shorturl.at",
+  "cutt.ly", "rebrand.ly", "v.gd", "s.id", "rb.gy", "shrtco.de", "tiny.cc",
+]);
+
+const SUSPICIOUS_TLDS = new Set([
+  "tk", "ml", "ga", "cf", "gq", "xyz", "top", "work", "click", "link", "buzz", "icu", "info", "loan",
+]);
+
+// brand keyword -> list of its legitimate registrable domains
+const OFFICIAL_BRAND_DOMAINS: Record<string, string[]> = {
+  vietcombank: ["vietcombank.com.vn"],
+  techcombank: ["techcombank.com.vn", "techcombank.com"],
+  bidv: ["bidv.com.vn"],
+  agribank: ["agribank.com.vn"],
+  vpbank: ["vpbank.com.vn"],
+  sacombank: ["sacombank.com.vn"],
+  mbbank: ["mbbank.com.vn"],
+  vietinbank: ["vietinbank.vn"],
+  momo: ["momo.vn"],
+  zalopay: ["zalopay.vn"],
+  zalo: ["zalo.me"],
+  shopee: ["shopee.vn"],
+  tiki: ["tiki.vn"],
+  lazada: ["lazada.vn"],
+  facebook: ["facebook.com", "fb.com"],
+  paypal: ["paypal.com"],
+  apple: ["apple.com"],
+  microsoft: ["microsoft.com", "live.com", "outlook.com"],
+  google: ["google.com", "gmail.com"],
+  amazon: ["amazon.com"],
+  netflix: ["netflix.com"],
+  vnpay: ["vnpay.vn"],
+};
+
+function isPrivateOrReservedIp(ip: string): boolean {
+  if (net.isIPv4(ip)) {
+    const p = ip.split(".").map(Number);
+    if (p[0] === 10) return true;
+    if (p[0] === 127) return true;
+    if (p[0] === 169 && p[1] === 254) return true;
+    if (p[0] === 172 && p[1] >= 16 && p[1] <= 31) return true;
+    if (p[0] === 192 && p[1] === 168) return true;
+    if (p[0] === 100 && p[1] >= 64 && p[1] <= 127) return true; // CGNAT 100.64.0.0/10
+    if (p[0] >= 224) return true; // multicast/reserved
+    if (p[0] === 0) return true;
+    return false;
+  }
+  if (net.isIPv6(ip)) {
+    const lower = ip.toLowerCase();
+    if (lower === "::1") return true;
+    if (lower.startsWith("fe80")) return true; // link-local
+    if (lower.startsWith("fc") || lower.startsWith("fd")) return true; // unique local fc00::/7
+    if (lower.startsWith("::ffff:")) {
+      const v4 = lower.split(":").pop() || "";
+      if (net.isIPv4(v4)) return isPrivateOrReservedIp(v4);
+    }
+    return false;
+  }
+  return false;
+}
+
+// Node's WHATWG URL keeps brackets around IPv6 literals in `hostname` (e.g. "[::1]") —
+// strip them so net.isIP()/dns lookups see the bare address instead of silently mismatching.
+function stripIpv6Brackets(hostname: string): string {
+  return hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
+}
+
+async function resolveHostIps(hostname: string): Promise<string[]> {
+  const bare = stripIpv6Brackets(hostname);
+  if (net.isIP(bare)) return [bare];
+  const records = await dns.promises.lookup(bare, { all: true, verbatim: true });
+  return records.map((r) => r.address);
+}
+
+// Public suffixes with two significant labels — a naive "last 2 labels" split would
+// otherwise collapse e.g. "vietcombank.com.vn" and "evil-clone.com.vn" to the same
+// "com.vn" root and miss a redirect between two different real sites.
+const COMPOUND_SUFFIXES = new Set([
+  "com.vn", "net.vn", "org.vn", "edu.vn", "gov.vn", "biz.vn", "info.vn", "name.vn",
+  "co.uk", "org.uk", "gov.uk", "ac.uk",
+  "com.au", "net.au", "org.au",
+  "co.jp", "co.kr", "com.sg", "com.br", "co.in",
+]);
+
+function rootDomainOf(hostname: string): string {
+  const labels = stripIpv6Brackets(hostname).split(".").filter(Boolean);
+  if (labels.length <= 2) return labels.join(".");
+  const lastTwo = labels.slice(-2).join(".");
+  if (COMPOUND_SUFFIXES.has(lastTwo)) return labels.slice(-3).join(".");
+  return lastTwo;
+}
+
+interface ProbeResult {
+  status: number;
+  location: string | null;
+  cert: {
+    issuer: string | null;
+    subject: string | null;
+    validFrom: string | null;
+    validTo: string | null;
+    authorized: boolean | null;
+  } | null;
+}
+
+function probeUrlOnce(targetUrl: string, timeoutMs: number): Promise<ProbeResult> {
+  return new Promise((resolve, reject) => {
+    const u = new URL(targetUrl);
+    const lib = u.protocol === "https:" ? https : http;
+    const req = lib.request(
+      {
+        hostname: u.hostname,
+        port: u.port || (u.protocol === "https:" ? 443 : 80),
+        path: (u.pathname || "/") + (u.search || ""),
+        method: "HEAD",
+        timeout: timeoutMs,
+        rejectUnauthorized: false,
+        headers: { "User-Agent": "LongHoaSo-SecurityScanner/1.0" },
+      },
+      (r) => {
+        const socket: any = r.socket;
+        const rawCert = u.protocol === "https:" && socket?.getPeerCertificate ? socket.getPeerCertificate() : null;
+        const cert =
+          rawCert && Object.keys(rawCert).length > 0
+            ? {
+                issuer: rawCert.issuer?.O || rawCert.issuer?.CN || null,
+                subject: rawCert.subject?.CN || null,
+                validFrom: rawCert.valid_from || null,
+                validTo: rawCert.valid_to || null,
+                authorized: typeof socket.authorized === "boolean" ? socket.authorized : null,
+              }
+            : null;
+        resolve({ status: r.statusCode || 0, location: (r.headers.location as string) || null, cert });
+        r.resume();
+      }
+    );
+    req.on("timeout", () => req.destroy(new Error("Kết nối tới máy chủ quá thời gian chờ (timeout).")));
+    req.on("error", reject);
+    req.end();
+  });
+}
+
+async function analyzeUrlSecurity(rawInput: string) {
+  const reasons: string[] = [];
+  let score = 0;
+
+  let normalized = rawInput.trim();
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(normalized)) {
+    normalized = "https://" + normalized;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    return {
+      inputUrl: rawInput,
+      normalizedUrl: normalized,
+      hostname: "",
+      resolvedIps: [],
+      finalUrl: "",
+      redirectChain: [],
+      httpStatus: null,
+      tls: null,
+      riskScore: 100,
+      verdict: "Không xác định" as const,
+      reasons: ["Địa chỉ URL không đúng định dạng."],
+      checkedAt: new Date().toISOString(),
+    };
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return {
+      inputUrl: rawInput,
+      normalizedUrl: normalized,
+      hostname: parsed.hostname,
+      resolvedIps: [],
+      finalUrl: parsed.toString(),
+      redirectChain: [],
+      httpStatus: null,
+      tls: null,
+      riskScore: 100,
+      verdict: "Không xác định" as const,
+      reasons: [`Chỉ hỗ trợ phân tích giao thức HTTP/HTTPS (nhận được "${parsed.protocol}").`],
+      checkedAt: new Date().toISOString(),
+    };
+  }
+
+  if (/^https?:\/\/[^/?#]*@/i.test(normalized)) {
+    reasons.push('URL chứa ký tự "@" trong phần địa chỉ — kỹ thuật ngụy trang đường dẫn phổ biến trong lừa đảo.');
+    score += 20;
+  }
+
+  const originalHostname = parsed.hostname;
+  const redirectChain: string[] = [];
+  let current = parsed;
+  let resolvedIps: string[] = [];
+  let finalStatus: number | null = null;
+  let finalCert: ProbeResult["cert"] = null;
+  let blockedPrivateIp = false;
+
+  for (let hop = 0; hop < 5; hop++) {
+    redirectChain.push(current.toString());
+
+    let ips: string[];
+    try {
+      ips = await resolveHostIps(current.hostname);
+    } catch {
+      reasons.push(`Không thể phân giải DNS cho tên miền "${current.hostname}" (có thể không tồn tại hoặc đã ngưng hoạt động).`);
+      score += 30;
+      break;
+    }
+    if (hop === 0) resolvedIps = ips;
+
+    if (ips.some(isPrivateOrReservedIp)) {
+      blockedPrivateIp = true;
+      reasons.push(`Tên miền "${current.hostname}" trỏ đến địa chỉ IP nội bộ/riêng tư — hệ thống từ chối kết nối vì lý do an toàn.`);
+      score += 40;
+      break;
+    }
+
+    const port = current.port ? Number(current.port) : current.protocol === "https:" ? 443 : 80;
+    if (port !== 80 && port !== 443) {
+      reasons.push(`Cổng kết nối "${port}" không phải cổng tiêu chuẩn (80/443) — hệ thống không thực hiện kết nối thử tới cổng này, nhưng đây cũng là một dấu hiệu bất thường.`);
+      score += 15;
+      break;
+    }
+
+    try {
+      const probe = await probeUrlOnce(current.toString(), 4000);
+      finalStatus = probe.status;
+      finalCert = probe.cert;
+      if (probe.status >= 300 && probe.status < 400 && probe.location) {
+        current = new URL(probe.location, current);
+        continue;
+      }
+      break;
+    } catch (e: any) {
+      reasons.push(`Không thể kết nối tới máy chủ đích: ${e.message || "lỗi không xác định"}.`);
+      score += 15;
+      break;
+    }
+  }
+
+  if (net.isIP(originalHostname)) {
+    reasons.push("URL sử dụng địa chỉ IP trực tiếp thay vì tên miền — dấu hiệu thường gặp trong các đường dẫn lừa đảo.");
+    score += 25;
+  }
+
+  if (originalHostname.includes("xn--")) {
+    reasons.push("Tên miền ở dạng mã hóa Punycode/IDN — có thể là ký tự giả mạo trông giống tên miền thật (Homograph Attack).");
+    score += 30;
+  }
+
+  const rootHost = rootDomainOf(originalHostname).replace(/^www\./, "");
+  if (URL_SHORTENER_DOMAINS.has(rootHost)) {
+    reasons.push("Sử dụng dịch vụ rút gọn liên kết — không thể biết trước địa chỉ đích thực sự trước khi bấm vào.");
+    score += 15;
+  }
+
+  const tld = originalHostname.split(".").pop() || "";
+  if (SUSPICIOUS_TLDS.has(tld.toLowerCase())) {
+    reasons.push(`Tên miền cấp cao nhất ".${tld}" là loại miễn phí/giá rẻ thường bị lạm dụng cho mục đích lừa đảo.`);
+    score += 15;
+  }
+
+  for (const [brand, officialDomains] of Object.entries(OFFICIAL_BRAND_DOMAINS)) {
+    if (!originalHostname.toLowerCase().includes(brand)) continue;
+    const isOfficial = officialDomains.some(
+      (d) => originalHostname === d || originalHostname.endsWith("." + d)
+    );
+    if (!isOfficial) {
+      reasons.push(`Tên miền chứa từ khóa thương hiệu "${brand}" nhưng không khớp với tên miền chính thức — nghi ngờ cao là giả mạo (Phishing).`);
+      score += 40;
+    }
+    break;
+  }
+
+  const hyphenCount = (originalHostname.match(/-/g) || []).length;
+  if (hyphenCount >= 3) {
+    reasons.push("Tên miền chứa nhiều dấu gạch ngang bất thường — thường thấy ở các tên miền được tạo hàng loạt cho mục đích lừa đảo.");
+    score += 10;
+  }
+
+  const labelCount = originalHostname.split(".").filter(Boolean).length;
+  if (labelCount >= 5) {
+    reasons.push("Tên miền có cấu trúc subdomain quá sâu, thường dùng để đánh lừa người dùng về danh tính thực sự.");
+    score += 10;
+  }
+
+  if (parsed.protocol === "http:") {
+    reasons.push("Không sử dụng kết nối HTTPS mã hóa — dữ liệu trao đổi có thể bị nghe lén hoặc đánh cắp trên đường truyền.");
+    score += 15;
+  }
+
+  if (finalCert) {
+    if (finalCert.authorized === false) {
+      reasons.push("Chứng chỉ SSL/TLS của máy chủ không hợp lệ hoặc không được một tổ chức uy tín xác thực.");
+      score += 25;
+    }
+    if (finalCert.validTo) {
+      const expiry = new Date(finalCert.validTo).getTime();
+      if (!Number.isNaN(expiry) && expiry < Date.now()) {
+        reasons.push("Chứng chỉ SSL của máy chủ đã hết hạn.");
+        score += 20;
+      }
+    }
+  }
+
+  const lastHop = redirectChain[redirectChain.length - 1];
+  if (redirectChain.length > 1 && lastHop) {
+    try {
+      const lastHost = new URL(lastHop).hostname;
+      if (rootDomainOf(lastHost) !== rootDomainOf(originalHostname)) {
+        reasons.push(`Đường dẫn tự động chuyển hướng (redirect) sang một tên miền khác: "${lastHost}".`);
+        score += 20;
+      }
+    } catch {
+      /* ignore malformed hop */
+    }
+  }
+
+  if (reasons.length === 0) {
+    reasons.push("Không phát hiện dấu hiệu bất thường rõ ràng qua phân tích tự động. Vẫn nên thận trọng và tự xác minh trước khi nhập thông tin nhạy cảm.");
+  }
+
+  score = Math.min(100, score);
+  const verdict: "An toàn" | "Cần thận trọng" | "Nguy hiểm" =
+    score >= 55 ? "Nguy hiểm" : score >= 25 ? "Cần thận trọng" : "An toàn";
+
+  return {
+    inputUrl: rawInput,
+    normalizedUrl: normalized,
+    hostname: originalHostname,
+    resolvedIps: blockedPrivateIp ? [] : resolvedIps,
+    finalUrl: redirectChain[redirectChain.length - 1] || normalized,
+    redirectChain,
+    httpStatus: finalStatus,
+    tls: finalCert,
+    riskScore: score,
+    verdict,
+    reasons,
+    checkedAt: new Date().toISOString(),
+  };
 }
 
 // Local smart parser for quiz raw text (when user uploads a file format like Question 1:... A. B. C. D. Answer: A)
