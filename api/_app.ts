@@ -630,7 +630,13 @@ async function analyzeUrlSecurity(rawInput: string) {
 // marking each question inline, which the line-by-line parser below has no
 // way to associate back to individual questions on its own.
 function extractAnswerKeySection(text: string): { body: string; answerMap: Record<number, string> } {
-  const headerRegex = /^[ \t]*(?:đáp\s*án(?:\s*(?:đúng|chi\s*tiết))?|bảng\s*đáp\s*án|answer\s*key|answers?)[ \t]*[:\-]?[ \t]*$/im;
+  // Allow an arbitrary prefix before the header phrase (e.g. "II. Đáp án", "PHẦN 2 - Đáp án")
+  // as long as nothing meaningful follows it on the same line — that's what distinguishes a
+  // section header from an inline per-question line like "Đáp án: A".
+  // Note: uses [\p{L}\p{N}] boundaries instead of \b — plain \b only recognizes
+  // ASCII word characters, so it silently fails to bound Vietnamese diacritic
+  // letters like "Đ"/"á" and the header would never match.
+  const headerRegex = /^[ \t]*[^\n]*?(?<![\p{L}\p{N}])(?:đáp\s*án(?:\s*(?:đúng|chi\s*tiết))?|bảng\s*đáp\s*án|answer\s*key|answers?)(?![\p{L}\p{N}])[ \t]*[:\-]?[ \t]*$/imu;
   const match = headerRegex.exec(text);
   if (!match) {
     return { body: text, answerMap: {} };
@@ -640,12 +646,32 @@ function extractAnswerKeySection(text: string): { body: string; answerMap: Recor
   const keySection = text.slice(match.index + match[0].length);
 
   const answerMap: Record<number, string> = {};
-  const entryRegex = /(?:câu\s*)?(\d{1,3})[ \t]*[.):\-]?[ \t]*([A-Da-d])\b/gi;
-  let entry: RegExpExecArray | null;
-  while ((entry = entryRegex.exec(keySection)) !== null) {
-    const num = parseInt(entry[1], 10);
+
+  // Strategy 1: adjacent "N. X" / "N-X" / "N: X" pairs, e.g. "1. A  2. B  3. D".
+  const pairRegex = /(?:câu\s*)?(\d{1,3})[ \t]*[.):\-]?[ \t]*([A-Da-d])\b/gi;
+  let pair: RegExpExecArray | null;
+  while ((pair = pairRegex.exec(keySection)) !== null) {
+    const num = parseInt(pair[1], 10);
     if (!(num in answerMap)) {
-      answerMap[num] = entry[2].toUpperCase();
+      answerMap[num] = pair[2].toUpperCase();
+    }
+  }
+
+  // Strategy 2: table-style layout. A .docx table read via mammoth's extractRawText
+  // linearizes row-by-row, so a "Câu 1 | Câu 2 | ... " header row and its "B | D | ..."
+  // answer row end up as two separate blocks of lines — never adjacent like strategy 1
+  // expects. Only used when strategy 1 found nothing, since it's less precise (it just
+  // pairs the Nth number with the Nth letter, so any stray one elsewhere would misalign
+  // everything after it).
+  if (Object.keys(answerMap).length === 0) {
+    const numbers = [...keySection.matchAll(/(?:câu\s*)?(\d{1,3})\b/gi)].map((m) => parseInt(m[1], 10));
+    // A "standalone" A-D letter: not immediately touching another letter (Unicode-aware,
+    // so the "C" in "Câu" doesn't count — it's followed by "â").
+    const letters = [...keySection.matchAll(/(?<!\p{L})([A-Da-d])(?!\p{L})/gu)].map((m) => m[1].toUpperCase());
+    if (numbers.length > 0 && numbers.length === letters.length) {
+      numbers.forEach((num, i) => {
+        answerMap[num] = letters[i];
+      });
     }
   }
 
