@@ -381,6 +381,23 @@ function formatCalcResult(n: number): string {
   return rounded.toString();
 }
 
+// Continued-fraction approximation — used by the S⇔D (decimal <-> fraction) toggle.
+function toSimpleFraction(value: number, maxDenominator = 100000): [number, number] {
+  const sign = value < 0 ? -1 : 1;
+  const v = Math.abs(value);
+  let h1 = 1, h2 = 0, k1 = 0, k2 = 1, b = v;
+  for (let i = 0; i < 30; i++) {
+    const a = Math.floor(b);
+    const h1Next = a * h1 + h2;
+    const k1Next = a * k1 + k2;
+    h2 = h1; h1 = h1Next;
+    k2 = k1; k1 = k1Next;
+    if (Math.abs(b - a) < 1e-12 || k1 > maxDenominator) break;
+    b = 1 / (b - a);
+  }
+  return [sign * h1, k1];
+}
+
 export const SoftwareUtilities: React.FC = () => {
   const [utilities] = useState<SoftwareUtility[]>(SOFTWARE_UTILITIES);
   const [selectedToolId, setSelectedToolId] = useState<string>('util-url-scanner');
@@ -681,6 +698,7 @@ interface SystemConfig {
   const [calcAns, setCalcAns] = useState(0);
   const [calcError, setCalcError] = useState<string | null>(null);
   const [calcHistory, setCalcHistory] = useState<{ expr: string; result: string }[]>([]);
+  const [calcBaseView, setCalcBaseView] = useState<'hex' | 'oct' | 'bin' | null>(null);
 
   let calcPreview: string | null = null;
   if (calcExpr.trim()) {
@@ -730,6 +748,49 @@ interface SystemConfig {
     }
   };
 
+  const handleCalcStore = () => {
+    try {
+      const val = calcExpr.trim() ? evaluateCalcExpression(calcExpr, calcAngleMode, calcAns) : calcAns;
+      setCalcMemory(val);
+      setCalcError(null);
+    } catch {
+      setCalcError('Không thể lưu vào bộ nhớ: biểu thức hiện tại không hợp lệ.');
+    }
+  };
+
+  const handleCalcToggleFraction = () => {
+    setCalcError(null);
+    const trimmed = calcExpr.trim();
+    const fracMatch = trimmed.match(/^(-?\d+)\/(\d+)$/);
+    if (fracMatch) {
+      const num = Number(fracMatch[1]);
+      const den = Number(fracMatch[2]);
+      setCalcExpr(formatCalcResult(num / den));
+      return;
+    }
+    const num = Number(trimmed);
+    if (trimmed === '' || Number.isNaN(num)) {
+      setCalcError('S⇔D chỉ áp dụng khi màn hình đang hiển thị một kết quả số (nhấn "=" trước).');
+      return;
+    }
+    const [n, d] = toSimpleFraction(num);
+    setCalcExpr(d === 1 ? `${n}` : `${n}/${d}`);
+  };
+
+  const toggleCalcBaseView = (base: 'hex' | 'oct' | 'bin') => {
+    setCalcBaseView((prev) => (prev === base ? null : base));
+  };
+
+  let calcBaseReadout: string | null = null;
+  if (calcBaseView) {
+    if (!Number.isFinite(calcAns) || !Number.isInteger(calcAns) || calcAns < 0) {
+      calcBaseReadout = 'Chỉ áp dụng cho kết quả (Ans) là số nguyên không âm.';
+    } else {
+      const baseNum = calcBaseView === 'hex' ? 16 : calcBaseView === 'oct' ? 8 : 2;
+      calcBaseReadout = `${calcBaseView.toUpperCase()}: ${calcAns.toString(baseNum).toUpperCase()}`;
+    }
+  }
+
   type CalcBtnVariant = 'num' | 'op' | 'fn' | 'eq' | 'danger' | 'mem';
   interface CalcBtn {
     label: string;
@@ -753,7 +814,13 @@ interface SystemConfig {
     { label: 'MC', onClick: () => setCalcMemory(0), variant: 'mem' },
     { label: 'MR', onClick: () => appendToCalc(formatCalcResult(calcMemory)), variant: 'mem' },
     { label: 'M+', onClick: () => handleCalcMemory(1), variant: 'mem' },
-    { label: 'M-', onClick: () => handleCalcMemory(-1), variant: 'mem' }
+    { label: 'M-', onClick: () => handleCalcMemory(-1), variant: 'mem' },
+
+    { label: 'STO', onClick: handleCalcStore, variant: 'mem' },
+    { label: 'S⇔D', onClick: handleCalcToggleFraction, variant: 'mem' },
+    { label: 'HEX', onClick: () => toggleCalcBaseView('hex'), variant: calcBaseView === 'hex' ? 'op' : 'mem' },
+    { label: 'OCT', onClick: () => toggleCalcBaseView('oct'), variant: calcBaseView === 'oct' ? 'op' : 'mem' },
+    { label: 'BIN', onClick: () => toggleCalcBaseView('bin'), variant: calcBaseView === 'bin' ? 'op' : 'mem' }
   ];
 
   const calcMainGrid: CalcBtn[] = [
@@ -780,6 +847,12 @@ interface SystemConfig {
     { label: '(', onClick: () => appendToCalc('('), variant: 'fn' },
     { label: ')', onClick: () => appendToCalc(')'), variant: 'fn' },
     { label: 'x!', onClick: () => appendToCalc('!'), variant: 'fn' },
+
+    { label: 'x⁻¹', onClick: () => appendToCalc('^(-1)'), variant: 'fn' },
+    { label: 'x³', onClick: () => appendToCalc('^3'), variant: 'fn' },
+    { label: '10ˣ', onClick: () => appendToCalc('10^('), variant: 'fn' },
+    { label: 'eˣ', onClick: () => appendToCalc('exp('), variant: 'fn' },
+    { label: '|x|', onClick: () => appendToCalc('abs('), variant: 'fn' },
 
     { label: '7', onClick: () => appendToCalc('7'), variant: 'num' },
     { label: '8', onClick: () => appendToCalc('8'), variant: 'num' },
@@ -1623,6 +1696,11 @@ interface SystemConfig {
                       <span>&nbsp;</span>
                     )}
                   </div>
+                  {calcBaseReadout && (
+                    <div className="text-right text-xs sm:text-sm font-mono text-indigo-300 border-t border-slate-800 pt-1.5 mt-1">
+                      {calcBaseReadout}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-5 gap-1.5 sm:gap-2">

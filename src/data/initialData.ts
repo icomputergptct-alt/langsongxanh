@@ -910,14 +910,17 @@ export const SOFTWARE_UTILITIES: SoftwareUtility[] = [
     badge: 'Mới',
     features: [
       'Đầy đủ hàm lượng giác thuận/ngược (sin, cos, tan, sin⁻¹, cos⁻¹, tan⁻¹) và hyperbolic (sinh, cosh, tanh)',
-      'Logarit thập phân (log), logarit tự nhiên (ln), lũy thừa (xʸ, x², ×10ˣ), căn bậc hai/ba, giai thừa (x!)',
-      'Bộ nhớ độc lập M+/M-/MR/MC và phím Ans lấy lại kết quả gần nhất',
+      'Logarit thập phân (log), logarit tự nhiên (ln), lũy thừa (xʸ, x², x³, x⁻¹, 10ˣ, eˣ), căn bậc hai/ba, giai thừa (x!), trị tuyệt đối (|x|)',
+      'Bộ nhớ độc lập STO/M+/M-/MR/MC và phím Ans lấy lại kết quả gần nhất',
+      'Phím S⇔D chuyển đổi kết quả qua lại giữa dạng thập phân và phân số tối giản gần đúng',
+      'Xem nhanh kết quả dưới dạng Thập phân/Nhị phân/Bát phân/Thập lục phân (DEC/BIN/OCT/HEX) với số nguyên không âm',
       'Chuyển đổi tức thời giữa chế độ Độ (DEG) và Radian (RAD), xem trước kết quả khi đang nhập, lưu lịch sử phép tính gần đây'
     ],
     useCases: [
       'Tính toán lượng giác, logarit nhanh khi học tập hoặc làm bài tập kỹ thuật',
       'Kiểm tra nhanh công thức toán học khi không có máy tính vật lý bên cạnh',
-      'Tính lãi suất, hàm mũ, căn bậc trong các bài toán tài chính/kỹ thuật cơ bản'
+      'Tính lãi suất, hàm mũ, căn bậc trong các bài toán tài chính/kỹ thuật cơ bản',
+      'Đổi nhanh một số nguyên sang hệ Nhị phân/Bát phân/Thập lục phân khi lập trình'
     ],
     guides: [
       {
@@ -933,8 +936,13 @@ export const SOFTWARE_UTILITIES: SoftwareUtility[] = [
       {
         step: 3,
         title: 'Dùng bộ nhớ và lịch sử',
-        instruction: 'Bấm M+ để cộng dồn kết quả hiện tại vào bộ nhớ, MR để gọi lại, MC để xóa bộ nhớ. Nhấn vào một dòng trong lịch sử để dùng lại kết quả đó.',
+        instruction: 'Bấm STO để ghi đè giá trị hiện tại vào bộ nhớ, M+/M- để cộng/trừ dồn, MR để gọi lại, MC để xóa bộ nhớ. Nhấn vào một dòng trong lịch sử để dùng lại kết quả đó.',
         tip: 'Phím "%" chia giá trị liền trước cho 100 theo kiểu đơn giản, không tính phần trăm theo ngữ cảnh như một số máy tính vật lý.'
+      },
+      {
+        step: 4,
+        title: 'Chuyển đổi phân số và hệ đếm',
+        instruction: 'Sau khi nhấn "=", bấm S⇔D để xem kết quả dưới dạng phân số tối giản gần đúng (bấm lại để quay về thập phân). Bấm HEX/OCT/BIN để xem kết quả nguyên không âm gần nhất ở hệ thập lục phân/bát phân/nhị phân; bấm lại nút đó để ẩn đi.'
       }
     ]
   }
