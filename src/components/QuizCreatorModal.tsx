@@ -521,6 +521,16 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
               <FileCode className="w-3.5 h-3.5" />
               <span>2. Nhập Thủ Công</span>
             </button>
+
+            <a
+              href="/huongdantaodethi.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all text-slate-400 hover:text-cyan-300 hover:bg-white/5"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Xem file hướng dẫn</span>
+            </a>
           </div>
 
           {/* MODE 1: File Upload & Smart Parser */}
