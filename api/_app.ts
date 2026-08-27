@@ -621,8 +621,41 @@ async function analyzeUrlSecurity(rawInput: string) {
   };
 }
 
+// Detects a standalone answer-key section — a line that is JUST a header like
+// "ĐÁP ÁN" / "Answer Key" (as opposed to an inline per-question line such as
+// "Đáp án: A", which has more text after it and must NOT split the document
+// here) — and parses the compact "1. A  2. B  3. D" list that follows it into
+// a { questionNumber: letter } map. This is the common case for Vietnamese
+// exam documents that list every answer together at the end instead of
+// marking each question inline, which the line-by-line parser below has no
+// way to associate back to individual questions on its own.
+function extractAnswerKeySection(text: string): { body: string; answerMap: Record<number, string> } {
+  const headerRegex = /^[ \t]*(?:đáp\s*án(?:\s*(?:đúng|chi\s*tiết))?|bảng\s*đáp\s*án|answer\s*key|answers?)[ \t]*[:\-]?[ \t]*$/im;
+  const match = headerRegex.exec(text);
+  if (!match) {
+    return { body: text, answerMap: {} };
+  }
+
+  const body = text.slice(0, match.index);
+  const keySection = text.slice(match.index + match[0].length);
+
+  const answerMap: Record<number, string> = {};
+  const entryRegex = /(?:câu\s*)?(\d{1,3})[ \t]*[.):\-]?[ \t]*([A-Da-d])\b/gi;
+  let entry: RegExpExecArray | null;
+  while ((entry = entryRegex.exec(keySection)) !== null) {
+    const num = parseInt(entry[1], 10);
+    if (!(num in answerMap)) {
+      answerMap[num] = entry[2].toUpperCase();
+    }
+  }
+
+  return { body, answerMap };
+}
+
 // Local smart parser for quiz raw text (when user uploads a file format like Question 1:... A. B. C. D. Answer: A)
 function parseRawQuizLocally(text: string, fileName?: string) {
+  const { body, answerMap } = extractAnswerKeySection(text);
+
   // Some sources (e.g. text extracted from .docx via soft line-breaks, or copy-pasted
   // content) run the question and its options together on one line with no real
   // newline between them. Force a line break before each recognizable marker so the
@@ -630,7 +663,7 @@ function parseRawQuizLocally(text: string, fileName?: string) {
   // The lookbehind below excludes any position right after a letter/digit so a
   // marker-shaped substring glued to the end of a normal word (e.g. the "c." in
   // "khác." or "được.") is never mistaken for a real "C." option marker.
-  const normalized = text
+  const normalized = body
     .replace(/(?<!^)(?<!\n)(?<![\p{L}\p{N}])\s*(?=(?:câu|question|q)\s*\d+\s*[\.:\)\-])/giu, "\n")
     .replace(/(?<!^)(?<!\n)(?<![\p{L}\p{N}])\s*(?=[A-Da-d][\.:\)\-]\s)/gu, "\n")
     .replace(/(?<!^)(?<!\n)(?<![\p{L}\p{N}])\s*(?=(?:đáp án|câu trả lời đúng|answer|correct answer|key)[\s:])/giu, "\n")
@@ -722,6 +755,16 @@ function parseRawQuizLocally(text: string, fileName?: string) {
       currentQ.correctOptionId = currentQ.options[0].id;
     }
     questions.push(currentQ);
+  }
+
+  // Apply the separately-parsed answer-key section (if any) — this overrides the
+  // "default to first option" fallback above with the real answer for each question,
+  // matched by its position/number in the document.
+  for (const [numStr, letter] of Object.entries(answerMap)) {
+    const q = questions[parseInt(numStr, 10) - 1];
+    if (q && q.options.some((o: any) => o.id === letter)) {
+      q.correctOptionId = letter;
+    }
   }
 
   // If failed to parse structured questions, create sample questions from text
