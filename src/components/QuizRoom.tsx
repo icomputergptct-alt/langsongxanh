@@ -349,7 +349,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-100 bg-white/10 backdrop-blur-sm border border-white/20 px-2.5 py-1 rounded-full shadow-sm [text-shadow:_0_1px_2px_rgba(0,0,0,0.5)]">
                       {exam.category}
                     </span>
-                    <div className="flex flex-col items-end gap-1">
+                    <div className="flex flex-wrap justify-end items-center gap-1">
                       <span className="text-[10px] font-bold text-slate-100 bg-white/10 backdrop-blur-sm border border-white/20 px-2.5 py-1 rounded-full [text-shadow:_0_1px_2px_rgba(0,0,0,0.5)]">
                         {exam.participantsCount || 0} HS đã thi
                       </span>
