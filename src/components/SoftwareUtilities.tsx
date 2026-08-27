@@ -739,12 +739,12 @@ interface SystemConfig {
 
   const calcBtnClass = (variant: CalcBtnVariant) => {
     switch (variant) {
-      case 'num': return 'bg-slate-800 hover:bg-slate-700 text-slate-100';
-      case 'op': return 'bg-slate-800 hover:bg-slate-700 text-cyan-300';
-      case 'fn': return 'bg-slate-900 hover:bg-slate-800 text-cyan-400 text-[11px]';
-      case 'eq': return 'bg-emerald-600 hover:bg-emerald-500 text-white';
-      case 'danger': return 'bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 text-[11px]';
-      case 'mem': return 'bg-slate-900 hover:bg-slate-800 text-indigo-300 text-[11px]';
+      case 'num': return 'bg-slate-800 hover:bg-slate-700 text-slate-100 text-lg sm:text-xl';
+      case 'op': return 'bg-slate-800 hover:bg-slate-700 text-cyan-300 text-lg sm:text-xl';
+      case 'fn': return 'bg-slate-900 hover:bg-slate-800 text-cyan-400 text-sm sm:text-base';
+      case 'eq': return 'bg-emerald-600 hover:bg-emerald-500 text-white text-lg sm:text-xl';
+      case 'danger': return 'bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 text-sm sm:text-base';
+      case 'mem': return 'bg-slate-900 hover:bg-slate-800 text-indigo-300 text-sm sm:text-base';
     }
   };
 
@@ -1599,7 +1599,7 @@ interface SystemConfig {
             {activeTool.id === 'util-sci-calculator' && (
               <div className="space-y-4">
                 <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-1">
-                  <div className="flex items-center justify-between text-[10px] text-slate-500">
+                  <div className="flex items-center justify-between text-xs text-slate-500">
                     <span>{calcAngleMode.toUpperCase()}</span>
                     {calcMemory !== 0 && (
                       <span className="text-indigo-400 font-semibold">M = {formatCalcResult(calcMemory)}</span>
@@ -1612,9 +1612,9 @@ interface SystemConfig {
                     onKeyDown={(e) => { if (e.key === 'Enter') handleCalcEquals(); }}
                     placeholder="0"
                     spellCheck={false}
-                    className="w-full bg-transparent text-right text-xl sm:text-2xl font-mono text-slate-100 focus:outline-none tracking-wide"
+                    className="w-full bg-transparent text-right text-3xl sm:text-4xl font-mono text-slate-100 focus:outline-none tracking-wide"
                   />
-                  <div className="text-right text-sm font-mono min-h-[1.25rem]">
+                  <div className="text-right text-base sm:text-lg font-mono min-h-[1.5rem]">
                     {calcError ? (
                       <span className="text-rose-400">{calcError}</span>
                     ) : calcPreview !== null && calcPreview !== calcExpr.trim() ? (
@@ -1630,7 +1630,7 @@ interface SystemConfig {
                     <button
                       key={i}
                       onClick={btn.onClick}
-                      className={`py-2 rounded-lg font-bold transition-colors ${calcBtnClass(btn.variant)}`}
+                      className={`py-2.5 sm:py-3 rounded-lg font-bold transition-colors ${calcBtnClass(btn.variant)}`}
                     >
                       {btn.label}
                     </button>
@@ -1642,7 +1642,7 @@ interface SystemConfig {
                     <button
                       key={i}
                       onClick={btn.onClick}
-                      className={`py-2.5 sm:py-3 rounded-lg font-bold transition-colors ${calcBtnClass(btn.variant)}`}
+                      className={`py-3 sm:py-4 rounded-lg font-bold transition-colors ${calcBtnClass(btn.variant)}`}
                     >
                       {btn.label}
                     </button>
@@ -1651,13 +1651,13 @@ interface SystemConfig {
 
                 {calcHistory.length > 0 && (
                   <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                    <span className="text-[11px] text-slate-400 block mb-1.5">Lịch sử tính toán gần đây:</span>
+                    <span className="text-xs text-slate-400 block mb-1.5">Lịch sử tính toán gần đây:</span>
                     <div className="space-y-1 max-h-32 overflow-y-auto">
                       {calcHistory.map((h, i) => (
                         <button
                           key={i}
                           onClick={() => { setCalcExpr(h.result); setCalcError(null); }}
-                          className="w-full text-left text-[11px] font-mono text-slate-400 hover:text-cyan-300 flex items-center justify-between gap-2"
+                          className="w-full text-left text-xs sm:text-sm font-mono text-slate-400 hover:text-cyan-300 flex items-center justify-between gap-2"
                         >
                           <span className="truncate">{h.expr}</span>
                           <span className="text-slate-200 shrink-0">= {h.result}</span>
