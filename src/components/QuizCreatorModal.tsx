@@ -152,6 +152,14 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   };
 
   const loadFileAsText = async (file: File) => {
+    // The native file picker's "All Files" option (and drag-and-drop) can bypass
+    // the input's accept filter, so enforce the .doc/.docx restriction here too.
+    const lowerName = file.name.toLowerCase();
+    if (!lowerName.endsWith('.doc') && !lowerName.endsWith('.docx')) {
+      alert(`Tệp "${file.name}" không đúng định dạng. Chỉ hỗ trợ tệp Word (.doc, .docx).`);
+      return;
+    }
+
     setUploadedFile(file);
 
     // .docx is a zipped XML format — extract its real text with mammoth
