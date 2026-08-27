@@ -163,7 +163,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
         setRawFileText(result.value || '');
       } catch (err) {
         console.error('Failed to extract .docx text:', err);
-        alert(`Không thể đọc nội dung tệp "${file.name}". Vui lòng thử lưu lại dưới dạng .txt hoặc copy nội dung dán trực tiếp.`);
+        alert(`Không thể đọc nội dung tệp "${file.name}". Vui lòng copy nội dung câu hỏi rồi dán trực tiếp vào ô bên dưới.`);
         setUploadedFile(null);
         setRawFileText('');
       }
@@ -175,7 +175,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
       const content = (event.target?.result as string) || '';
       if (isLikelyBinary(content)) {
         alert(
-          `Tệp "${file.name}" có vẻ là định dạng nhị phân (Word 97-2003 .doc / PDF...) mà trình duyệt không đọc được thành văn bản thuần. Vui lòng lưu lại dưới dạng .txt/.json/.csv/.docx, hoặc copy nội dung câu hỏi rồi dán trực tiếp vào ô bên dưới.`
+          `Tệp "${file.name}" có định dạng Word 97-2003 (.doc) cũ mà trình duyệt không đọc trực tiếp được. Vui lòng mở tệp bằng Word rồi lưu lại (Save As) dưới dạng .docx, hoặc copy nội dung câu hỏi rồi dán trực tiếp vào ô bên dưới.`
         );
         setUploadedFile(null);
         setRawFileText('');
@@ -472,7 +472,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
               <p className="text-xs text-slate-400">
                 {editingExam
                   ? 'Chỉnh sửa nội dung rồi lưu nháp tiếp hoặc phát hành để mở phòng thi'
-                  : 'Nhập từ tệp văn bản đính kèm (.txt, .json, .csv) hoặc biên tập trực tiếp'}
+                  : 'Nhập từ tệp Word đính kèm (.doc, .docx) hoặc biên tập trực tiếp'}
               </p>
             </div>
           </div>
@@ -547,7 +547,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileChange}
-                  accept=".txt,.json,.csv,.docx"
+                  accept=".doc,.docx"
                   className="hidden"
                 />
 
@@ -559,7 +559,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                   {uploadedFile ? `Tệp đã chọn: ${uploadedFile.name}` : 'Kéo thả tệp đề thi hoặc nhấp để chọn'}
                 </h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto mb-3">
-                  Hỗ trợ tệp văn bản <strong>.TXT, .JSON, .CSV, .DOCX</strong> chứa danh sách câu hỏi trắc nghiệm A, B, C, D kèm đáp án.
+                  Hỗ trợ tệp Word <strong>.DOC, .DOCX</strong> chứa danh sách câu hỏi trắc nghiệm A, B, C, D kèm đáp án.
                 </p>
 
                 <div className="flex items-center justify-center gap-2">
@@ -571,7 +571,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                     }}
                     className="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-400 font-semibold px-3 py-1.5 rounded-lg border border-slate-700 transition-colors"
                   >
-                    Dán mẫu tệp đề thi chuẩn (.TXT)
+                    Dán mẫu đề thi chuẩn
                   </button>
                 </div>
               </div>
