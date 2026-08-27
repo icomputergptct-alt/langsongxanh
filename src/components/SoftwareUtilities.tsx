@@ -1597,7 +1597,7 @@ interface SystemConfig {
             {/* 8. SCIENTIFIC CALCULATOR SANDBOX          */}
             {/* ========================================== */}
             {activeTool.id === 'util-sci-calculator' && (
-              <div className="space-y-4">
+              <div className="space-y-4 max-w-md mx-auto">
                 <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-1">
                   <div className="flex items-center justify-between text-xs text-slate-500">
                     <span>{calcAngleMode.toUpperCase()}</span>
