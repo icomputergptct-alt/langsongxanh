@@ -25,6 +25,13 @@ import confetti from 'canvas-confetti';
 import { QuizExam, ExamAttempt, QuizQuestion } from '../types';
 import { storageService } from '../services/storageService';
 
+// Days left until an exam room's deadline (null if it has no deadline).
+function getDaysRemaining(deadlineAt?: string): number | null {
+  if (!deadlineAt) return null;
+  const diffMs = new Date(deadlineAt).getTime() - Date.now();
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+}
+
 interface QuizRoomProps {
   onAttemptRecorded?: () => void;
   openCreateQuizModal: (mode?: 'upload' | 'manual') => void;
@@ -325,7 +332,9 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
 
         {/* Exams Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredExams.map((exam) => (
+          {filteredExams.map((exam) => {
+            const daysRemaining = getDaysRemaining(exam.deadlineAt);
+            return (
             <div
               key={exam.id}
               id={`exam-card-${exam.id}`}
@@ -336,13 +345,26 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
 
                 <div className="relative z-10">
                   {/* Header tags */}
-                  <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="flex items-start justify-between gap-2 mb-3">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-100 bg-white/10 backdrop-blur-sm border border-white/20 px-2.5 py-1 rounded-full shadow-sm [text-shadow:_0_1px_2px_rgba(0,0,0,0.5)]">
                       {exam.category}
                     </span>
-                    <span className="text-[10px] font-bold text-slate-100 bg-white/10 backdrop-blur-sm border border-white/20 px-2.5 py-1 rounded-full [text-shadow:_0_1px_2px_rgba(0,0,0,0.5)]">
-                      {exam.difficulty}
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-[10px] font-bold text-slate-100 bg-white/10 backdrop-blur-sm border border-white/20 px-2.5 py-1 rounded-full [text-shadow:_0_1px_2px_rgba(0,0,0,0.5)]">
+                        {exam.participantsCount || 0} HS đã thi
+                      </span>
+                      {daysRemaining !== null && (
+                        <span
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full border backdrop-blur-sm [text-shadow:_0_1px_2px_rgba(0,0,0,0.5)] ${
+                            daysRemaining <= 0
+                              ? 'bg-rose-500/20 border-rose-400/40 text-rose-100'
+                              : 'bg-white/10 border-white/20 text-slate-100'
+                          }`}
+                        >
+                          {daysRemaining <= 0 ? 'Đã hết hạn' : `Còn lại: ${daysRemaining} ngày`}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Title */}
@@ -401,7 +423,8 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                   </button>
                 </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Exam Entry Gate — shows the room's school/grade/class and collects the
