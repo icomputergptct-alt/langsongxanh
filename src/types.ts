@@ -164,7 +164,7 @@ export interface SoftwareUtility {
   id: string;
   name: string;
   slug: string;
-  category: 'Lập trình & Mã nguồn' | 'Mạng & Hạ tầng' | 'Bảo mật & Mã hoá' | 'Định dạng Dữ liệu' | 'Nội dung & Tài liệu' | 'An ninh Mạng';
+  category: 'Lập trình & Mã nguồn' | 'Mạng & Hạ tầng' | 'Bảo mật & Mã hoá' | 'Định dạng Dữ liệu' | 'Nội dung & Tài liệu' | 'An ninh Mạng' | 'Toán học & Khoa học';
   icon: string;
   shortDesc: string;
   detailedDesc: string;

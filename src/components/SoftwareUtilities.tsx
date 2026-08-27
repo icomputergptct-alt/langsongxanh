@@ -25,7 +25,8 @@ import {
   ShieldAlert,
   ShieldX,
   ServerCog,
-  EyeOff
+  EyeOff,
+  Calculator
 } from 'lucide-react';
 import { SoftwareUtility, UrlSecurityScanResult } from '../types';
 import { SOFTWARE_UTILITIES } from '../data/initialData';
@@ -149,6 +150,235 @@ function analyzePasswordStrength(pw: string): PasswordAnalysis {
     reasons,
     crackTime: estimateCrackTime(entropy)
   };
+}
+
+// ==========================================================
+// SCIENTIFIC CALCULATOR — safe expression tokenizer/parser
+// (deliberately avoids eval()/Function() on user input)
+// ==========================================================
+
+type CalcAngleMode = 'deg' | 'rad';
+
+interface CalcToken {
+  type: 'num' | 'ident' | 'op';
+  value: string;
+}
+
+function calcTokenize(input: string): CalcToken[] {
+  const s = input
+    .replace(/\s+/g, '')
+    .replace(/π/g, 'pi')
+    .replace(/×/g, '*')
+    .replace(/÷/g, '/')
+    .replace(/−/g, '-');
+  const tokens: CalcToken[] = [];
+  let i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    if (/[0-9.]/.test(c)) {
+      let j = i;
+      while (j < s.length && /[0-9.]/.test(s[j])) j++;
+      tokens.push({ type: 'num', value: s.slice(i, j) });
+      i = j;
+      continue;
+    }
+    if (/[a-zA-Z]/.test(c)) {
+      let j = i;
+      while (j < s.length && /[a-zA-Z]/.test(s[j])) j++;
+      tokens.push({ type: 'ident', value: s.slice(i, j) });
+      i = j;
+      continue;
+    }
+    if ('+-*/^%()!'.includes(c)) {
+      tokens.push({ type: 'op', value: c });
+      i++;
+      continue;
+    }
+    throw new Error(`Ký tự không hợp lệ: "${c}"`);
+  }
+  return tokens;
+}
+
+function calcFactorial(n: number): number {
+  if (n < 0 || !Number.isInteger(n)) throw new Error('Giai thừa (x!) chỉ áp dụng cho số nguyên không âm.');
+  if (n > 170) return Infinity;
+  let result = 1;
+  for (let k = 2; k <= n; k++) result *= k;
+  return result;
+}
+
+function calcApplyFunction(name: string, arg: number, angleMode: CalcAngleMode): number {
+  const toRad = (v: number) => (angleMode === 'deg' ? (v * Math.PI) / 180 : v);
+  const fromRad = (v: number) => (angleMode === 'deg' ? (v * 180) / Math.PI : v);
+  switch (name) {
+    case 'sin': return Math.sin(toRad(arg));
+    case 'cos': return Math.cos(toRad(arg));
+    case 'tan': return Math.tan(toRad(arg));
+    case 'asin': return fromRad(Math.asin(arg));
+    case 'acos': return fromRad(Math.acos(arg));
+    case 'atan': return fromRad(Math.atan(arg));
+    case 'sinh': return Math.sinh(arg);
+    case 'cosh': return Math.cosh(arg);
+    case 'tanh': return Math.tanh(arg);
+    case 'sqrt':
+      if (arg < 0) throw new Error('Không thể tính căn bậc hai của số âm.');
+      return Math.sqrt(arg);
+    case 'cbrt': return Math.cbrt(arg);
+    case 'log':
+      if (arg <= 0) throw new Error('Log chỉ xác định với số dương.');
+      return Math.log10(arg);
+    case 'ln':
+      if (arg <= 0) throw new Error('Ln chỉ xác định với số dương.');
+      return Math.log(arg);
+    case 'exp': return Math.exp(arg);
+    case 'abs': return Math.abs(arg);
+    default:
+      throw new Error(`Hàm số không xác định: "${name}"`);
+  }
+}
+
+class CalcParser {
+  private pos = 0;
+  constructor(private tokens: CalcToken[], private angleMode: CalcAngleMode, private ansValue: number) {}
+
+  private peek(): CalcToken | undefined {
+    return this.tokens[this.pos];
+  }
+
+  private next(): CalcToken {
+    return this.tokens[this.pos++];
+  }
+
+  private startsFactor(): boolean {
+    const t = this.peek();
+    if (!t) return false;
+    return t.type === 'num' || t.type === 'ident' || (t.type === 'op' && t.value === '(');
+  }
+
+  parse(): number {
+    const value = this.parseExpression();
+    if (this.pos < this.tokens.length) throw new Error('Biểu thức không hợp lệ.');
+    return value;
+  }
+
+  private parseExpression(): number {
+    let value = this.parseTerm();
+    while (this.peek()?.type === 'op' && (this.peek()!.value === '+' || this.peek()!.value === '-')) {
+      const op = this.next().value;
+      const rhs = this.parseTerm();
+      value = op === '+' ? value + rhs : value - rhs;
+    }
+    return value;
+  }
+
+  private parseTerm(): number {
+    let value = this.parsePower();
+    while (true) {
+      const t = this.peek();
+      if (t?.type === 'op' && t.value === '*') {
+        this.next();
+        value *= this.parsePower();
+      } else if (t?.type === 'op' && t.value === '/') {
+        this.next();
+        const d = this.parsePower();
+        if (d === 0) throw new Error('Không thể chia cho 0.');
+        value /= d;
+      } else if (this.startsFactor()) {
+        value *= this.parsePower(); // implicit multiplication, e.g. "2π" or "(2+3)4"
+      } else {
+        break;
+      }
+    }
+    return value;
+  }
+
+  private parsePower(): number {
+    const base = this.parseUnary();
+    if (this.peek()?.type === 'op' && this.peek()!.value === '^') {
+      this.next();
+      const exp = this.parsePower(); // right-associative
+      return Math.pow(base, exp);
+    }
+    return base;
+  }
+
+  private parseUnary(): number {
+    if (this.peek()?.type === 'op' && this.peek()!.value === '-') {
+      this.next();
+      return -this.parseUnary();
+    }
+    if (this.peek()?.type === 'op' && this.peek()!.value === '+') {
+      this.next();
+      return this.parseUnary();
+    }
+    return this.parsePostfix();
+  }
+
+  private parsePostfix(): number {
+    let value = this.parsePrimary();
+    while (this.peek()?.type === 'op' && (this.peek()!.value === '!' || this.peek()!.value === '%')) {
+      const op = this.next().value;
+      value = op === '!' ? calcFactorial(value) : value / 100;
+    }
+    return value;
+  }
+
+  private parsePrimary(): number {
+    const t = this.peek();
+    if (!t) throw new Error('Biểu thức chưa hoàn chỉnh.');
+
+    if (t.type === 'num') {
+      this.next();
+      return parseFloat(t.value);
+    }
+
+    if (t.type === 'op' && t.value === '(') {
+      this.next();
+      const value = this.parseExpression();
+      if (!(this.peek()?.type === 'op' && this.peek()!.value === ')')) {
+        throw new Error('Thiếu dấu ngoặc đóng ")".');
+      }
+      this.next();
+      return value;
+    }
+
+    if (t.type === 'ident') {
+      this.next();
+      const name = t.value.toLowerCase();
+      if (name === 'pi') return Math.PI;
+      if (name === 'e') return Math.E;
+      if (name === 'ans') return this.ansValue;
+
+      if (this.peek()?.type === 'op' && this.peek()!.value === '(') {
+        this.next();
+        const arg = this.parseExpression();
+        if (!(this.peek()?.type === 'op' && this.peek()!.value === ')')) {
+          throw new Error('Thiếu dấu ngoặc đóng ")".');
+        }
+        this.next();
+        return calcApplyFunction(name, arg, this.angleMode);
+      }
+      throw new Error(`Hàm số hoặc hằng số không xác định: "${name}"`);
+    }
+
+    throw new Error('Biểu thức không hợp lệ.');
+  }
+}
+
+function evaluateCalcExpression(expr: string, angleMode: CalcAngleMode, ansValue: number): number {
+  if (!expr.trim()) throw new Error('Biểu thức trống.');
+  const tokens = calcTokenize(expr);
+  const result = new CalcParser(tokens, angleMode, ansValue).parse();
+  if (Number.isNaN(result)) throw new Error('Kết quả không xác định (NaN).');
+  return result;
+}
+
+function formatCalcResult(n: number): string {
+  if (n === Infinity) return '∞';
+  if (n === -Infinity) return '-∞';
+  if (Number.isNaN(n)) return 'Lỗi';
+  const rounded = parseFloat(n.toPrecision(10));
+  return rounded.toString();
 }
 
 export const SoftwareUtilities: React.FC = () => {
@@ -442,6 +672,140 @@ interface SystemConfig {
     }
   };
 
+  // ==========================================
+  // TOOL 8: SCIENTIFIC CALCULATOR STATE
+  // ==========================================
+  const [calcExpr, setCalcExpr] = useState('');
+  const [calcAngleMode, setCalcAngleMode] = useState<CalcAngleMode>('deg');
+  const [calcMemory, setCalcMemory] = useState(0);
+  const [calcAns, setCalcAns] = useState(0);
+  const [calcError, setCalcError] = useState<string | null>(null);
+  const [calcHistory, setCalcHistory] = useState<{ expr: string; result: string }[]>([]);
+
+  let calcPreview: string | null = null;
+  if (calcExpr.trim()) {
+    try {
+      calcPreview = formatCalcResult(evaluateCalcExpression(calcExpr, calcAngleMode, calcAns));
+    } catch {
+      calcPreview = null;
+    }
+  }
+
+  const appendToCalc = (text: string) => {
+    setCalcError(null);
+    setCalcExpr((prev) => prev + text);
+  };
+
+  const handleCalcEquals = () => {
+    if (!calcExpr.trim()) return;
+    try {
+      const result = evaluateCalcExpression(calcExpr, calcAngleMode, calcAns);
+      const formatted = formatCalcResult(result);
+      setCalcHistory((prev) => [{ expr: calcExpr, result: formatted }, ...prev].slice(0, 8));
+      setCalcAns(result);
+      setCalcExpr(formatted);
+      setCalcError(null);
+    } catch (e: any) {
+      setCalcError(e.message || 'Biểu thức không hợp lệ.');
+    }
+  };
+
+  const handleCalcClear = () => {
+    setCalcExpr('');
+    setCalcError(null);
+  };
+
+  const handleCalcDelete = () => {
+    setCalcExpr((prev) => prev.slice(0, -1));
+    setCalcError(null);
+  };
+
+  const handleCalcMemory = (sign: 1 | -1) => {
+    try {
+      const val = calcExpr.trim() ? evaluateCalcExpression(calcExpr, calcAngleMode, calcAns) : calcAns;
+      setCalcMemory((prev) => prev + sign * val);
+      setCalcError(null);
+    } catch {
+      setCalcError('Không thể ghi vào bộ nhớ: biểu thức hiện tại không hợp lệ.');
+    }
+  };
+
+  type CalcBtnVariant = 'num' | 'op' | 'fn' | 'eq' | 'danger' | 'mem';
+  interface CalcBtn {
+    label: string;
+    onClick: () => void;
+    variant: CalcBtnVariant;
+  }
+
+  const calcBtnClass = (variant: CalcBtnVariant) => {
+    switch (variant) {
+      case 'num': return 'bg-slate-800 hover:bg-slate-700 text-slate-100';
+      case 'op': return 'bg-slate-800 hover:bg-slate-700 text-cyan-300';
+      case 'fn': return 'bg-slate-900 hover:bg-slate-800 text-cyan-400 text-[11px]';
+      case 'eq': return 'bg-emerald-600 hover:bg-emerald-500 text-white';
+      case 'danger': return 'bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 text-[11px]';
+      case 'mem': return 'bg-slate-900 hover:bg-slate-800 text-indigo-300 text-[11px]';
+    }
+  };
+
+  const calcControlRow: CalcBtn[] = [
+    { label: calcAngleMode.toUpperCase(), onClick: () => setCalcAngleMode((m) => (m === 'deg' ? 'rad' : 'deg')), variant: 'mem' },
+    { label: 'MC', onClick: () => setCalcMemory(0), variant: 'mem' },
+    { label: 'MR', onClick: () => appendToCalc(formatCalcResult(calcMemory)), variant: 'mem' },
+    { label: 'M+', onClick: () => handleCalcMemory(1), variant: 'mem' },
+    { label: 'M-', onClick: () => handleCalcMemory(-1), variant: 'mem' }
+  ];
+
+  const calcMainGrid: CalcBtn[] = [
+    { label: 'sin', onClick: () => appendToCalc('sin('), variant: 'fn' },
+    { label: 'cos', onClick: () => appendToCalc('cos('), variant: 'fn' },
+    { label: 'tan', onClick: () => appendToCalc('tan('), variant: 'fn' },
+    { label: 'log', onClick: () => appendToCalc('log('), variant: 'fn' },
+    { label: 'ln', onClick: () => appendToCalc('ln('), variant: 'fn' },
+
+    { label: 'sin⁻¹', onClick: () => appendToCalc('asin('), variant: 'fn' },
+    { label: 'cos⁻¹', onClick: () => appendToCalc('acos('), variant: 'fn' },
+    { label: 'tan⁻¹', onClick: () => appendToCalc('atan('), variant: 'fn' },
+    { label: '√', onClick: () => appendToCalc('sqrt('), variant: 'fn' },
+    { label: '∛', onClick: () => appendToCalc('cbrt('), variant: 'fn' },
+
+    { label: 'sinh', onClick: () => appendToCalc('sinh('), variant: 'fn' },
+    { label: 'cosh', onClick: () => appendToCalc('cosh('), variant: 'fn' },
+    { label: 'tanh', onClick: () => appendToCalc('tanh('), variant: 'fn' },
+    { label: 'x²', onClick: () => appendToCalc('^2'), variant: 'fn' },
+    { label: 'xʸ', onClick: () => appendToCalc('^'), variant: 'fn' },
+
+    { label: 'π', onClick: () => appendToCalc('π'), variant: 'fn' },
+    { label: 'e', onClick: () => appendToCalc('e'), variant: 'fn' },
+    { label: '(', onClick: () => appendToCalc('('), variant: 'fn' },
+    { label: ')', onClick: () => appendToCalc(')'), variant: 'fn' },
+    { label: 'x!', onClick: () => appendToCalc('!'), variant: 'fn' },
+
+    { label: '7', onClick: () => appendToCalc('7'), variant: 'num' },
+    { label: '8', onClick: () => appendToCalc('8'), variant: 'num' },
+    { label: '9', onClick: () => appendToCalc('9'), variant: 'num' },
+    { label: '÷', onClick: () => appendToCalc('÷'), variant: 'op' },
+    { label: 'DEL', onClick: handleCalcDelete, variant: 'danger' },
+
+    { label: '4', onClick: () => appendToCalc('4'), variant: 'num' },
+    { label: '5', onClick: () => appendToCalc('5'), variant: 'num' },
+    { label: '6', onClick: () => appendToCalc('6'), variant: 'num' },
+    { label: '×', onClick: () => appendToCalc('×'), variant: 'op' },
+    { label: 'AC', onClick: handleCalcClear, variant: 'danger' },
+
+    { label: '1', onClick: () => appendToCalc('1'), variant: 'num' },
+    { label: '2', onClick: () => appendToCalc('2'), variant: 'num' },
+    { label: '3', onClick: () => appendToCalc('3'), variant: 'num' },
+    { label: '−', onClick: () => appendToCalc('-'), variant: 'op' },
+    { label: '%', onClick: () => appendToCalc('%'), variant: 'op' },
+
+    { label: '0', onClick: () => appendToCalc('0'), variant: 'num' },
+    { label: '.', onClick: () => appendToCalc('.'), variant: 'num' },
+    { label: 'Ans', onClick: () => appendToCalc(formatCalcResult(calcAns)), variant: 'fn' },
+    { label: '+', onClick: () => appendToCalc('+'), variant: 'op' },
+    { label: '=', onClick: handleCalcEquals, variant: 'eq' }
+  ];
+
   // Initialize tool outputs
   useEffect(() => {
     handleFormatCode(fmtInput, fmtLang, fmtIndent);
@@ -508,6 +872,7 @@ interface SystemConfig {
                     {tool.icon === 'KeyRound' && <KeyRound className="w-4 h-4" />}
                     {tool.icon === 'FileText' && <FileText className="w-4 h-4" />}
                     {tool.icon === 'Globe' && <Globe className="w-4 h-4" />}
+                    {tool.icon === 'Calculator' && <Calculator className="w-4 h-4" />}
                   </div>
 
                   <div>
@@ -1225,6 +1590,86 @@ interface SystemConfig {
                     </p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ========================================== */}
+            {/* 8. SCIENTIFIC CALCULATOR SANDBOX          */}
+            {/* ========================================== */}
+            {activeTool.id === 'util-sci-calculator' && (
+              <div className="space-y-4">
+                <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-slate-500">
+                    <span>{calcAngleMode.toUpperCase()}</span>
+                    {calcMemory !== 0 && (
+                      <span className="text-indigo-400 font-semibold">M = {formatCalcResult(calcMemory)}</span>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={calcExpr}
+                    onChange={(e) => { setCalcExpr(e.target.value); setCalcError(null); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleCalcEquals(); }}
+                    placeholder="0"
+                    spellCheck={false}
+                    className="w-full bg-transparent text-right text-xl sm:text-2xl font-mono text-slate-100 focus:outline-none tracking-wide"
+                  />
+                  <div className="text-right text-sm font-mono min-h-[1.25rem]">
+                    {calcError ? (
+                      <span className="text-rose-400">{calcError}</span>
+                    ) : calcPreview !== null && calcPreview !== calcExpr.trim() ? (
+                      <span className="text-emerald-400">= {calcPreview}</span>
+                    ) : (
+                      <span>&nbsp;</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+                  {calcControlRow.map((btn, i) => (
+                    <button
+                      key={i}
+                      onClick={btn.onClick}
+                      className={`py-2 rounded-lg font-bold transition-colors ${calcBtnClass(btn.variant)}`}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+                  {calcMainGrid.map((btn, i) => (
+                    <button
+                      key={i}
+                      onClick={btn.onClick}
+                      className={`py-2.5 sm:py-3 rounded-lg font-bold transition-colors ${calcBtnClass(btn.variant)}`}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+
+                {calcHistory.length > 0 && (
+                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    <span className="text-[11px] text-slate-400 block mb-1.5">Lịch sử tính toán gần đây:</span>
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {calcHistory.map((h, i) => (
+                        <button
+                          key={i}
+                          onClick={() => { setCalcExpr(h.result); setCalcError(null); }}
+                          className="w-full text-left text-[11px] font-mono text-slate-400 hover:text-cyan-300 flex items-center justify-between gap-2"
+                        >
+                          <span className="truncate">{h.expr}</span>
+                          <span className="text-slate-200 shrink-0">= {h.result}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-[11px] text-slate-500 italic">
+                  Đang ở chế độ góc {calcAngleMode === 'deg' ? 'Độ (DEG)' : 'Radian (RAD)'}. Ký hiệu "%" chia giá trị liền trước cho 100 theo kiểu đơn giản, không tính phần trăm theo ngữ cảnh như một số máy tính vật lý.
+                </p>
               </div>
             )}
 

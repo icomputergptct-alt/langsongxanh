@@ -898,5 +898,44 @@ export const SOFTWARE_UTILITIES: SoftwareUtility[] = [
         instruction: 'Khung bên phải hiển thị giao diện render đẹp mắt theo thời gian thực với độ chính xác cao.'
       }
     ]
+  },
+  {
+    id: 'util-sci-calculator',
+    name: 'Máy Tính Khoa Học Trực Tuyến (Scientific Calculator)',
+    slug: 'scientific-calculator',
+    category: 'Toán học & Khoa học',
+    icon: 'Calculator',
+    shortDesc: 'Mô phỏng đầy đủ chức năng của máy tính bỏ túi khoa học: lượng giác, logarit, căn bậc hai/ba, lũy thừa, giai thừa, bộ nhớ M+/M-/MR/MC và chế độ góc Độ/Radian.',
+    detailedDesc: 'Tái hiện trải nghiệm của các dòng máy tính khoa học phổ biến (Casio fx-570ES/991ES...) ngay trên trình duyệt: nhập biểu thức tự do hoặc bấm phím, xem trước kết quả theo thời gian thực, lưu lịch sử phép tính và chuyển đổi linh hoạt giữa độ (DEG) và radian (RAD).',
+    badge: 'Mới',
+    features: [
+      'Đầy đủ hàm lượng giác thuận/ngược (sin, cos, tan, sin⁻¹, cos⁻¹, tan⁻¹) và hyperbolic (sinh, cosh, tanh)',
+      'Logarit thập phân (log), logarit tự nhiên (ln), lũy thừa (xʸ, x², ×10ˣ), căn bậc hai/ba, giai thừa (x!)',
+      'Bộ nhớ độc lập M+/M-/MR/MC và phím Ans lấy lại kết quả gần nhất',
+      'Chuyển đổi tức thời giữa chế độ Độ (DEG) và Radian (RAD), xem trước kết quả khi đang nhập, lưu lịch sử phép tính gần đây'
+    ],
+    useCases: [
+      'Tính toán lượng giác, logarit nhanh khi học tập hoặc làm bài tập kỹ thuật',
+      'Kiểm tra nhanh công thức toán học khi không có máy tính vật lý bên cạnh',
+      'Tính lãi suất, hàm mũ, căn bậc trong các bài toán tài chính/kỹ thuật cơ bản'
+    ],
+    guides: [
+      {
+        step: 1,
+        title: 'Nhập biểu thức bằng phím bấm hoặc gõ trực tiếp',
+        instruction: 'Bấm các phím số/hàm để dựng biểu thức, hoặc gõ trực tiếp vào ô hiển thị (ví dụ: sin(30)+2^3). Kết quả xem trước hiển thị ngay bên dưới khi biểu thức hợp lệ.'
+      },
+      {
+        step: 2,
+        title: 'Chọn chế độ góc phù hợp',
+        instruction: 'Bấm nút DEG/RAD ở hàng điều khiển để chuyển đổi giữa Độ và Radian trước khi tính các hàm lượng giác.'
+      },
+      {
+        step: 3,
+        title: 'Dùng bộ nhớ và lịch sử',
+        instruction: 'Bấm M+ để cộng dồn kết quả hiện tại vào bộ nhớ, MR để gọi lại, MC để xóa bộ nhớ. Nhấn vào một dòng trong lịch sử để dùng lại kết quả đó.',
+        tip: 'Phím "%" chia giá trị liền trước cho 100 theo kiểu đơn giản, không tính phần trăm theo ngữ cảnh như một số máy tính vật lý.'
+      }
+    ]
   }
 ];
