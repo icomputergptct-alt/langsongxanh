@@ -1625,7 +1625,7 @@ interface SystemConfig {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                <div className="flex flex-wrap justify-between gap-1.5 sm:gap-2">
                   {calcControlRow.map((btn, i) => (
                     <button
                       key={i}
