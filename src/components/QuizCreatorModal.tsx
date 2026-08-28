@@ -103,23 +103,32 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   const [category, setCategory] = useState(editingExam?.category || '');
   const [difficulty, setDifficulty] = useState<'Cơ bản' | 'Trung bình' | 'Nâng cao' | 'Chuyên gia'>(editingExam?.difficulty || 'Trung bình');
   const [durationMinutes, setDurationMinutes] = useState(editingExam?.durationMinutes ?? 15);
-
-  // Appends "- N PHÚT" to the end of the exam title whenever the teacher picks a
-  // duration, replacing any suffix from a previous pick so it never stacks up
-  // (e.g. "- 30 PHÚT - 45 PHÚT"). Skipped while the title is still empty since
-  // there's nothing meaningful to attach the suffix to yet.
-  const applyDurationSuffixToTitle = (mins: number) => {
-    setTitle((prev) => {
-      const stripped = prev.replace(/\s*-\s*\d+\s*phút\s*$/i, '').trimEnd();
-      if (!stripped) return prev;
-      return mins > 0 ? `${stripped} - ${mins} PHÚT` : stripped;
-    });
-  };
   const [passScorePercent, setPassScorePercent] = useState(editingExam?.passScorePercent ?? 70);
   const [className, setClassName] = useState(editingExam?.className || '');
   const [roomPassword, setRoomPassword] = useState(editingExam?.roomPassword || '');
   const [grade, setGrade] = useState(editingExam?.grade ? String(editingExam.grade) : '');
   const [schoolYear, setSchoolYear] = useState(editingExam?.schoolYear || '');
+
+  // Rebuilds the exam title's trailing suffixes whenever the teacher picks a
+  // duration or a school year, e.g. "ĐỀ THI ..." -> "ĐỀ THI ... - 45 PHÚT NH: 2026 - 2027".
+  // Always strips both known suffixes off the current title first and re-appends
+  // them from the latest values so switching either one replaces it in place
+  // instead of stacking duplicates. Skipped while the title is still empty since
+  // there's nothing meaningful to attach a suffix to yet.
+  const syncTitleSuffixes = (mins: number, year: string) => {
+    setTitle((prev) => {
+      const base = prev
+        .replace(/\s*NH:\s*.*$/i, '')
+        .replace(/\s*-\s*\d+\s*phút\s*$/i, '')
+        .trimEnd();
+      if (!base) return prev;
+      let next = base;
+      if (mins > 0) next += ` - ${mins} PHÚT`;
+      const trimmedYear = year.trim();
+      if (trimmedYear) next += ` NH: ${trimmedYear}`;
+      return next;
+    });
+  };
   const [deadlineAt, setDeadlineAt] = useState(editingExam?.deadlineAt ? toDatetimeLocalValue(editingExam.deadlineAt) : '');
 
   // File upload state
@@ -764,7 +773,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                     max={180}
                     value={durationMinutes}
                     onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                    onBlur={() => applyDurationSuffixToTitle(Number(durationMinutes) || 0)}
+                    onBlur={() => syncTitleSuffixes(Number(durationMinutes) || 0, schoolYear)}
                     className="w-full bg-slate-800 border border-slate-600 rounded-xl px-2 py-2 text-xs text-white focus:outline-none"
                   />
                 </div>
@@ -854,6 +863,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                   type="text"
                   value={schoolYear}
                   onChange={(e) => setSchoolYear(e.target.value)}
+                  onBlur={() => syncTitleSuffixes(Number(durationMinutes) || 0, schoolYear)}
                   placeholder="VD: 2025-2026"
                   className="w-full bg-slate-800 border border-slate-600 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none"
                 />
