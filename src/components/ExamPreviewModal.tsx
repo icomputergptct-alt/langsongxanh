@@ -47,8 +47,14 @@ export const ExamPreviewModal: React.FC<ExamPreviewModalProps> = ({ exam, onClos
   };
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
-      <div className="glass-panel w-full max-w-4xl h-[96vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[60] bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden">
+      {/* Colored glow blobs so the glass panel has something to refract even when
+          it's stacked on top of another opaque dark modal with nothing colorful
+          behind it — plain backdrop-blur over flat dark-on-dark just reads as gray. */}
+      <div className="pointer-events-none absolute -top-32 -left-24 w-[28rem] h-[28rem] bg-blue-500/40 rounded-full blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -right-24 w-[28rem] h-[28rem] bg-emerald-500/40 rounded-full blur-3xl" />
+
+      <div className="relative bg-white/10 backdrop-blur-2xl border border-white/25 rounded-2xl shadow-2xl w-full max-w-4xl h-[96vh] flex flex-col overflow-hidden">
         <div className="px-5 py-3.5 border-b border-white/20 bg-white/5 flex items-center justify-between gap-3 shrink-0">
           <h3 className="text-sm font-bold text-white line-clamp-1">{exam.title}</h3>
           <div className="flex items-center gap-2 shrink-0">
