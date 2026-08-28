@@ -207,7 +207,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
         <div className="fixed inset-0 z-[60] bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-hidden">
           <div className="pointer-events-none absolute -top-32 -left-24 w-[28rem] h-[28rem] bg-blue-500/40 rounded-full blur-3xl" />
           <div className="pointer-events-none absolute -bottom-32 -right-24 w-[28rem] h-[28rem] bg-emerald-500/40 rounded-full blur-3xl" />
-          <div className="relative bg-slate-900/60 backdrop-blur-2xl border border-white/25 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
+          <div className="relative bg-slate-900/60 backdrop-blur-2xl border border-white/25 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden">
             <div className="px-6 py-4 border-b border-white/20 bg-white/5 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-white line-clamp-1">{viewingExam.title}</h3>
@@ -221,40 +221,40 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
               </button>
             </div>
 
-            <div className="overflow-y-auto flex-1">
+            <div className="overflow-auto flex-1">
               {viewingExamAttempts.length === 0 ? (
                 <p className="text-sm text-slate-300 text-center py-12">Chưa có thí sinh nào làm đề thi này.</p>
               ) : (
-                <table className="w-full text-left text-sm text-slate-200">
+                <table className="w-full min-w-[640px] text-left text-sm text-slate-200">
                   <thead className="bg-white/5 text-slate-300 uppercase text-xs tracking-wider border-b border-white/10 sticky top-0">
                     <tr>
-                      <th className="py-3 px-4 text-center w-12">STT</th>
-                      <th className="py-3 px-4">Họ và Tên</th>
-                      <th className="py-3 px-4 text-center">Điểm</th>
-                      <th className="py-3 px-4 text-center">Thang 10</th>
-                      <th className="py-3 px-4 text-center">Kết quả</th>
-                      <th className="py-3 px-4">Ngày nộp</th>
+                      <th className="py-3 px-4 text-center w-12 whitespace-nowrap">STT</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Họ và Tên</th>
+                      <th className="py-3 px-4 text-center whitespace-nowrap">Điểm</th>
+                      <th className="py-3 px-4 text-center whitespace-nowrap">Thang 10</th>
+                      <th className="py-3 px-4 text-center whitespace-nowrap">Kết quả</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Ngày nộp</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/10">
                     {viewingExamAttempts.map((attempt, idx) => (
                       <tr key={attempt.id} className="hover:bg-white/5 transition-colors">
-                        <td className="py-3 px-4 text-center text-slate-400">{idx + 1}</td>
-                        <td className="py-3 px-4 font-medium text-white">{attempt.userName}</td>
-                        <td className="py-3 px-4 text-center font-mono">
+                        <td className="py-3 px-4 text-center text-slate-400 whitespace-nowrap">{idx + 1}</td>
+                        <td className="py-3 px-4 font-medium text-white whitespace-nowrap">{attempt.userName}</td>
+                        <td className="py-3 px-4 text-center font-mono whitespace-nowrap">
                           {attempt.score}/{attempt.maxScore} ({attempt.percentage}%)
                         </td>
-                        <td className="py-3 px-4 text-center font-mono font-bold text-white">
+                        <td className="py-3 px-4 text-center font-mono font-bold text-white whitespace-nowrap">
                           {(attempt.percentage / 10).toFixed(1).replace('.', ',')}
                         </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ${
                             attempt.passed ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
                           }`}>
                             {attempt.passed ? 'ĐẠT' : 'CHƯA ĐẠT'}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-slate-300">
+                        <td className="py-3 px-4 text-slate-300 whitespace-nowrap">
                           {new Date(attempt.completedAt).toLocaleString('vi-VN', {
                             hour: '2-digit',
                             minute: '2-digit',
