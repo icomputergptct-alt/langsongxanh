@@ -103,6 +103,18 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   const [category, setCategory] = useState(editingExam?.category || '');
   const [difficulty, setDifficulty] = useState<'Cơ bản' | 'Trung bình' | 'Nâng cao' | 'Chuyên gia'>(editingExam?.difficulty || 'Trung bình');
   const [durationMinutes, setDurationMinutes] = useState(editingExam?.durationMinutes ?? 15);
+
+  // Appends "- N PHÚT" to the end of the exam title whenever the teacher picks a
+  // duration, replacing any suffix from a previous pick so it never stacks up
+  // (e.g. "- 30 PHÚT - 45 PHÚT"). Skipped while the title is still empty since
+  // there's nothing meaningful to attach the suffix to yet.
+  const applyDurationSuffixToTitle = (mins: number) => {
+    setTitle((prev) => {
+      const stripped = prev.replace(/\s*-\s*\d+\s*phút\s*$/i, '').trimEnd();
+      if (!stripped) return prev;
+      return mins > 0 ? `${stripped} - ${mins} PHÚT` : stripped;
+    });
+  };
   const [passScorePercent, setPassScorePercent] = useState(editingExam?.passScorePercent ?? 70);
   const [className, setClassName] = useState(editingExam?.className || '');
   const [roomPassword, setRoomPassword] = useState(editingExam?.roomPassword || '');
@@ -752,6 +764,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                     max={180}
                     value={durationMinutes}
                     onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                    onBlur={() => applyDurationSuffixToTitle(Number(durationMinutes) || 0)}
                     className="w-full bg-slate-800 border border-slate-600 rounded-xl px-2 py-2 text-xs text-white focus:outline-none"
                   />
                 </div>
