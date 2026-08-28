@@ -762,8 +762,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
                       <tr>
                         <th className="py-3 px-4 text-center w-12 whitespace-nowrap">STT</th>
                         <th className="py-3 px-4 whitespace-nowrap">Họ và Tên</th>
-                        <th className="py-3 px-4 text-center whitespace-nowrap">Điểm</th>
                         <th className="py-3 px-4 text-center whitespace-nowrap">Thang 10</th>
+                        <th className="py-3 px-4 text-center whitespace-nowrap">Điểm</th>
                         <th className="py-3 px-4 text-center whitespace-nowrap">Kết quả</th>
                         <th className="py-3 px-4 whitespace-nowrap">Ngày nộp</th>
                       </tr>
@@ -773,11 +773,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
                         <tr key={attempt.id} className="hover:bg-white/5 transition-colors">
                           <td className="py-3 px-4 text-center text-slate-400 whitespace-nowrap">{idx + 1}</td>
                           <td className="py-3 px-4 font-medium text-white whitespace-nowrap">{attempt.userName}</td>
-                          <td className="py-3 px-4 text-center font-mono whitespace-nowrap">
-                            {attempt.score}/{attempt.maxScore} ({attempt.percentage}%)
-                          </td>
                           <td className="py-3 px-4 text-center font-mono font-bold text-white whitespace-nowrap">
                             {(attempt.percentage / 10).toFixed(1).replace('.', ',')}
+                          </td>
+                          <td className="py-3 px-4 text-center font-mono whitespace-nowrap">
+                            {attempt.score}/{attempt.maxScore} ({attempt.percentage}%)
                           </td>
                           <td className="py-3 px-4 text-center whitespace-nowrap">
                             <span className={`text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ${
