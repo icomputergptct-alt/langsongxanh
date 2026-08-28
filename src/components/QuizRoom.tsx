@@ -344,12 +344,12 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                   <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 flex items-center justify-center">
                     <GraduationCap className="w-5 h-5" />
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-extrabold text-white [text-shadow:_0_1px_4px_rgba(0,0,0,0.6)]">
-                    "Hệ thống Trắc nghiệm của Rồng – Đồng hành Nâng tầm tri thức Việt"
-                  </h2>
+                  <h1 className="text-xl sm:text-2xl font-extrabold text-white [text-shadow:_0_1px_4px_rgba(0,0,0,0.6)]">
+                    Tạo Đề Thi Trắc Nghiệm Online Miễn Phí Cùng Rồng Thần
+                  </h1>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-100 max-w-2xl leading-relaxed [text-shadow:_0_1px_3px_rgba(0,0,0,0.6)]">
-                  Khám phá bản thân qua các bài kiểm tra cùng Rồng Thần bằng phòng thi trắc nghiệm công nghệ kỹ thuật số khảo sát AI – Ứng dụng đột phá của phòng thi trắc nghiệm số trong việc nâng cao chất lượng kiểm tra.
+                  Long Hoa Số là nền tảng tạo đề thi trắc nghiệm và mở phòng thi kiểm tra trắc nghiệm trực tuyến, chấm điểm tự động bằng công nghệ AI. Khám phá kho câu hỏi trắc nghiệm hay theo từng môn học – hoàn toàn miễn phí.
                 </p>
               </div>
 
