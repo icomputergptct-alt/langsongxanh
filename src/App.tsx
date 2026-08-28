@@ -17,7 +17,9 @@ import {
   Zap,
   GraduationCap,
   Wrench,
-  BarChart3
+  BarChart3,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Header } from './components/Header';
 import { ArticleCard } from './components/ArticleCard';
@@ -35,6 +37,10 @@ import { ContactPage } from './components/ContactPage';
 import { Article, ExamDocument, QuizExam } from './types';
 import { storageService } from './services/storageService';
 import { useAuth } from './contexts/AuthContext';
+import { getPageNumbers } from './utils/pagination';
+
+// Articles per page in the news feed grid.
+const ARTICLES_PER_PAGE = 9;
 
 export default function App() {
   const { user, profile, isAdmin, signOut } = useAuth();
@@ -43,6 +49,7 @@ export default function App() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoadingArticles, setIsLoadingArticles] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [currentArticlePage, setCurrentArticlePage] = useState(1);
 
   // "Quản Trị & Tiến Độ" requires login; bounce back if the session ends while it's open.
   useEffect(() => {
@@ -261,6 +268,20 @@ export default function App() {
 
     return matchesSearch && matchesCategory && matchesFilterType;
   });
+
+  // Jump back to page 1 whenever a filter narrows/widens the result set —
+  // otherwise the user could land on a now-empty page past the new last page.
+  useEffect(() => {
+    setCurrentArticlePage(1);
+  }, [searchQuery, selectedCategory, articleFilterType]);
+
+  const articleTotalPages = Math.max(1, Math.ceil(filteredArticles.length / ARTICLES_PER_PAGE));
+  // Clamp in case the list itself shrank and the page we were on no longer exists.
+  const safeArticlePage = Math.min(currentArticlePage, articleTotalPages);
+  const paginatedArticles = filteredArticles.slice(
+    (safeArticlePage - 1) * ARTICLES_PER_PAGE,
+    safeArticlePage * ARTICLES_PER_PAGE
+  );
 
   const featuredArticle = articles.find((a) => a.isDeepAnalysis) || articles[0];
 
@@ -698,7 +719,7 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredArticles.map((article) => (
+                    {paginatedArticles.map((article) => (
                       <ArticleCard
                         key={article.id}
                         article={article}
@@ -708,6 +729,52 @@ export default function App() {
                         onToggleLike={(id, e) => handleToggleLike(id, e)}
                       />
                     ))}
+                  </div>
+                )}
+
+                {/* Pagination — only shown once there's more than one page's worth of articles */}
+                {articleTotalPages > 1 && (
+                  <div className="flex items-center justify-center gap-1.5 mt-8">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentArticlePage((p) => Math.max(1, p - 1))}
+                      disabled={safeArticlePage === 1}
+                      className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-800/70 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-white border border-slate-700 transition-colors"
+                      aria-label="Trang trước"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+
+                    {getPageNumbers(safeArticlePage, articleTotalPages).map((page, idx) =>
+                      page === '…' ? (
+                        <span key={`ellipsis-${idx}`} className="w-9 h-9 flex items-center justify-center text-slate-500 text-sm">
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={page}
+                          type="button"
+                          onClick={() => setCurrentArticlePage(page)}
+                          className={`w-9 h-9 rounded-xl text-sm font-bold border transition-colors ${
+                            page === safeArticlePage
+                              ? 'bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/20'
+                              : 'bg-slate-800/70 hover:bg-slate-700 border-slate-700 text-slate-300'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      )
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setCurrentArticlePage((p) => Math.min(articleTotalPages, p + 1))}
+                      disabled={safeArticlePage === articleTotalPages}
+                      className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-800/70 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-white border border-slate-700 transition-colors"
+                      aria-label="Trang sau"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
                 )}
 

@@ -24,6 +24,7 @@ import {
 import confetti from 'canvas-confetti';
 import { QuizExam, ExamAttempt, QuizQuestion } from '../types';
 import { storageService } from '../services/storageService';
+import { getPageNumbers } from '../utils/pagination';
 
 // Days left until an exam room's deadline (null if it has no deadline).
 function getDaysRemaining(deadlineAt?: string): number | null {
@@ -52,6 +53,9 @@ const EXAM_CARD_BACKGROUNDS = Array.from(
   (_, i) => `/the/${encodeURIComponent(`1 (${i + 1}).png`)}`
 );
 
+// Exam rooms per lobby page.
+const EXAMS_PER_PAGE = 9;
+
 export const QuizRoom: React.FC<QuizRoomProps> = ({
   onAttemptRecorded,
   openCreateQuizModal,
@@ -62,6 +66,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
 }) => {
   const [exams, setExams] = useState<QuizExam[]>([]);
   const [isLoadingExams, setIsLoadingExams] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedExam, setSelectedExam] = useState<QuizExam | null>(null);
   const [examState, setExamState] = useState<'lobby' | 'testing' | 'result'>('lobby');
 
@@ -294,6 +299,21 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
     ).includes(globalSearchTerm);
   });
 
+  // Jump back to page 1 whenever the search narrows/widens the result set —
+  // otherwise the user could land on a now-empty page past the new last page.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [globalSearchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredExams.length / EXAMS_PER_PAGE));
+  // Clamp in case the list itself shrank (an exam expired/was removed) and the
+  // page we were on no longer exists.
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedExams = filteredExams.slice(
+    (safePage - 1) * EXAMS_PER_PAGE,
+    safePage * EXAMS_PER_PAGE
+  );
+
   // Round-robin each exam through the background pool by its position in the
   // full (unfiltered, server-sorted) exam list — not a hash of its id — so
   // no two cards on screen ever land on the same image until there are more
@@ -378,7 +398,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
           </div>
         ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredExams.map((exam) => {
+          {paginatedExams.map((exam) => {
             const daysRemaining = getDaysRemaining(exam.deadlineAt);
             return (
             <div
@@ -472,6 +492,52 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
             );
           })}
         </div>
+        )}
+
+        {/* Pagination — only shown once there's more than one page's worth of rooms */}
+        {!isLoadingExams && totalPages > 1 && (
+          <div className="flex items-center justify-center gap-1.5 mt-8">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+              className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed text-white border border-white/20 transition-colors"
+              aria-label="Trang trước"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            {getPageNumbers(safePage, totalPages).map((page, idx) =>
+              page === '…' ? (
+                <span key={`ellipsis-${idx}`} className="w-9 h-9 flex items-center justify-center text-white/50 text-sm">
+                  …
+                </span>
+              ) : (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-9 h-9 rounded-xl text-sm font-bold border transition-colors ${
+                    page === safePage
+                      ? 'bg-cyan-600 border-cyan-500 text-white shadow-md shadow-cyan-500/20'
+                      : 'bg-white/10 hover:bg-white/20 border-white/20 text-slate-100'
+                  }`}
+                >
+                  {page}
+                </button>
+              )
+            )}
+
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+              className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed text-white border border-white/20 transition-colors"
+              aria-label="Trang sau"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         )}
 
         {/* Exam Entry Gate — shows the room's school/grade/class and collects the
