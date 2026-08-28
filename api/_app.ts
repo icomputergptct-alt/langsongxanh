@@ -678,9 +678,77 @@ function extractAnswerKeySection(text: string): { body: string; answerMap: Recor
   return { body, answerMap };
 }
 
+// Strategy 3: bare answer table with no "Đáp án" header at all — some documents
+// (see public/huongdantaodethi.docx) place a 2-row table right after the questions,
+// e.g. "Câu 1 | Câu 2 | ... | Câu 10" over "B | D | ... | C", with no label. Mammoth's
+// extractRawText renders each table cell as its own paragraph/line, so this shows up
+// as a run of lines that are ONLY "Câu <n>" (n increasing from 1) immediately followed
+// by an equal-length run of lines that are ONLY a single A-D letter. Requiring each
+// line to contain nothing but the cell's content is what keeps this from ever matching
+// a real question/option line, which always has more text after its marker.
+function extractBareAnswerTable(text: string): { body: string; answerMap: Record<number, string> } {
+  const rawLines = text.split(/\r?\n/);
+  const numberLineRe = /^(?:câu\s*)?(\d{1,3})$/i;
+  const letterLineRe = /^([A-Da-d])$/;
+
+  for (let i = 0; i < rawLines.length; i++) {
+    if (rawLines[i].trim() === "") continue;
+    const m = numberLineRe.exec(rawLines[i].trim());
+    if (!m || parseInt(m[1], 10) !== 1) continue;
+
+    let expected = 1;
+    const numberLineIdx: number[] = [];
+    let j = i;
+    while (j < rawLines.length) {
+      const trimmed = rawLines[j].trim();
+      if (trimmed === "") {
+        j++;
+        continue;
+      }
+      const mm = numberLineRe.exec(trimmed);
+      if (!mm || parseInt(mm[1], 10) !== expected) break;
+      numberLineIdx.push(j);
+      expected++;
+      j++;
+    }
+    const count = numberLineIdx.length;
+    if (count < 2) continue;
+
+    const letterLineIdx: number[] = [];
+    while (j < rawLines.length && letterLineIdx.length < count) {
+      const trimmed = rawLines[j].trim();
+      if (trimmed === "") {
+        j++;
+        continue;
+      }
+      const lm = letterLineRe.exec(trimmed);
+      if (!lm) break;
+      letterLineIdx.push(j);
+      j++;
+    }
+    if (letterLineIdx.length !== count) continue;
+
+    const answerMap: Record<number, string> = {};
+    for (let k = 0; k < count; k++) {
+      answerMap[k + 1] = rawLines[letterLineIdx[k]].trim().toUpperCase();
+    }
+
+    const removeIdx = new Set([...numberLineIdx, ...letterLineIdx]);
+    const body = rawLines.filter((_, idx) => !removeIdx.has(idx)).join("\n");
+    return { body, answerMap };
+  }
+
+  return { body: text, answerMap: {} };
+}
+
 // Local smart parser for quiz raw text (when user uploads a file format like Question 1:... A. B. C. D. Answer: A)
 function parseRawQuizLocally(text: string, fileName?: string) {
-  const { body, answerMap } = extractAnswerKeySection(text);
+  let { body, answerMap } = extractAnswerKeySection(text);
+  if (Object.keys(answerMap).length === 0) {
+    const bare = extractBareAnswerTable(body);
+    body = bare.body;
+    answerMap = bare.answerMap;
+  }
 
   // Some sources (e.g. text extracted from .docx via soft line-breaks, or copy-pasted
   // content) run the question and its options together on one line with no real
