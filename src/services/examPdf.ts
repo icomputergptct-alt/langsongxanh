@@ -19,7 +19,7 @@ import { QuizExam } from '../types';
 // custom font, we lay the exam out as real HTML (so the browser's own font handles
 // Vietnamese correctly), rasterize it with html2canvas, then slice that single tall
 // image across as many A4 pages as needed.
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   const div = document.createElement('div');
   div.textContent = value;
   return div.innerHTML;
@@ -178,7 +178,10 @@ function buildAnswerKeyTables(questions: QuizExam['questions']): (Paragraph | Ta
   return result;
 }
 
-export async function generateExamPdfBlob(exam: QuizExam): Promise<Blob> {
+// Shared renderer: lays arbitrary HTML out as an offscreen A4-width page, rasterizes
+// it, and slices that image across as many PDF pages as needed. Used for both the
+// exam export below and the exam-attempts report export in attemptsPdf.ts.
+export async function renderHtmlToPdfBlob(html: string): Promise<Blob> {
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.top = '0';
@@ -190,7 +193,7 @@ export async function generateExamPdfBlob(exam: QuizExam): Promise<Blob> {
   container.style.fontFamily = 'Arial, "Segoe UI", sans-serif';
   container.style.fontSize = '14px';
   container.style.lineHeight = '1.5';
-  container.innerHTML = buildExamHtml(exam);
+  container.innerHTML = html;
   document.body.appendChild(container);
 
   try {
@@ -218,4 +221,8 @@ export async function generateExamPdfBlob(exam: QuizExam): Promise<Blob> {
   } finally {
     document.body.removeChild(container);
   }
+}
+
+export async function generateExamPdfBlob(exam: QuizExam): Promise<Blob> {
+  return renderHtmlToPdfBlob(buildExamHtml(exam));
 }

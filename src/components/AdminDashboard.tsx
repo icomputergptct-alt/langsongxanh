@@ -23,11 +23,13 @@ import {
   Lock,
   Eye,
   X,
-  Mail
+  Mail,
+  FileSearch
 } from 'lucide-react';
 import { Article, ContactMessage, ExamAttempt, QuizExam } from '../types';
 import { storageService } from '../services/storageService';
 import { ArticleEditorModal } from './ArticleEditorModal';
+import { AttemptsPreviewModal } from './AttemptsPreviewModal';
 
 interface AdminDashboardProps {
   onOpenCreateQuiz: () => void;
@@ -46,6 +48,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [isArticleEditorOpen, setIsArticleEditorOpen] = useState(false);
   const [viewingExamAttempts, setViewingExamAttempts] = useState<QuizExam | null>(null);
+  const [showAttemptsPreview, setShowAttemptsPreview] = useState(false);
 
   useEffect(() => {
     storageService.getAttempts().then(setAttempts).catch((err) => console.error('Không tải được lượt thi:', err));
@@ -745,12 +748,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
                   <h3 className="text-base font-bold text-white line-clamp-1">{viewingExamAttempts.title}</h3>
                   <p className="text-sm text-slate-300 mt-0.5">{examAttempts.length} thí sinh đã làm bài</p>
                 </div>
-                <button
-                  onClick={() => setViewingExamAttempts(null)}
-                  className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setShowAttemptsPreview(true)}
+                    disabled={examAttempts.length === 0}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-cyan-100 hover:text-white bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-300/30 disabled:opacity-40 px-3 py-1.5 rounded-lg backdrop-blur-sm transition-colors"
+                  >
+                    <FileSearch className="w-3.5 h-3.5" />
+                    <span>Preview</span>
+                  </button>
+                  <button
+                    onClick={() => setViewingExamAttempts(null)}
+                    className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               <div className="overflow-auto flex-1">
@@ -802,6 +815,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
                 )}
               </div>
             </div>
+
+            {showAttemptsPreview && (
+              <AttemptsPreviewModal
+                examTitle={viewingExamAttempts.title}
+                attempts={examAttempts}
+                onClose={() => setShowAttemptsPreview(false)}
+              />
+            )}
           </div>
         );
       })()}

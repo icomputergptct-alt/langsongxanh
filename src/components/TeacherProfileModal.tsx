@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { X, User as UserIcon, Mail, Save, FileText, Eye } from 'lucide-react';
+import { X, User as UserIcon, Mail, Save, FileText, Eye, FileSearch } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { QuizExam, ExamAttempt } from '../types';
 import { storageService } from '../services/storageService';
 import { ExamPreviewModal } from './ExamPreviewModal';
+import { AttemptsPreviewModal } from './AttemptsPreviewModal';
 
 interface TeacherProfileModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
   const [viewingExam, setViewingExam] = useState<QuizExam | null>(null);
   const [viewingExamAttempts, setViewingExamAttempts] = useState<ExamAttempt[]>([]);
   const [previewExam, setPreviewExam] = useState<QuizExam | null>(null);
+  const [showAttemptsPreview, setShowAttemptsPreview] = useState(false);
 
   useEffect(() => {
     if (isOpen && profile) {
@@ -213,12 +215,22 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
                 <h3 className="text-base font-bold text-white line-clamp-1">{viewingExam.title}</h3>
                 <p className="text-sm text-slate-300 mt-0.5">{viewingExamAttempts.length} thí sinh đã làm bài</p>
               </div>
-              <button
-                onClick={() => setViewingExam(null)}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => setShowAttemptsPreview(true)}
+                  disabled={viewingExamAttempts.length === 0}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-cyan-100 hover:text-white bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-300/30 disabled:opacity-40 px-3 py-1.5 rounded-lg backdrop-blur-sm transition-colors"
+                >
+                  <FileSearch className="w-3.5 h-3.5" />
+                  <span>Preview</span>
+                </button>
+                <button
+                  onClick={() => setViewingExam(null)}
+                  className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <div className="overflow-auto flex-1">
@@ -274,6 +286,14 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
       )}
 
       {previewExam && <ExamPreviewModal exam={previewExam} onClose={() => setPreviewExam(null)} />}
+
+      {showAttemptsPreview && viewingExam && (
+        <AttemptsPreviewModal
+          examTitle={viewingExam.title}
+          attempts={viewingExamAttempts}
+          onClose={() => setShowAttemptsPreview(false)}
+        />
+      )}
     </div>
   );
 };
