@@ -22,10 +22,13 @@ function downloadBlob(blob: Blob, fileName: string) {
 export const ExamPreviewModal: React.FC<ExamPreviewModalProps> = ({ exam, onClose }) => {
   const [downloading, setDownloading] = useState<'word' | 'pdf' | null>(null);
 
-  const handleDownloadWord = () => {
+  const handleDownloadWord = async () => {
     setDownloading('word');
     try {
-      downloadBlob(generateExamWordBlob(exam), `${exam.title}.doc`);
+      const blob = await generateExamWordBlob(exam);
+      downloadBlob(blob, `${exam.title}.docx`);
+    } catch (err) {
+      console.error('Không thể tạo tệp Word:', err);
     } finally {
       setDownloading(null);
     }

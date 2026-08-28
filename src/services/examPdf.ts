@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import { QuizExam } from '../types';
 
 // jsPDF's built-in fonts don't render Vietnamese diacritics. Instead of embedding a
@@ -51,35 +52,69 @@ export function buildExamHtml(exam: QuizExam): string {
   `;
 }
 
-// A real .docx is a zipped OOXML archive, which needs a dedicated library to build.
-// Word (and Google Docs/LibreOffice) also happily opens plain HTML saved with a
-// .doc extension and the application/msword MIME type — the "mso-application"
-// namespace hints below are what make Word treat it as a native document (with
-// proper margins) instead of just embedding a web page, so this avoids adding a
-// whole OOXML dependency just for a read-only exam export.
-export function generateExamWordBlob(exam: QuizExam): Blob {
-  const html = `
-    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-    <head>
-      <meta charset="utf-8" />
-      <title>${escapeHtml(exam.title)}</title>
-      <!--[if gte mso 9]>
-      <xml>
-        <w:WordDocument>
-          <w:View>Print</w:View>
-          <w:Zoom>100</w:Zoom>
-        </w:WordDocument>
-      </xml>
-      <![endif]-->
-      <style>
-        @page { size: 21cm 29.7cm; margin: 2cm; }
-        body { font-family: Arial, "Segoe UI", sans-serif; font-size: 14px; color: #0f172a; line-height: 1.5; }
-      </style>
-    </head>
-    <body>${buildExamHtml(exam)}</body>
-    </html>
-  `;
-  return new Blob(['﻿', html], { type: 'application/msword' });
+// Real .docx (OOXML) export, mirroring the same title/meta/questions/answer-key
+// layout as buildExamHtml above so the Word file matches the PDF and the on-screen
+// preview.
+export async function generateExamWordBlob(exam: QuizExam): Promise<Blob> {
+  const metaParts = [
+    exam.schoolName,
+    exam.className && `Lớp ${exam.className}`,
+    exam.grade && `Khối ${exam.grade}`,
+    exam.schoolYear,
+  ].filter(Boolean) as string[];
+
+  const children: Paragraph[] = [
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      children: [new TextRun({ text: exam.title, bold: true })],
+    }),
+  ];
+
+  if (metaParts.length > 0) {
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: metaParts.join(' · '), italics: true, color: '475569' })],
+        spacing: { after: 200 },
+      })
+    );
+  }
+
+  exam.questions.forEach((q, idx) => {
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: `Câu ${idx + 1}: ${q.question}`, bold: true })],
+        spacing: { before: 200, after: 80 },
+      })
+    );
+    q.options.forEach((opt) => {
+      children.push(
+        new Paragraph({
+          children: [new TextRun({ text: `${opt.id.toUpperCase()}. ${opt.text}` })],
+          indent: { left: 360 },
+        })
+      );
+    });
+  });
+
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_2,
+      children: [new TextRun({ text: 'Đáp Án', bold: true })],
+      spacing: { before: 400, after: 120 },
+    })
+  );
+  children.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: exam.questions.map((q, idx) => `Câu ${idx + 1}: ${q.correctOptionId.toUpperCase()}`).join('   '),
+        }),
+      ],
+    })
+  );
+
+  const doc = new Document({ sections: [{ children }] });
+  return Packer.toBlob(doc);
 }
 
 export async function generateExamPdfBlob(exam: QuizExam): Promise<Blob> {
