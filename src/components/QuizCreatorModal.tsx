@@ -278,7 +278,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
 
       const result = await res.json();
       if (result && result.data && result.data.questions) {
-        setTitle(result.data.title || `Đề thi từ ${uploadedFile?.name || 'tệp đính kèm'}`);
+        setTitle(result.data.title || (uploadedFile?.name || 'tệp đính kèm').replace(/\.[^/.]+$/, ''));
         setDescription(result.data.description || description);
         if (result.data.category) setCategory(result.data.category);
         if (result.data.durationMinutes) setDurationMinutes(result.data.durationMinutes);

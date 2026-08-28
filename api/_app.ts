@@ -878,7 +878,7 @@ function parseRawQuizLocally(text: string, fileName?: string) {
   }
 
   return {
-    title: fileName ? `Đề thi từ tệp: ${fileName.replace(/\.[^/.]+$/, "")}` : "Đề thi trắc nghiệm tùy chỉnh",
+    title: fileName ? fileName.replace(/\.[^/.]+$/, "") : "Đề thi trắc nghiệm tùy chỉnh",
     description: `Đề thi được tạo tự động từ tệp văn bản đính kèm với ${questions.length} câu hỏi.`,
     category: "Công nghệ số & Hệ thống",
     difficulty: "Trung bình",
