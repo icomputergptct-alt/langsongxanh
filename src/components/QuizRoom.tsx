@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   GraduationCap, 
   Clock, 
@@ -44,6 +44,13 @@ interface QuizRoomProps {
 // Ignore spacing differences ("2024 - 2025" vs "2024-2025") so the global search bar
 // still matches a school year regardless of how the user typed the dash.
 const normalizeForSearch = (s: string) => s.toLowerCase().replace(/\s+/g, '');
+
+// Pool of exam-card background images living in public/the — one is picked per
+// exam so the lobby doesn't read as one flat color anymore.
+const EXAM_CARD_BACKGROUNDS = Array.from(
+  { length: 10 },
+  (_, i) => `/the/${encodeURIComponent(`1 (${i + 1}).png`)}`
+);
 
 export const QuizRoom: React.FC<QuizRoomProps> = ({
   onAttemptRecorded,
@@ -287,6 +294,18 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
     ).includes(globalSearchTerm);
   });
 
+  // Round-robin each exam through the background pool by its position in the
+  // full (unfiltered, server-sorted) exam list — not a hash of its id — so
+  // no two cards on screen ever land on the same image until there are more
+  // exams than images in the pool.
+  const examBackgroundById = useMemo(() => {
+    const map = new Map<string, string>();
+    exams.forEach((ex, idx) => {
+      map.set(ex.id, EXAM_CARD_BACKGROUNDS[idx % EXAM_CARD_BACKGROUNDS.length]);
+    });
+    return map;
+  }, [exams]);
+
   // ----------------------------------------------------
   // VIEW 1: LOBBY (Danh sách phòng thi)
   // ----------------------------------------------------
@@ -310,7 +329,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                   </h2>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-100 max-w-2xl leading-relaxed [text-shadow:_0_1px_3px_rgba(0,0,0,0.6)]">
-                  Khám phá bản thân qua các bài kiểm tra cùng Rồng Thần bằng phòng thi trắc nghiệm công nghệ kỹ thuật số khảo sát AI – Ứng dụng đột phá của phòng thi trắc nghiệm số trong việc nâng cao chất lượng kiểm tra. Bây giờ hãy bước vào hang Rồng mở khóa tri thức, nhận ngọc quý và Sẵn sàng nghênh chiến với bộ câu hỏi của Rồng chưa?
+                  Khám phá bản thân qua các bài kiểm tra cùng Rồng Thần bằng phòng thi trắc nghiệm công nghệ kỹ thuật số khảo sát AI – Ứng dụng đột phá của phòng thi trắc nghiệm số trong việc nâng cao chất lượng kiểm tra.
                 </p>
               </div>
 
@@ -365,7 +384,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
             <div
               key={exam.id}
               id={`exam-card-${exam.id}`}
-              style={{ backgroundImage: "url('/the.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}
+              style={{ backgroundImage: `url('${examBackgroundById.get(exam.id) || EXAM_CARD_BACKGROUNDS[0]}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
               className="group relative min-h-[320px] h-full overflow-hidden rounded-3xl border-2 border-amber-400/40 hover:border-amber-400/70 p-3 flex flex-col transition-all duration-200 shadow-lg hover:shadow-2xl hover:shadow-amber-500/20 hover:scale-[1.01]"
             >
                 <div className="absolute inset-0 bg-teal-950/50 backdrop-blur-sm pointer-events-none" />
