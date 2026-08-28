@@ -8,6 +8,26 @@
   .glass-panel {
     @apply bg-white/10 backdrop-blur-sm border border-white/30 rounded-2xl shadow-lg;
   }
+
+  /* Animated RGB color-shifting button background — a wide multi-color gradient
+     that slowly scrolls behind the button, cycling through the spectrum. */
+  .btn-rgb-shift {
+    background-image: linear-gradient(
+      90deg,
+      #ff2d55, #ff8a00, #ffe600, #2dff6b, #00d4ff, #6a5cff, #ff2d95, #ff2d55
+    );
+    background-size: 300% 100%;
+    animation: rgb-shift 14s linear infinite;
+  }
+  .btn-rgb-shift:hover {
+    animation-duration: 6s;
+    filter: brightness(1.1);
+  }
+}
+
+@keyframes rgb-shift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
 }
 
 /* Basic readable styling for mammoth-rendered .docx content in the exam library viewer

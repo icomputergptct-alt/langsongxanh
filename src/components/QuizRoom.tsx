@@ -458,7 +458,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                   <button
                     id={`start-exam-btn-${exam.id}`}
                     onClick={() => handleRequestStartExam(exam)}
-                    className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-teal-800 to-emerald-800 hover:from-teal-700 hover:to-emerald-700 border border-white/10 text-white text-sm font-bold py-2.5 rounded-xl transition-all"
+                    className="btn-rgb-shift w-full flex items-center justify-center gap-2 border border-white/10 text-white text-sm font-bold py-2.5 rounded-xl transition-all"
                   >
                     {exam.roomPassword ? (
                       <Lock className="w-3.5 h-3.5 text-amber-300/80" />
