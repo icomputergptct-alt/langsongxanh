@@ -105,3 +105,38 @@ create policy "public write contact_messages" on contact_messages for insert wit
 drop policy if exists "admin read contact_messages" on contact_messages;
 create policy "admin read contact_messages" on contact_messages for select
   using (exists (select 1 from profiles where id = auth.uid() and is_admin));
+
+-- Migration: news article management is further restricted to one specific
+-- admin account (matches the client-side gate in AdminDashboard.tsx) instead
+-- of every is_admin account being able to write/edit/delete articles. Reading
+-- articles stays public — this only tightens insert/update/delete.
+drop policy if exists "admin write articles" on articles;
+create policy "news manager write articles" on articles for insert
+  with check (
+    exists (
+      select 1 from profiles
+      where id = auth.uid() and is_admin and email = 'icomputer.gpt.ct@gmail.com'
+    )
+  );
+drop policy if exists "admin update articles" on articles;
+create policy "news manager update articles" on articles for update
+  using (
+    exists (
+      select 1 from profiles
+      where id = auth.uid() and is_admin and email = 'icomputer.gpt.ct@gmail.com'
+    )
+  )
+  with check (
+    exists (
+      select 1 from profiles
+      where id = auth.uid() and is_admin and email = 'icomputer.gpt.ct@gmail.com'
+    )
+  );
+drop policy if exists "admin delete articles" on articles;
+create policy "news manager delete articles" on articles for delete
+  using (
+    exists (
+      select 1 from profiles
+      where id = auth.uid() and is_admin and email = 'icomputer.gpt.ct@gmail.com'
+    )
+  );
