@@ -26,13 +26,13 @@ function buildMetaLine(exam: QuizExam): string {
     .join(' · ');
 }
 
-function countBelow5(attempts: ExamAttempt[]): number {
-  return attempts.filter((a) => toScore10(a) < 5).length;
+function countFailed(attempts: ExamAttempt[]): number {
+  return attempts.filter((a) => !a.passed).length;
 }
 
 export function buildAttemptsHtml(exam: QuizExam, attempts: ExamAttempt[]): string {
   const metaLine = buildMetaLine(exam);
-  const belowCount = countBelow5(attempts);
+  const failedCount = countFailed(attempts);
 
   const rowsHtml = attempts
     .map((a, idx) => {
@@ -54,7 +54,7 @@ export function buildAttemptsHtml(exam: QuizExam, attempts: ExamAttempt[]): stri
     <h1 style="font-size:20px; margin:0 0 4px 0;">${escapeHtml(exam.title)}</h1>
     ${metaLine ? `<div style="font-size:12px; color:#475569; margin-bottom:8px;">${escapeHtml(metaLine)}</div>` : ''}
     <div style="font-size:12px; color:#475569; margin-bottom:20px;">
-      ${attempts.length} thí sinh đã làm bài &middot; ${belowCount} thí sinh dưới 5,0 điểm
+      ${attempts.length} thí sinh đã làm bài &middot; ${failedCount} thí sinh chưa đạt
     </div>
     <table style="border-collapse:collapse; width:100%; font-size:13px;">
       <thead>
@@ -120,7 +120,7 @@ export async function generateAttemptsWordBlob(exam: QuizExam, attempts: ExamAtt
   );
 
   const metaLine = buildMetaLine(exam);
-  const belowCount = countBelow5(attempts);
+  const failedCount = countFailed(attempts);
 
   const doc = new Document({
     sections: [
@@ -141,7 +141,7 @@ export async function generateAttemptsWordBlob(exam: QuizExam, attempts: ExamAtt
           new Paragraph({
             children: [
               new TextRun({
-                text: `${attempts.length} thí sinh đã làm bài · ${belowCount} thí sinh dưới 5,0 điểm`,
+                text: `${attempts.length} thí sinh đã làm bài · ${failedCount} thí sinh chưa đạt`,
                 italics: true,
                 color: '475569',
               }),
