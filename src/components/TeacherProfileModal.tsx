@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, User as UserIcon, Mail, Save, FileText, Eye, FileSearch } from 'lucide-react';
+import { X, User as UserIcon, Mail, Save, FileText, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { QuizExam, ExamAttempt } from '../types';
 import { storageService } from '../services/storageService';
@@ -24,7 +24,6 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
   const [viewingExam, setViewingExam] = useState<QuizExam | null>(null);
   const [viewingExamAttempts, setViewingExamAttempts] = useState<ExamAttempt[]>([]);
   const [previewExam, setPreviewExam] = useState<QuizExam | null>(null);
-  const [showAttemptsPreview, setShowAttemptsPreview] = useState(false);
 
   useEffect(() => {
     if (isOpen && profile) {
@@ -172,7 +171,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
                   <li key={exam.id} className="flex items-center gap-1.5">
                     <button
                       onClick={() => (exam.isDraft ? onEditExam(exam) : setViewingExam(exam))}
-                      title={exam.isDraft ? 'Tiếp tục chỉnh sửa bản nháp' : 'Xem điểm thí sinh'}
+                      title={exam.isDraft ? 'Tiếp tục chỉnh sửa bản nháp' : 'Xem trước danh sách thí sinh (tải Word/PDF/in)'}
                       className="flex-1 min-w-0 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-400/50 rounded-xl px-3 py-2 flex items-center justify-between gap-2 text-left transition-colors"
                     >
                       <span className="text-sm font-medium text-white line-clamp-1">{exam.title}</span>
@@ -204,94 +203,16 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
         </div>
       </div>
 
-      {/* Nested: scores of every student who took the selected exam */}
-      {viewingExam && (
-        <div className="fixed inset-0 z-[60] bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-hidden">
-          <div className="pointer-events-none absolute -top-32 -left-24 w-[28rem] h-[28rem] bg-blue-500/40 rounded-full blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-32 -right-24 w-[28rem] h-[28rem] bg-emerald-500/40 rounded-full blur-3xl" />
-          <div className="relative bg-slate-900/60 backdrop-blur-2xl border border-white/25 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/20 bg-white/5 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-white line-clamp-1">{viewingExam.title}</h3>
-                <p className="text-sm text-slate-300 mt-0.5">{viewingExamAttempts.length} thí sinh đã làm bài</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => setShowAttemptsPreview(true)}
-                  disabled={viewingExamAttempts.length === 0}
-                  className="flex items-center gap-1.5 text-sm font-semibold text-cyan-100 hover:text-white bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-300/30 disabled:opacity-40 px-3 py-1.5 rounded-lg backdrop-blur-sm transition-colors"
-                >
-                  <FileSearch className="w-3.5 h-3.5" />
-                  <span>Preview</span>
-                </button>
-                <button
-                  onClick={() => setViewingExam(null)}
-                  className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="overflow-auto flex-1">
-              {viewingExamAttempts.length === 0 ? (
-                <p className="text-sm text-slate-300 text-center py-12">Chưa có thí sinh nào làm đề thi này.</p>
-              ) : (
-                <table className="w-full min-w-[640px] text-left text-sm text-slate-200">
-                  <thead className="bg-white/5 text-slate-300 uppercase text-xs tracking-wider border-b border-white/10 sticky top-0">
-                    <tr>
-                      <th className="py-3 px-4 text-center w-12 whitespace-nowrap">STT</th>
-                      <th className="py-3 px-4 whitespace-nowrap">Họ và Tên</th>
-                      <th className="py-3 px-4 text-center whitespace-nowrap">Điểm</th>
-                      <th className="py-3 px-4 text-center whitespace-nowrap">Số Câu</th>
-                      <th className="py-3 px-4 text-center whitespace-nowrap">Kết quả</th>
-                      <th className="py-3 px-4 whitespace-nowrap">Ngày nộp</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/10">
-                    {viewingExamAttempts.map((attempt, idx) => (
-                      <tr key={attempt.id} className="hover:bg-white/5 transition-colors">
-                        <td className="py-3 px-4 text-center text-slate-400 whitespace-nowrap">{idx + 1}</td>
-                        <td className="py-3 px-4 font-medium text-white whitespace-nowrap">{attempt.userName}</td>
-                        <td className="py-3 px-4 text-center font-mono font-bold text-white whitespace-nowrap">
-                          {(attempt.percentage / 10).toFixed(1).replace('.', ',')}
-                        </td>
-                        <td className="py-3 px-4 text-center font-mono whitespace-nowrap">
-                          {attempt.score}/{attempt.maxScore} ({attempt.percentage}%)
-                        </td>
-                        <td className="py-3 px-4 text-center whitespace-nowrap">
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ${
-                            attempt.passed ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
-                          }`}>
-                            {attempt.passed ? 'ĐẠT' : 'CHƯA ĐẠT'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-slate-300 whitespace-nowrap">
-                          {new Date(attempt.completedAt).toLocaleString('vi-VN', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            day: 'numeric',
-                            month: 'numeric',
-                            year: 'numeric',
-                          })}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {previewExam && <ExamPreviewModal exam={previewExam} onClose={() => setPreviewExam(null)} />}
 
-      {showAttemptsPreview && viewingExam && (
+      {/* Clicking an exam in the list jumps straight to this — the report already
+          shows everything the old scores table did, plus Word/PDF/print, so the
+          intermediate table step was just an extra click for no benefit. */}
+      {viewingExam && (
         <AttemptsPreviewModal
           exam={viewingExam}
           attempts={viewingExamAttempts}
-          onClose={() => setShowAttemptsPreview(false)}
+          onClose={() => setViewingExam(null)}
         />
       )}
     </div>
