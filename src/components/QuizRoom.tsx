@@ -54,6 +54,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
   onInitialExamConsumed,
 }) => {
   const [exams, setExams] = useState<QuizExam[]>([]);
+  const [isLoadingExams, setIsLoadingExams] = useState(true);
   const [selectedExam, setSelectedExam] = useState<QuizExam | null>(null);
   const [examState, setExamState] = useState<'lobby' | 'testing' | 'result'>('lobby');
 
@@ -83,11 +84,16 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
   // There's no background server, so expired rooms are archived to a PDF lazily —
   // whenever anyone opens the Quiz Room — rather than at the exact deadline.
   useEffect(() => {
+    setIsLoadingExams(true);
     storageService
       .archiveExpiredExams()
       .catch((err) => console.error('Không lưu trữ được đề thi hết hạn:', err))
       .finally(() => {
-        storageService.getExams().then(setExams).catch((err) => console.error('Không tải được đề thi:', err));
+        storageService
+          .getExams()
+          .then(setExams)
+          .catch((err) => console.error('Không tải được đề thi:', err))
+          .finally(() => setIsLoadingExams(false));
       });
   }, [examsRefreshKey]);
 
@@ -330,7 +336,28 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
 
         </div>
 
-        {/* Exams Grid */}
+        {/* Exams Grid — while the room list (and the lazy expired-room archiving
+            that runs before it) is still loading, show pulsing skeleton cards
+            instead of a blank grid so a slow/large fetch doesn't look frozen. */}
+        {isLoadingExams ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="min-h-[320px] h-full rounded-3xl border-2 border-white/10 bg-white/5 p-3 flex flex-col animate-pulse"
+              >
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="h-5 w-20 rounded-full bg-white/10" />
+                  <div className="h-5 w-24 rounded-full bg-white/10" />
+                </div>
+                <div className="h-5 w-3/4 rounded bg-white/10 mt-8 mb-2" />
+                <div className="h-4 w-1/2 rounded bg-white/10 mb-1.5" />
+                <div className="h-4 w-1/3 rounded bg-white/10 mb-6" />
+                <div className="mt-auto rounded-2xl bg-white/10 h-32" />
+              </div>
+            ))}
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredExams.map((exam) => {
             const daysRemaining = getDaysRemaining(exam.deadlineAt);
@@ -426,6 +453,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
             );
           })}
         </div>
+        )}
 
         {/* Exam Entry Gate — shows the room's school/grade/class and collects the
             student's name (plus a password, if the room has one) before starting */}
