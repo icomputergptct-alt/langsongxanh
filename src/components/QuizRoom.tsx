@@ -170,13 +170,16 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
       setStudentNameError(true);
       return;
     }
-    if (pendingEntryExam.roomPassword && passwordAttempt.trim() !== pendingEntryExam.roomPassword) {
-      setPasswordError(true);
-      return;
-    }
     setAlreadyTookError(false);
     setIsCheckingEntry(true);
     try {
+      if (pendingEntryExam.hasPassword) {
+        const isValid = await storageService.verifyRoomPassword(pendingEntryExam.id, passwordAttempt.trim());
+        if (!isValid) {
+          setPasswordError(true);
+          return;
+        }
+      }
       const alreadyTook = await storageService.hasStudentCompletedExam(pendingEntryExam.id, studentName);
       if (alreadyTook) {
         setAlreadyTookError(true);
@@ -480,7 +483,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                     onClick={() => handleRequestStartExam(exam)}
                     className="btn-rgb-shift w-full flex items-center justify-center gap-2 border border-white/10 text-white text-sm font-bold py-2.5 rounded-xl transition-all"
                   >
-                    {exam.roomPassword ? (
+                    {exam.hasPassword ? (
                       <Lock className="w-3.5 h-3.5 text-amber-300/80" />
                     ) : (
                       <Play className="w-3.5 h-3.5 fill-current text-amber-300/80" />
@@ -546,7 +549,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
           <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="glass-panel max-w-sm w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
               <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 flex items-center justify-center mx-auto">
-                {pendingEntryExam.roomPassword ? <Lock className="w-6 h-6" /> : <Play className="w-6 h-6 fill-current" />}
+                {pendingEntryExam.hasPassword ? <Lock className="w-6 h-6" /> : <Play className="w-6 h-6 fill-current" />}
               </div>
 
               <div className="text-center">
@@ -575,7 +578,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                     setStudentName(e.target.value.toUpperCase());
                     setStudentNameError(false);
                   }}
-                  onKeyDown={(e) => e.key === 'Enter' && !pendingEntryExam.roomPassword && handleConfirmEntry()}
+                  onKeyDown={(e) => e.key === 'Enter' && !pendingEntryExam.hasPassword && handleConfirmEntry()}
                   placeholder="Nhập họ và tên của bạn..."
                   className={`w-full bg-white/10 border rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-400 uppercase focus:outline-none ${
                     studentNameError ? 'border-rose-400 focus:border-rose-500' : 'border-white/20 focus:border-cyan-500'
@@ -586,7 +589,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                 )}
               </div>
 
-              {pendingEntryExam.roomPassword && (
+              {pendingEntryExam.hasPassword && (
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1">Mật Mã Phòng Thi</label>
                   <input

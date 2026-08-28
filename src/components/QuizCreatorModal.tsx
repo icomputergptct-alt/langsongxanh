@@ -464,6 +464,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
       schoolName: schoolName || undefined,
       className: className.trim() || undefined,
       roomPassword: roomPassword.trim() || undefined,
+      hasPassword: !!roomPassword.trim(),
       grade: grade ? Number(grade) : undefined,
       schoolYear: schoolYear.trim() || undefined,
       deadlineAt: deadlineAt ? new Date(deadlineAt).toISOString() : undefined,

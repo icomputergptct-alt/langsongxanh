@@ -87,7 +87,11 @@ export interface QuizExam {
   authorName: string;
   schoolName?: string;
   className?: string;
+  // Only populated for the room's own creator/admin (see quiz_exams_public view) —
+  // everyone else must go through storageService.verifyRoomPassword instead of
+  // reading this back. hasPassword is safe for everyone: it only says whether one exists.
   roomPassword?: string;
+  hasPassword: boolean;
   grade?: number;
   schoolYear?: string;
   deadlineAt?: string;

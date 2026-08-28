@@ -133,6 +133,7 @@ function rowToExam(row: any): QuizExam {
     schoolName: row.school_name || undefined,
     className: row.class_name || undefined,
     roomPassword: row.room_password || undefined,
+    hasPassword: row.has_password ?? !!row.room_password,
     grade: row.grade || undefined,
     schoolYear: row.school_year || undefined,
     deadlineAt: row.deadline_at || undefined,
@@ -422,15 +423,22 @@ export const storageService = {
     };
   },
 
+  // Goes through a security-definer RPC (see supabase/auth.sql) instead of a
+  // client-side read-then-write — comments no longer grant a blanket public
+  // UPDATE (which used to let anyone overwrite any comment's content, not
+  // just its like count).
   async toggleCommentLike(articleId: string, commentId: string): Promise<void> {
     const likedIds = getLikedCommentIds();
     const wasLiked = likedIds.has(commentId);
 
-    const { data } = await supabase.from('comments').select('likes').eq('id', commentId).maybeSingle();
-    if (!data) return;
-
-    const newLikes = Math.max(0, data.likes + (wasLiked ? -1 : 1));
-    await supabase.from('comments').update({ likes: newLikes }).eq('id', commentId);
+    const { error } = await supabase.rpc('increment_comment_likes', {
+      p_comment_id: commentId,
+      p_delta: wasLiked ? -1 : 1,
+    });
+    if (error) {
+      console.error('Không cập nhật được lượt thích bình luận:', error);
+      return;
+    }
 
     if (wasLiked) likedIds.delete(commentId);
     else likedIds.add(commentId);
@@ -438,9 +446,13 @@ export const storageService = {
   },
 
   // --- Quiz Exams ---
+  // Reads go through the quiz_exams_public view (not the quiz_exams table
+  // directly) — it masks room_password to null for anyone but the room's own
+  // creator/admin, exposing only a safe hasPassword boolean to everyone else.
+  // See supabase/auth.sql for the view + the RLS column revoke that backs it.
   async getExams(): Promise<QuizExam[]> {
     const { data, error } = await supabase
-      .from('quiz_exams')
+      .from('quiz_exams_public')
       .select('*')
       .eq('is_archived', false)
       .eq('is_draft', false)
@@ -453,7 +465,7 @@ export const storageService = {
   // can still open their score list even after the room itself has closed.
   async getAllExamsIncludingArchived(): Promise<QuizExam[]> {
     const { data, error } = await supabase
-      .from('quiz_exams')
+      .from('quiz_exams_public')
       .select('*')
       .order('created_at', { ascending: false });
     if (error) throw error;
@@ -465,7 +477,7 @@ export const storageService = {
   // lazily — called whenever someone opens the Quiz Room.
   async archiveExpiredExams(): Promise<void> {
     const { data, error } = await supabase
-      .from('quiz_exams')
+      .from('quiz_exams_public')
       .select('*')
       .eq('is_archived', false)
       .not('deadline_at', 'is', null)
@@ -498,7 +510,7 @@ export const storageService = {
   },
 
   async getExamById(examId: string): Promise<QuizExam | undefined> {
-    const { data, error } = await supabase.from('quiz_exams').select('*').eq('id', examId).maybeSingle();
+    const { data, error } = await supabase.from('quiz_exams_public').select('*').eq('id', examId).maybeSingle();
     if (error || !data) return undefined;
     return rowToExam(data);
   },
@@ -513,21 +525,38 @@ export const storageService = {
     if (error) throw error;
   },
 
+  // Server-side password check (Postgres RPC, see supabase/auth.sql) — the raw
+  // room_password never has to round-trip to the client to verify an attempt.
+  async verifyRoomPassword(examId: string, passwordAttempt: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('verify_room_password', {
+      p_exam_id: examId,
+      p_password: passwordAttempt,
+    });
+    if (error) {
+      console.error('Không kiểm tra được mật khẩu phòng thi:', error);
+      return false;
+    }
+    return !!data;
+  },
+
   // There's no student login, so "already took this exam" is checked against
   // exam_attempts by name (case-insensitive) rather than a real account — a
   // student who retypes their name slightly differently can still get back in.
+  // Goes through a security-definer RPC (see supabase/auth.sql) instead of a
+  // raw SELECT, since exam_attempts is no longer publicly readable (it holds
+  // every student's scores/answers, not just names).
   async hasStudentCompletedExam(examId: string, studentName: string): Promise<boolean> {
     const target = normalizeNameForMatch(studentName);
     if (!target) return false;
-    const { data, error } = await supabase
-      .from('exam_attempts')
-      .select('user_name')
-      .eq('exam_id', examId);
+    const { data, error } = await supabase.rpc('has_student_completed_exam', {
+      p_exam_id: examId,
+      p_student_name: studentName,
+    });
     if (error) {
       console.error('Không kiểm tra được lượt thi trước đó:', error);
       return false;
     }
-    return (data || []).some((row) => normalizeNameForMatch(row.user_name) === target);
+    return !!data;
   },
 
   // --- Exam Attempts & Admin Progress Analytics ---
@@ -562,21 +591,14 @@ export const storageService = {
     const { error } = await supabase.from('exam_attempts').insert(row);
     if (error) throw error;
 
-    const { data: examRow } = await supabase
-      .from('quiz_exams')
-      .select('participants_count, average_score')
-      .eq('id', attempt.examId)
-      .maybeSingle();
-    if (examRow) {
-      const oldCount = examRow.participants_count || 0;
-      const newCount = oldCount + 1;
-      const oldTotal = (examRow.average_score || 0) * oldCount;
-      const newAvg = Math.round(((oldTotal + attempt.percentage) / newCount) * 10) / 10;
-      await supabase
-        .from('quiz_exams')
-        .update({ participants_count: newCount, average_score: newAvg })
-        .eq('id', attempt.examId);
-    }
+    // Atomic RPC (see supabase/auth.sql) — works for anonymous students too,
+    // unlike a direct update against quiz_exams (RLS restricts that to the
+    // room's own creator/admin).
+    const { error: statsError } = await supabase.rpc('record_exam_participation', {
+      p_exam_id: attempt.examId,
+      p_percentage: attempt.percentage,
+    });
+    if (statsError) console.error('Không cập nhật được thống kê đề thi:', statsError);
   },
 
   // --- Exam Document Library ("Kho đề thi kiểm tra" — real .docx/.pdf files) ---
@@ -633,11 +655,13 @@ export const storageService = {
     if (error) throw error;
   },
 
+  // Goes through a security-definer RPC (see supabase/auth.sql) instead of a
+  // client-side read-then-write — exam_documents no longer grants a blanket
+  // public UPDATE (which used to let anyone rewrite any document's metadata,
+  // e.g. swap file_url, not just its view count).
   async incrementExamDocumentViews(docId: string): Promise<void> {
-    const { data } = await supabase.from('exam_documents').select('views').eq('id', docId).maybeSingle();
-    if (data) {
-      await supabase.from('exam_documents').update({ views: (data.views || 0) + 1 }).eq('id', docId);
-    }
+    const { error } = await supabase.rpc('increment_exam_document_views', { p_doc_id: docId });
+    if (error) console.error('Không cập nhật được lượt xem tài liệu:', error);
   },
 
   // --- Contact Messages ("Liên Hệ Hệ Thống" page) ---

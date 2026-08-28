@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import mammoth from 'mammoth';
+import DOMPurify from 'dompurify';
 import {
   Home,
   ChevronRight,
@@ -221,7 +222,10 @@ export const ExamDocumentViewerModal: React.FC<ViewerModalProps> = ({ doc, onClo
         const res = await fetch(doc.fileUrl);
         const arrayBuffer = await res.arrayBuffer();
         const result = await mammoth.convertToHtml({ arrayBuffer });
-        if (!cancelled) setHtml(result.value);
+        // Documents come from a publicly-open upload — mammoth faithfully preserves
+        // hyperlink hrefs from the source .docx, including javascript: URIs, so this
+        // must be sanitized before it's ever put into dangerouslySetInnerHTML below.
+        if (!cancelled) setHtml(DOMPurify.sanitize(result.value));
       } catch (err) {
         console.error('Không đọc được nội dung tệp .docx:', err);
         if (!cancelled) setLoadError(true);
