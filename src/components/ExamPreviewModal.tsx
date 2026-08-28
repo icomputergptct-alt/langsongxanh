@@ -47,15 +47,15 @@ export const ExamPreviewModal: React.FC<ExamPreviewModalProps> = ({ exam, onClos
   };
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
-      <div className="bg-white border border-slate-300 rounded-2xl w-full max-w-4xl h-[96vh] flex flex-col shadow-2xl overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between gap-3 shrink-0">
-          <h3 className="text-sm font-bold text-slate-900 line-clamp-1">{exam.title}</h3>
+    <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
+      <div className="glass-panel w-full max-w-4xl h-[96vh] flex flex-col overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-white/20 bg-white/5 flex items-center justify-between gap-3 shrink-0">
+          <h3 className="text-sm font-bold text-white line-clamp-1">{exam.title}</h3>
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleDownloadWord}
               disabled={downloading !== null}
-              className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 text-xs font-semibold text-blue-100 hover:text-white bg-blue-500/20 hover:bg-blue-500/30 border border-blue-300/30 disabled:opacity-50 px-3 py-1.5 rounded-lg backdrop-blur-sm transition-colors"
             >
               {downloading === 'word' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileType className="w-3.5 h-3.5" />}
               <span>Tải Word</span>
@@ -63,20 +63,20 @@ export const ExamPreviewModal: React.FC<ExamPreviewModalProps> = ({ exam, onClos
             <button
               onClick={handleDownloadPdf}
               disabled={downloading !== null}
-              className="flex items-center gap-1.5 text-xs font-semibold text-rose-700 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 text-xs font-semibold text-emerald-100 hover:text-white bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-300/30 disabled:opacity-50 px-3 py-1.5 rounded-lg backdrop-blur-sm transition-colors"
             >
               {downloading === 'pdf' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
               <span>Tải PDF</span>
             </button>
-            <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg">
+            <button onClick={onClose} className="p-1.5 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-slate-100">
+        <div className="flex-1 overflow-y-auto">
           <div
-            className="max-w-3xl mx-auto bg-white shadow-md p-8 sm:p-10 my-6 rounded-lg text-sm sm:text-base text-slate-800 leading-relaxed"
+            className="max-w-3xl mx-auto bg-white shadow-xl p-8 sm:p-10 my-6 rounded-lg text-sm sm:text-base text-slate-800 leading-relaxed"
             dangerouslySetInnerHTML={{ __html: buildExamHtml(exam) }}
           />
         </div>
