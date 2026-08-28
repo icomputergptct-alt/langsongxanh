@@ -38,3 +38,22 @@
   max-width: 100%;
   height: auto;
 }
+
+/* Print-to-OS-dialog support: window.print() by default prints the whole page
+   (modal backdrop, glass chrome, buttons and all). Hiding everything except the
+   element carrying .print-area — while it's actually printing — keeps only the
+   intended document content on the page. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area, .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}

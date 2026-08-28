@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Download, Loader2, FileType } from 'lucide-react';
+import { X, Download, Loader2, FileType, Printer } from 'lucide-react';
 import { ExamAttempt, QuizExam } from '../types';
 import { buildAttemptsHtml, generateAttemptsPdfBlob, generateAttemptsWordBlob } from '../services/attemptsPdf';
 
@@ -47,6 +47,10 @@ export const AttemptsPreviewModal: React.FC<AttemptsPreviewModalProps> = ({ exam
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="fixed inset-0 z-[70] bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden">
       <div className="pointer-events-none absolute -top-32 -left-24 w-[28rem] h-[28rem] bg-blue-500/40 rounded-full blur-3xl" />
@@ -56,6 +60,13 @@ export const AttemptsPreviewModal: React.FC<AttemptsPreviewModalProps> = ({ exam
         <div className="px-5 py-3.5 border-b border-white/20 bg-white/5 flex items-center justify-between gap-3 shrink-0">
           <h3 className="text-base font-bold text-white line-clamp-1">Danh sách thí sinh — {exam.title}</h3>
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 text-sm font-semibold text-slate-100 hover:text-white bg-white/10 hover:bg-white/20 border border-white/30 px-3 py-1.5 rounded-lg backdrop-blur-sm transition-colors"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>In DSHS</span>
+            </button>
             <button
               onClick={handleDownloadWord}
               disabled={downloading !== null}
@@ -80,7 +91,7 @@ export const AttemptsPreviewModal: React.FC<AttemptsPreviewModalProps> = ({ exam
 
         <div className="flex-1 overflow-y-auto">
           <div
-            className="max-w-3xl mx-auto bg-white shadow-xl p-8 sm:p-10 my-6 rounded-lg text-sm sm:text-base text-slate-800 leading-relaxed"
+            className="print-area max-w-3xl mx-auto bg-white shadow-xl p-8 sm:p-10 my-6 rounded-lg text-sm sm:text-base text-slate-800 leading-relaxed"
             dangerouslySetInnerHTML={{ __html: buildAttemptsHtml(exam, attempts) }}
           />
         </div>
