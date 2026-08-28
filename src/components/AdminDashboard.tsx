@@ -762,8 +762,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
                       <tr>
                         <th className="py-3 px-4 text-center w-12 whitespace-nowrap">STT</th>
                         <th className="py-3 px-4 whitespace-nowrap">Họ và Tên</th>
-                        <th className="py-3 px-4 text-center whitespace-nowrap">Thang 10</th>
                         <th className="py-3 px-4 text-center whitespace-nowrap">Điểm</th>
+                        <th className="py-3 px-4 text-center whitespace-nowrap">Số Câu</th>
                         <th className="py-3 px-4 text-center whitespace-nowrap">Kết quả</th>
                         <th className="py-3 px-4 whitespace-nowrap">Ngày nộp</th>
                       </tr>
