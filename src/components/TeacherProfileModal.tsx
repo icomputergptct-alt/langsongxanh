@@ -82,13 +82,13 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
       <div className="pointer-events-none absolute -top-32 -left-24 w-[28rem] h-[28rem] bg-blue-500/40 rounded-full blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -right-24 w-[28rem] h-[28rem] bg-emerald-500/40 rounded-full blur-3xl" />
 
-      <div className="relative bg-white/10 backdrop-blur-2xl border border-white/25 rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+      <div className="relative bg-slate-900/60 backdrop-blur-2xl border border-white/25 rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
         <div className="px-6 py-4 border-b border-white/20 bg-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20">
               <UserIcon className="w-4 h-4" />
             </div>
-            <h2 className="text-base font-bold text-white">Hồ Sơ Giáo Viên</h2>
+            <h2 className="text-lg font-bold text-white">Hồ Sơ Giáo Viên</h2>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors">
             <X className="w-4 h-4" />
@@ -97,29 +97,29 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
 
         <div className="p-6 space-y-4 overflow-y-auto flex-1">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">Họ và Tên Giáo Viên</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Họ và Tên Giáo Viên</label>
             <input
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="VD: Nguyễn Văn A"
-              className="w-full bg-white/10 border border-white/20 focus:border-cyan-400 rounded-xl px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none"
+              className="w-full bg-white/10 border border-white/20 focus:border-cyan-400 rounded-xl px-3 py-2 text-base text-white placeholder-white/40 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">Tên Trường</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Tên Trường</label>
             <input
               type="text"
               value={schoolName}
               onChange={(e) => setSchoolName(e.target.value)}
               placeholder="VD: THCS Nguyễn Du"
-              className="w-full bg-white/10 border border-white/20 focus:border-cyan-400 rounded-xl px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none"
+              className="w-full bg-white/10 border border-white/20 focus:border-cyan-400 rounded-xl px-3 py-2 text-base text-white placeholder-white/40 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-slate-300 mb-1">
               Địa Chỉ Email (dùng để xác thực và đăng nhập)
             </label>
             <div className="relative">
@@ -129,41 +129,41 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
                 value={user?.email || ''}
                 readOnly
                 disabled
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-sm text-white/50 cursor-not-allowed"
+                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-base text-white/50 cursor-not-allowed"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">Số Điện Thoại (không bắt buộc)</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Số Điện Thoại (không bắt buộc)</label>
             <input
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="VD: 0901234567"
-              className="w-full bg-white/10 border border-white/20 focus:border-cyan-400 rounded-xl px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none"
+              className="w-full bg-white/10 border border-white/20 focus:border-cyan-400 rounded-xl px-3 py-2 text-base text-white placeholder-white/40 focus:outline-none"
             />
           </div>
 
-          {errorMsg && <p className="text-xs text-rose-400 font-semibold">{errorMsg}</p>}
-          {savedMsg && <p className="text-xs text-emerald-400 font-semibold">{savedMsg}</p>}
+          {errorMsg && <p className="text-sm text-rose-400 font-semibold">{errorMsg}</p>}
+          {savedMsg && <p className="text-sm text-emerald-400 font-semibold">{savedMsg}</p>}
 
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="w-full flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-bold py-2.5 rounded-xl shadow-md transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-base font-bold py-2.5 rounded-xl shadow-md transition-colors"
           >
             <Save className="w-4 h-4" />
             <span>{isSaving ? 'Đang lưu...' : 'Lưu Thông Tin'}</span>
           </button>
 
           <div className="pt-4 border-t border-white/10">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5" />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-1.5">
+              <FileText className="w-4 h-4" />
               <span>Đề Thi Đã Tạo ({myExams.length})</span>
             </h3>
             {myExams.length === 0 ? (
-              <p className="text-xs text-slate-400 py-4 text-center">Bạn chưa tạo đề thi nào.</p>
+              <p className="text-sm text-slate-400 py-4 text-center">Bạn chưa tạo đề thi nào.</p>
             ) : (
               <ul className="space-y-2">
                 {myExams.map((exam) => (
@@ -173,15 +173,15 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
                       title={exam.isDraft ? 'Tiếp tục chỉnh sửa bản nháp' : 'Xem điểm thí sinh'}
                       className="flex-1 min-w-0 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-400/50 rounded-xl px-3 py-2 flex items-center justify-between gap-2 text-left transition-colors"
                     >
-                      <span className="text-xs font-medium text-white line-clamp-1">{exam.title}</span>
+                      <span className="text-sm font-medium text-white line-clamp-1">{exam.title}</span>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {exam.isDraft && (
-                          <span className="text-[10px] font-bold uppercase text-slate-200 bg-white/10 border border-white/20 px-1.5 py-0.5 rounded">
+                          <span className="text-xs font-bold uppercase text-slate-200 bg-white/10 border border-white/20 px-1.5 py-0.5 rounded">
                             Bản nháp
                           </span>
                         )}
                         {exam.isArchived && (
-                          <span className="text-[10px] font-bold uppercase text-amber-300 bg-amber-500/10 border border-amber-400/30 px-1.5 py-0.5 rounded">
+                          <span className="text-xs font-bold uppercase text-amber-300 bg-amber-500/10 border border-amber-400/30 px-1.5 py-0.5 rounded">
                             Đã lưu trữ
                           </span>
                         )}
@@ -192,7 +192,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
                       title="Xem trước đề thi (tải Word/PDF)"
                       className="shrink-0 p-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-400/50 rounded-xl text-slate-300 hover:text-cyan-300 transition-colors"
                     >
-                      <Eye className="w-3.5 h-3.5" />
+                      <Eye className="w-4 h-4" />
                     </button>
                   </li>
                 ))}
@@ -207,11 +207,11 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
         <div className="fixed inset-0 z-[60] bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-hidden">
           <div className="pointer-events-none absolute -top-32 -left-24 w-[28rem] h-[28rem] bg-blue-500/40 rounded-full blur-3xl" />
           <div className="pointer-events-none absolute -bottom-32 -right-24 w-[28rem] h-[28rem] bg-emerald-500/40 rounded-full blur-3xl" />
-          <div className="relative bg-white/10 backdrop-blur-2xl border border-white/25 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
+          <div className="relative bg-slate-900/60 backdrop-blur-2xl border border-white/25 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
             <div className="px-6 py-4 border-b border-white/20 bg-white/5 flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-white line-clamp-1">{viewingExam.title}</h3>
-                <p className="text-xs text-slate-300 mt-0.5">{viewingExamAttempts.length} thí sinh đã làm bài</p>
+                <h3 className="text-base font-bold text-white line-clamp-1">{viewingExam.title}</h3>
+                <p className="text-sm text-slate-300 mt-0.5">{viewingExamAttempts.length} thí sinh đã làm bài</p>
               </div>
               <button
                 onClick={() => setViewingExam(null)}
@@ -223,10 +223,10 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
 
             <div className="overflow-y-auto flex-1">
               {viewingExamAttempts.length === 0 ? (
-                <p className="text-xs text-slate-300 text-center py-12">Chưa có thí sinh nào làm đề thi này.</p>
+                <p className="text-sm text-slate-300 text-center py-12">Chưa có thí sinh nào làm đề thi này.</p>
               ) : (
-                <table className="w-full text-left text-xs text-slate-200">
-                  <thead className="bg-white/5 text-slate-300 uppercase text-[10px] tracking-wider border-b border-white/10 sticky top-0">
+                <table className="w-full text-left text-sm text-slate-200">
+                  <thead className="bg-white/5 text-slate-300 uppercase text-xs tracking-wider border-b border-white/10 sticky top-0">
                     <tr>
                       <th className="py-3 px-4 text-center w-12">STT</th>
                       <th className="py-3 px-4">Họ và Tên</th>
@@ -248,7 +248,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
                           {(attempt.percentage / 10).toFixed(1).replace('.', ',')}
                         </td>
                         <td className="py-3 px-4 text-center">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded ${
                             attempt.passed ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
                           }`}>
                             {attempt.passed ? 'ĐẠT' : 'CHƯA ĐẠT'}

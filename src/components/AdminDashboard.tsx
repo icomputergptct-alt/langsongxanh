@@ -739,11 +739,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
           <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-hidden">
             <div className="pointer-events-none absolute -top-32 -left-24 w-[28rem] h-[28rem] bg-blue-500/40 rounded-full blur-3xl" />
             <div className="pointer-events-none absolute -bottom-32 -right-24 w-[28rem] h-[28rem] bg-emerald-500/40 rounded-full blur-3xl" />
-            <div className="relative bg-white/10 backdrop-blur-2xl border border-white/25 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="relative bg-slate-900/60 backdrop-blur-2xl border border-white/25 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
               <div className="px-6 py-4 border-b border-white/20 bg-white/5 flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-bold text-white line-clamp-1">{viewingExamAttempts.title}</h3>
-                  <p className="text-xs text-slate-300 mt-0.5">{examAttempts.length} thí sinh đã làm bài</p>
+                  <h3 className="text-base font-bold text-white line-clamp-1">{viewingExamAttempts.title}</h3>
+                  <p className="text-sm text-slate-300 mt-0.5">{examAttempts.length} thí sinh đã làm bài</p>
                 </div>
                 <button
                   onClick={() => setViewingExamAttempts(null)}
@@ -755,10 +755,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
 
               <div className="overflow-y-auto flex-1">
                 {examAttempts.length === 0 ? (
-                  <p className="text-xs text-slate-300 text-center py-12">Chưa có thí sinh nào làm đề thi này.</p>
+                  <p className="text-sm text-slate-300 text-center py-12">Chưa có thí sinh nào làm đề thi này.</p>
                 ) : (
-                  <table className="w-full text-left text-xs text-slate-200">
-                    <thead className="bg-white/5 text-slate-300 uppercase text-[10px] tracking-wider border-b border-white/10 sticky top-0">
+                  <table className="w-full text-left text-sm text-slate-200">
+                    <thead className="bg-white/5 text-slate-300 uppercase text-xs tracking-wider border-b border-white/10 sticky top-0">
                       <tr>
                         <th className="py-3 px-4 text-center w-12">STT</th>
                         <th className="py-3 px-4">Họ và Tên</th>
@@ -780,7 +780,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
                             {(attempt.percentage / 10).toFixed(1).replace('.', ',')}
                           </td>
                           <td className="py-3 px-4 text-center">
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${
                               attempt.passed ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
                             }`}>
                               {attempt.passed ? 'ĐẠT' : 'CHƯA ĐẠT'}
