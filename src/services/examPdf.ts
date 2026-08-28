@@ -12,7 +12,7 @@ function escapeHtml(value: string): string {
   return div.innerHTML;
 }
 
-function buildExamHtml(exam: QuizExam): string {
+export function buildExamHtml(exam: QuizExam): string {
   const metaLine = [
     exam.schoolName,
     exam.className && `Lớp ${exam.className}`,
@@ -49,6 +49,37 @@ function buildExamHtml(exam: QuizExam): string {
     <h2 style="font-size:15px; margin:0 0 8px 0;">Đáp Án</h2>
     <div style="font-size:13px; line-height:1.8;">${answerKeyHtml}</div>
   `;
+}
+
+// A real .docx is a zipped OOXML archive, which needs a dedicated library to build.
+// Word (and Google Docs/LibreOffice) also happily opens plain HTML saved with a
+// .doc extension and the application/msword MIME type — the "mso-application"
+// namespace hints below are what make Word treat it as a native document (with
+// proper margins) instead of just embedding a web page, so this avoids adding a
+// whole OOXML dependency just for a read-only exam export.
+export function generateExamWordBlob(exam: QuizExam): Blob {
+  const html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+      <meta charset="utf-8" />
+      <title>${escapeHtml(exam.title)}</title>
+      <!--[if gte mso 9]>
+      <xml>
+        <w:WordDocument>
+          <w:View>Print</w:View>
+          <w:Zoom>100</w:Zoom>
+        </w:WordDocument>
+      </xml>
+      <![endif]-->
+      <style>
+        @page { size: 21cm 29.7cm; margin: 2cm; }
+        body { font-family: Arial, "Segoe UI", sans-serif; font-size: 14px; color: #0f172a; line-height: 1.5; }
+      </style>
+    </head>
+    <body>${buildExamHtml(exam)}</body>
+    </html>
+  `;
+  return new Blob(['﻿', html], { type: 'application/msword' });
 }
 
 export async function generateExamPdfBlob(exam: QuizExam): Promise<Blob> {
