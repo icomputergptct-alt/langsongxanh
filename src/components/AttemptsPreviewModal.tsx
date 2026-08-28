@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { X, Download, Loader2, FileType } from 'lucide-react';
-import { ExamAttempt } from '../types';
+import { ExamAttempt, QuizExam } from '../types';
 import { buildAttemptsHtml, generateAttemptsPdfBlob, generateAttemptsWordBlob } from '../services/attemptsPdf';
 
 interface AttemptsPreviewModalProps {
-  examTitle: string;
+  exam: QuizExam;
   attempts: ExamAttempt[];
   onClose: () => void;
 }
@@ -20,14 +20,14 @@ function downloadBlob(blob: Blob, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
-export const AttemptsPreviewModal: React.FC<AttemptsPreviewModalProps> = ({ examTitle, attempts, onClose }) => {
+export const AttemptsPreviewModal: React.FC<AttemptsPreviewModalProps> = ({ exam, attempts, onClose }) => {
   const [downloading, setDownloading] = useState<'word' | 'pdf' | null>(null);
 
   const handleDownloadWord = async () => {
     setDownloading('word');
     try {
-      const blob = await generateAttemptsWordBlob(examTitle, attempts);
-      downloadBlob(blob, `Danh sach thi sinh - ${examTitle}.docx`);
+      const blob = await generateAttemptsWordBlob(exam, attempts);
+      downloadBlob(blob, `Danh sach thi sinh - ${exam.title}.docx`);
     } catch (err) {
       console.error('Không thể tạo tệp Word:', err);
     } finally {
@@ -38,8 +38,8 @@ export const AttemptsPreviewModal: React.FC<AttemptsPreviewModalProps> = ({ exam
   const handleDownloadPdf = async () => {
     setDownloading('pdf');
     try {
-      const blob = await generateAttemptsPdfBlob(examTitle, attempts);
-      downloadBlob(blob, `Danh sach thi sinh - ${examTitle}.pdf`);
+      const blob = await generateAttemptsPdfBlob(exam, attempts);
+      downloadBlob(blob, `Danh sach thi sinh - ${exam.title}.pdf`);
     } catch (err) {
       console.error('Không thể tạo tệp PDF:', err);
     } finally {
@@ -54,7 +54,7 @@ export const AttemptsPreviewModal: React.FC<AttemptsPreviewModalProps> = ({ exam
 
       <div className="relative bg-slate-900/60 backdrop-blur-2xl border border-white/25 rounded-2xl shadow-2xl w-full max-w-4xl h-[96vh] flex flex-col overflow-hidden">
         <div className="px-5 py-3.5 border-b border-white/20 bg-white/5 flex items-center justify-between gap-3 shrink-0">
-          <h3 className="text-base font-bold text-white line-clamp-1">Danh sách thí sinh — {examTitle}</h3>
+          <h3 className="text-base font-bold text-white line-clamp-1">Danh sách thí sinh — {exam.title}</h3>
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleDownloadWord}
@@ -81,7 +81,7 @@ export const AttemptsPreviewModal: React.FC<AttemptsPreviewModalProps> = ({ exam
         <div className="flex-1 overflow-y-auto">
           <div
             className="max-w-3xl mx-auto bg-white shadow-xl p-8 sm:p-10 my-6 rounded-lg text-sm sm:text-base text-slate-800 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: buildAttemptsHtml(examTitle, attempts) }}
+            dangerouslySetInnerHTML={{ __html: buildAttemptsHtml(exam, attempts) }}
           />
         </div>
       </div>

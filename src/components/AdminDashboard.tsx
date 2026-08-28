@@ -818,7 +818,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
 
             {showAttemptsPreview && (
               <AttemptsPreviewModal
-                examTitle={viewingExamAttempts.title}
+                exam={viewingExamAttempts}
                 attempts={examAttempts}
                 onClose={() => setShowAttemptsPreview(false)}
               />

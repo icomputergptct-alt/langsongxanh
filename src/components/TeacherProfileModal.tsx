@@ -289,7 +289,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
 
       {showAttemptsPreview && viewingExam && (
         <AttemptsPreviewModal
-          examTitle={viewingExam.title}
+          exam={viewingExam}
           attempts={viewingExamAttempts}
           onClose={() => setShowAttemptsPreview(false)}
         />

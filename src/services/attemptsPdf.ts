@@ -1,5 +1,5 @@
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
-import { ExamAttempt } from '../types';
+import { ExamAttempt, QuizExam } from '../types';
 import { escapeHtml, renderHtmlToPdfBlob } from './examPdf';
 
 function formatDate(iso: string): string {
@@ -12,11 +12,28 @@ function formatDate(iso: string): string {
   });
 }
 
-function toScore10(attempt: ExamAttempt): string {
-  return (attempt.percentage / 10).toFixed(1).replace('.', ',');
+function toScore10(attempt: ExamAttempt): number {
+  return attempt.percentage / 10;
 }
 
-export function buildAttemptsHtml(examTitle: string, attempts: ExamAttempt[]): string {
+function formatScore10(attempt: ExamAttempt): string {
+  return toScore10(attempt).toFixed(1).replace('.', ',');
+}
+
+function buildMetaLine(exam: QuizExam): string {
+  return [exam.schoolName, exam.className && `Lớp ${exam.className}`, exam.grade && `Khối ${exam.grade}`]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function countBelow5(attempts: ExamAttempt[]): number {
+  return attempts.filter((a) => toScore10(a) < 5).length;
+}
+
+export function buildAttemptsHtml(exam: QuizExam, attempts: ExamAttempt[]): string {
+  const metaLine = buildMetaLine(exam);
+  const belowCount = countBelow5(attempts);
+
   const rowsHtml = attempts
     .map((a, idx) => {
       const cellStyle = 'border:1px solid #cbd5e1; padding:6px 8px;';
@@ -24,7 +41,7 @@ export function buildAttemptsHtml(examTitle: string, attempts: ExamAttempt[]): s
         <tr>
           <td style="${cellStyle} text-align:center;">${idx + 1}</td>
           <td style="${cellStyle}">${escapeHtml(a.userName)}</td>
-          <td style="${cellStyle} text-align:center;">${toScore10(a)}</td>
+          <td style="${cellStyle} text-align:center;">${formatScore10(a)}</td>
           <td style="${cellStyle} text-align:center;">${a.score}/${a.maxScore} (${a.percentage}%)</td>
           <td style="${cellStyle} text-align:center;">${a.passed ? 'ĐẠT' : 'CHƯA ĐẠT'}</td>
           <td style="${cellStyle}">${escapeHtml(formatDate(a.completedAt))}</td>
@@ -34,8 +51,11 @@ export function buildAttemptsHtml(examTitle: string, attempts: ExamAttempt[]): s
     .join('');
 
   return `
-    <h1 style="font-size:20px; margin:0 0 4px 0;">${escapeHtml(examTitle)}</h1>
-    <div style="font-size:12px; color:#475569; margin-bottom:20px;">${attempts.length} thí sinh đã làm bài</div>
+    <h1 style="font-size:20px; margin:0 0 4px 0;">${escapeHtml(exam.title)}</h1>
+    ${metaLine ? `<div style="font-size:12px; color:#475569; margin-bottom:8px;">${escapeHtml(metaLine)}</div>` : ''}
+    <div style="font-size:12px; color:#475569; margin-bottom:20px;">
+      ${attempts.length} thí sinh đã làm bài &middot; ${belowCount} thí sinh dưới 5,0 điểm
+    </div>
     <table style="border-collapse:collapse; width:100%; font-size:13px;">
       <thead>
         <tr>
@@ -52,11 +72,11 @@ export function buildAttemptsHtml(examTitle: string, attempts: ExamAttempt[]): s
   `;
 }
 
-export async function generateAttemptsPdfBlob(examTitle: string, attempts: ExamAttempt[]): Promise<Blob> {
-  return renderHtmlToPdfBlob(buildAttemptsHtml(examTitle, attempts));
+export async function generateAttemptsPdfBlob(exam: QuizExam, attempts: ExamAttempt[]): Promise<Blob> {
+  return renderHtmlToPdfBlob(buildAttemptsHtml(exam, attempts));
 }
 
-export async function generateAttemptsWordBlob(examTitle: string, attempts: ExamAttempt[]): Promise<Blob> {
+export async function generateAttemptsWordBlob(exam: QuizExam, attempts: ExamAttempt[]): Promise<Blob> {
   const cellBorders = {
     top: { style: BorderStyle.SINGLE, size: 4, color: '94A3B8' },
     bottom: { style: BorderStyle.SINGLE, size: 4, color: '94A3B8' },
@@ -91,7 +111,7 @@ export async function generateAttemptsWordBlob(examTitle: string, attempts: Exam
         children: [
           cell(String(idx + 1), { align: AlignmentType.CENTER }),
           cell(a.userName),
-          cell(toScore10(a), { align: AlignmentType.CENTER }),
+          cell(formatScore10(a), { align: AlignmentType.CENTER }),
           cell(`${a.score}/${a.maxScore} (${a.percentage}%)`, { align: AlignmentType.CENTER }),
           cell(a.passed ? 'ĐẠT' : 'CHƯA ĐẠT', { align: AlignmentType.CENTER }),
           cell(formatDate(a.completedAt)),
@@ -99,16 +119,33 @@ export async function generateAttemptsWordBlob(examTitle: string, attempts: Exam
       })
   );
 
+  const metaLine = buildMetaLine(exam);
+  const belowCount = countBelow5(attempts);
+
   const doc = new Document({
     sections: [
       {
         children: [
           new Paragraph({
             heading: HeadingLevel.HEADING_1,
-            children: [new TextRun({ text: examTitle, bold: true })],
+            children: [new TextRun({ text: exam.title, bold: true })],
           }),
+          ...(metaLine
+            ? [
+                new Paragraph({
+                  children: [new TextRun({ text: metaLine, italics: true, color: '475569' })],
+                  spacing: { after: 80 },
+                }),
+              ]
+            : []),
           new Paragraph({
-            children: [new TextRun({ text: `${attempts.length} thí sinh đã làm bài`, italics: true, color: '475569' })],
+            children: [
+              new TextRun({
+                text: `${attempts.length} thí sinh đã làm bài · ${belowCount} thí sinh dưới 5,0 điểm`,
+                italics: true,
+                color: '475569',
+              }),
+            ],
             spacing: { after: 200 },
           }),
           new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headerRow, ...dataRows] }),
