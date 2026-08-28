@@ -35,9 +35,15 @@ interface AdminDashboardProps {
   onOpenCreateQuiz: () => void;
   isAdmin: boolean;
   userId?: string;
+  userEmail?: string;
 }
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz, isAdmin, userId }) => {
+// News management is restricted to this one account regardless of the broader
+// is_admin flag — other admins can still see everything else on this dashboard.
+const NEWS_MANAGER_EMAIL = 'icomputer.gpt.ct@gmail.com';
+
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz, isAdmin, userId, userEmail }) => {
+  const canManageNews = isAdmin && userEmail === NEWS_MANAGER_EMAIL;
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [exams, setExams] = useState<QuizExam[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
@@ -261,7 +267,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
           Quản Lý Kho Đề Thi ({visibleExams.length})
         </button>
 
-        {isAdmin && (
+        {canManageNews && (
           <button
             onClick={() => setActiveSubTab('news')}
             className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
@@ -580,9 +586,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
         </div>
       )}
 
-      {/* SUB-VIEW 4: News Management (admin only) */}
+      {/* SUB-VIEW 4: News Management (restricted to NEWS_MANAGER_EMAIL) */}
       {activeSubTab === 'news' && (
-        isAdmin ? (
+        canManageNews ? (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-400">

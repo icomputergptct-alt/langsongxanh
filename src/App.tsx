@@ -756,6 +756,7 @@ export default function App() {
             onOpenCreateQuiz={requireAuthThenOpenQuizModal}
             isAdmin={isAdmin}
             userId={user?.id}
+            userEmail={user?.email}
           />
         )}
 
