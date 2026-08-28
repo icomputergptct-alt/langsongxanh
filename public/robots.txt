@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://longhoaso.com/sitemap.xml
+Sitemap: https://www.longhoaso.com/sitemap.xml
