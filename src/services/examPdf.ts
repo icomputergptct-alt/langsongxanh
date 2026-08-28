@@ -1,6 +1,18 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  HeadingLevel,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  BorderStyle,
+  AlignmentType,
+} from 'docx';
 import { QuizExam } from '../types';
 
 // jsPDF's built-in fonts don't render Vietnamese diacritics. Instead of embedding a
@@ -38,18 +50,42 @@ export function buildExamHtml(exam: QuizExam): string {
     })
     .join('');
 
-  const answerKeyHtml = exam.questions
-    .map((q, idx) => `Câu ${idx + 1}: ${escapeHtml(q.correctOptionId.toUpperCase())}`)
-    .join('&nbsp;&nbsp;&bull;&nbsp;&nbsp;');
-
   return `
     <h1 style="font-size:20px; margin:0 0 4px 0;">${escapeHtml(exam.title)}</h1>
     ${metaLine ? `<div style="font-size:12px; color:#475569; margin-bottom:20px;">${metaLine}</div>` : '<div style="margin-bottom:20px;"></div>'}
     ${questionsHtml}
     <hr style="margin:24px 0; border:none; border-top:1px solid #cbd5e1;" />
     <h2 style="font-size:15px; margin:0 0 8px 0;">Đáp Án</h2>
-    <div style="font-size:13px; line-height:1.8;">${answerKeyHtml}</div>
+    ${buildAnswerKeyTableHtml(exam)}
   `;
+}
+
+// Renders the answer key as a 2-row table — a "Câu N" header row over a row of
+// correct-option letters — matching the format teachers already use when
+// uploading exam files (see extractBareAnswerTable in api/_app.ts), split into
+// blocks of 10 columns so it stays readable once there are more than a handful
+// of questions.
+const ANSWER_TABLE_CHUNK_SIZE = 10;
+
+function buildAnswerKeyTableHtml(exam: QuizExam): string {
+  const cellStyle = 'border:1px solid #94a3b8; padding:6px 4px; text-align:center;';
+  let tablesHtml = '';
+  for (let i = 0; i < exam.questions.length; i += ANSWER_TABLE_CHUNK_SIZE) {
+    const chunk = exam.questions.slice(i, i + ANSWER_TABLE_CHUNK_SIZE);
+    const headerCells = chunk
+      .map((_, j) => `<td style="${cellStyle} font-weight:bold;">Câu ${i + j + 1}</td>`)
+      .join('');
+    const answerCells = chunk
+      .map((q) => `<td style="${cellStyle}">${escapeHtml(q.correctOptionId.toUpperCase())}</td>`)
+      .join('');
+    tablesHtml += `
+      <table style="border-collapse:collapse; width:100%; margin-bottom:10px; font-size:13px;">
+        <tr>${headerCells}</tr>
+        <tr>${answerCells}</tr>
+      </table>
+    `;
+  }
+  return tablesHtml;
 }
 
 // Real .docx (OOXML) export, mirroring the same title/meta/questions/answer-key
@@ -63,7 +99,7 @@ export async function generateExamWordBlob(exam: QuizExam): Promise<Blob> {
     exam.schoolYear,
   ].filter(Boolean) as string[];
 
-  const children: Paragraph[] = [
+  const children: (Paragraph | Table)[] = [
     new Paragraph({
       heading: HeadingLevel.HEADING_1,
       children: [new TextRun({ text: exam.title, bold: true })],
@@ -103,18 +139,43 @@ export async function generateExamWordBlob(exam: QuizExam): Promise<Blob> {
       spacing: { before: 400, after: 120 },
     })
   );
-  children.push(
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: exam.questions.map((q, idx) => `Câu ${idx + 1}: ${q.correctOptionId.toUpperCase()}`).join('   '),
-        }),
-      ],
-    })
-  );
+  children.push(...buildAnswerKeyTables(exam.questions));
 
   const doc = new Document({ sections: [{ children }] });
   return Packer.toBlob(doc);
+}
+
+// Same 2-row "Câu N" / letter table as buildAnswerKeyTableHtml, built with docx's
+// Table API instead of raw HTML, chunked the same way so long exams still read
+// as several 10-column blocks rather than one unreadably wide table.
+function buildAnswerKeyTables(questions: QuizExam['questions']): (Paragraph | Table)[] {
+  const cellBorders = {
+    top: { style: BorderStyle.SINGLE, size: 4, color: '94A3B8' },
+    bottom: { style: BorderStyle.SINGLE, size: 4, color: '94A3B8' },
+    left: { style: BorderStyle.SINGLE, size: 4, color: '94A3B8' },
+    right: { style: BorderStyle.SINGLE, size: 4, color: '94A3B8' },
+  };
+  const cell = (text: string, bold: boolean) =>
+    new TableCell({
+      borders: cellBorders,
+      children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text, bold })] })],
+    });
+
+  const result: (Paragraph | Table)[] = [];
+  for (let i = 0; i < questions.length; i += ANSWER_TABLE_CHUNK_SIZE) {
+    const chunk = questions.slice(i, i + ANSWER_TABLE_CHUNK_SIZE);
+    result.push(
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({ children: chunk.map((_, j) => cell(`Câu ${i + j + 1}`, true)) }),
+          new TableRow({ children: chunk.map((q) => cell(q.correctOptionId.toUpperCase(), false)) }),
+        ],
+      })
+    );
+    result.push(new Paragraph({ spacing: { after: 120 } }));
+  }
+  return result;
 }
 
 export async function generateExamPdfBlob(exam: QuizExam): Promise<Blob> {
