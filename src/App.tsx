@@ -184,13 +184,6 @@ export default function App() {
     };
   }, []);
 
-  // Toggle Simulated / Actual Offline
-  const handleToggleOffline = () => {
-    const nextState = !isOffline;
-    setIsOffline(nextState);
-    storageService.setOfflineMode(nextState);
-  };
-
   // Toggle Save Article for Offline Reading
   const handleToggleSaveOffline = (article: Article, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -303,7 +296,6 @@ export default function App() {
           selectArticle(null); // Return to list view
         }}
         isOffline={isOffline}
-        toggleOffline={handleToggleOffline}
         savedOfflineCount={savedCount}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}

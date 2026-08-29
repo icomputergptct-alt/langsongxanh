@@ -2,7 +2,6 @@ import React from 'react';
 import type { User } from '@supabase/supabase-js';
 import {
   BookOpen,
-  Wifi,
   WifiOff,
   Search,
   DownloadCloud,
@@ -23,11 +22,10 @@ interface HeaderProps {
   activeTab: 'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'contact';
   setActiveTab: (tab: 'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'contact') => void;
   isOffline: boolean;
-  toggleOffline: () => void;
   savedOfflineCount: number;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  openCreateQuizModal: () => void;
+  openCreateQuizModal: (mode?: 'upload' | 'manual') => void;
   openUploadDocumentModal: () => void;
   user: User | null;
   isAdmin: boolean;
@@ -40,7 +38,6 @@ export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
   isOffline,
-  toggleOffline,
   savedOfflineCount,
   searchQuery,
   setSearchQuery,
@@ -125,28 +122,15 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Tải Lên Tài Liệu</span>
             </button>
 
-            {/* Offline Simulation Toggle */}
+            {/* Quick Create Manual Quiz button */}
             <button
-              id="offline-toggle-btn"
-              onClick={toggleOffline}
-              title={isOffline ? 'Đang ở chế độ Ngoại tuyến (Click để bật Online)' : 'Đang Online (Click để giả lập Ngoại tuyến)'}
-              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border backdrop-blur-sm transition-all ${
-                isOffline
-                  ? 'bg-amber-500/10 text-amber-300 border-amber-500/30 shadow-sm shadow-amber-500/10'
-                  : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border-white/10'
-              }`}
+              id="header-create-manual-quiz-btn"
+              onClick={() => openCreateQuizModal('manual')}
+              title="Tạo đề thi bằng cách nhập câu hỏi thủ công"
+              className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600/30 to-emerald-600/30 hover:from-blue-600/40 hover:to-emerald-600/40 backdrop-blur-md border border-emerald-400/40 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              {isOffline ? (
-                <>
-                  <WifiOff className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-                  <span className="hidden sm:inline">Offline</span>
-                </>
-              ) : (
-                <>
-                  <Wifi className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="hidden sm:inline">Online</span>
-                </>
-              )}
+              <PlusCircle className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Tạo đề thủ công</span>
             </button>
 
             {/* Account */}
