@@ -477,7 +477,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
     };
 
     try {
-      await storageService.saveExam(savedExam);
+      await storageService.saveExam(savedExam, !editingExam);
       if (publish) {
         onExamCreated(savedExam);
       }

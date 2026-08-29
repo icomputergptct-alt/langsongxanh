@@ -515,9 +515,19 @@ export const storageService = {
     return rowToExam(data);
   },
 
-  async saveExam(exam: QuizExam): Promise<void> {
-    const { error } = await supabase.from('quiz_exams').upsert(examToRow(exam));
-    if (error) throw error;
+  // Deliberately insert-or-update instead of .upsert(): Postgres requires
+  // table-wide SELECT for the "INSERT ... ON CONFLICT DO UPDATE" upsert uses
+  // internally, which the security migration's table-wide SELECT revoke on
+  // quiz_exams (see supabase/auth.sql) now blocks. A plain UPDATE filtered by
+  // .eq('id', ...) only needs SELECT on the `id` column, which is granted.
+  async saveExam(exam: QuizExam, isNew: boolean): Promise<void> {
+    if (isNew) {
+      const { error } = await supabase.from('quiz_exams').insert(examToRow(exam));
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from('quiz_exams').update(examToRow(exam)).eq('id', exam.id);
+      if (error) throw error;
+    }
   },
 
   async deleteExam(examId: string): Promise<void> {
