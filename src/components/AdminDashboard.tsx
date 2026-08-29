@@ -130,6 +130,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
     categoryStats[cat].totalScore += a.percentage;
   });
 
+  // Real strongest/weakest category, derived from actual attempt data above —
+  // drives the recommendation box instead of a hardcoded example.
+  const categoryAverages = Object.entries(categoryStats).map(([category, stat]) => ({
+    category,
+    average: Math.round(stat.totalScore / stat.count),
+    count: stat.count,
+  }));
+  const strongestCategory = categoryAverages.length > 0
+    ? categoryAverages.reduce((best, c) => (c.average > best.average ? c : best))
+    : null;
+  const weakestCategory = categoryAverages.length > 0
+    ? categoryAverages.reduce((worst, c) => (c.average < worst.average ? c : worst))
+    : null;
+
   const filteredAttempts = visibleAttempts.filter((a) =>
     a.userName.toLowerCase().includes(searchCandidate.toLowerCase()) ||
     a.examTitle.toLowerCase().includes(searchCandidate.toLowerCase())
@@ -406,7 +420,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
               <span>Khuyến Nghị Quản Trị Hệ Thống Đào Tạo</span>
             </h4>
             <p className="text-xs text-slate-300 leading-relaxed mb-3">
-              Các thí sinh thể hiện năng lực vượt trội ở mảng <strong>TypeScript & React 19</strong> (điểm TB &gt; 80%), trong khi mảng <strong>An toàn Thông tin & Mật mã Lượng tử</strong> đòi hỏi tăng cường thêm các tài liệu phân tích chuyên sâu và bài thi mẫu nhằm củng cố kiến thức.
+              {totalAttempts === 0 || !strongestCategory || !weakestCategory ? (
+                'Chưa có lượt thi nào được ghi nhận. Khuyến nghị sẽ tự động xuất hiện ngay khi có thí sinh đầu tiên hoàn thành bài thi.'
+              ) : strongestCategory.category !== weakestCategory.category ? (
+                <>
+                  Các thí sinh thể hiện năng lực vượt trội ở mảng <strong>{strongestCategory.category}</strong> (điểm TB {strongestCategory.average}%), trong khi mảng <strong>{weakestCategory.category}</strong> (điểm TB {weakestCategory.average}%) đòi hỏi tăng cường thêm các tài liệu phân tích chuyên sâu và bài thi mẫu nhằm củng cố kiến thức.
+                </>
+              ) : (
+                <>
+                  Dữ liệu hiện chỉ có ở mảng <strong>{strongestCategory.category}</strong> (điểm TB {strongestCategory.average}%, {strongestCategory.count} lượt thi). Cần thêm đề thi ở các chuyên ngành khác để có khuyến nghị so sánh chi tiết hơn.
+                </>
+              )}
             </p>
           </div>
         </div>
