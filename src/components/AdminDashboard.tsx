@@ -26,7 +26,7 @@ import {
   Mail,
   FileSearch
 } from 'lucide-react';
-import { Article, ContactMessage, ExamAttempt, QuizExam } from '../types';
+import { Article, ContactMessage, ExamAttempt, ExamDocument, QuizExam } from '../types';
 import { storageService } from '../services/storageService';
 import { ArticleEditorModal } from './ArticleEditorModal';
 import { AttemptsPreviewModal } from './AttemptsPreviewModal';
@@ -46,6 +46,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
   const canManageNews = isAdmin && userEmail === NEWS_MANAGER_EMAIL;
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [exams, setExams] = useState<QuizExam[]>([]);
+  const [examDocuments, setExamDocuments] = useState<ExamDocument[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
   const [searchCandidate, setSearchCandidate] = useState('');
@@ -59,6 +60,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
   useEffect(() => {
     storageService.getAttempts().then(setAttempts).catch((err) => console.error('Không tải được lượt thi:', err));
     storageService.getAllExamsIncludingArchived().then(setExams).catch((err) => console.error('Không tải được đề thi:', err));
+    storageService.getExamDocuments().then(setExamDocuments).catch((err) => console.error('Không tải được tài liệu đề thi:', err));
     storageService.getArticles().then(setArticles).catch((err) => console.error('Không tải được bài viết:', err));
     if (isAdmin) {
       storageService.getContactMessages().then(setContactMessages).catch((err) => console.error('Không tải được tin nhắn liên hệ:', err));
@@ -69,6 +71,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
     if (window.confirm('Bạn có chắc chắn muốn xóa đề thi này?')) {
       await storageService.deleteExam(examId);
       setExams(await storageService.getAllExamsIncludingArchived());
+    }
+  };
+
+  const handleDeleteExamDocument = async (docId: string) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa tài liệu đề thi này?')) {
+      await storageService.deleteExamDocument(docId);
+      setExamDocuments(await storageService.getExamDocuments());
     }
   };
 
@@ -606,6 +615,64 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Exam documents — the PDF/Word files in "Kho đề thi kiểm tra" (a separate
+              table from the interactive quiz rooms above; includes ones auto-generated
+              when a room's deadline passes, per archiveExpiredExams in storageService). */}
+          <div className="pt-2">
+            <h3 className="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
+              <FileSearch className="w-4 h-4 text-cyan-400" />
+              <span>Tài Liệu Đề Thi Đã Lưu ({examDocuments.length})</span>
+            </h3>
+            {examDocuments.length === 0 ? (
+              <p className="text-sm text-slate-400 glass-panel rounded-2xl p-5 text-center">
+                Chưa có tài liệu đề thi nào trong kho.
+              </p>
+            ) : (
+              <div className="glass-panel rounded-2xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-300">
+                    <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                      <tr>
+                        <th className="py-3 px-4">Tài liệu</th>
+                        <th className="py-3 px-4">Khối/Lớp</th>
+                        <th className="py-3 px-4 text-center">Lượt xem</th>
+                        <th className="py-3 px-4">Ngày tải lên</th>
+                        <th className="py-3 px-4 text-right">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/80">
+                      {examDocuments.map((doc) => (
+                        <tr key={doc.id} className="hover:bg-slate-800/50 transition-colors">
+                          <td className="py-3 px-4 max-w-xs font-medium text-slate-200 line-clamp-2">{doc.title}</td>
+                          <td className="py-3 px-4 text-slate-400">
+                            {[doc.grade && `Khối ${doc.grade}`, doc.className && `Lớp ${doc.className}`]
+                              .filter(Boolean)
+                              .join(' · ') || '—'}
+                          </td>
+                          <td className="py-3 px-4 text-center text-slate-300">{doc.views}</td>
+                          <td className="py-3 px-4 text-slate-400">
+                            {new Date(doc.uploadedAt).toLocaleDateString('vi-VN')}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleDeleteExamDocument(doc.id)}
+                                title="Xóa tài liệu này"
+                                className="p-1.5 hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
