@@ -329,3 +329,19 @@ as $$
 $$;
 
 grant execute on function public.increment_exam_document_views(text) to anon, authenticated;
+
+-- ============================================================================
+-- Fix: creating/saving/deleting an exam broke after the security hardening
+-- migration above revoked ALL select on quiz_exams.
+-- ============================================================================
+-- storageService.saveExam upserts via "INSERT ... ON CONFLICT (id) DO UPDATE",
+-- and every other write (deleteExam, archive-on-deadline, etc.) filters with
+-- .eq('id', ...). Postgres requires SELECT privilege on any column used as an
+-- ON CONFLICT arbiter or referenced in a WHERE clause — independent of
+-- already holding INSERT/UPDATE/DELETE — so the table-wide revoke above also
+-- blocked every one of those, not just reads. `id` isn't sensitive (unlike
+-- room_password), so granting SELECT on just that one column restores every
+-- id-filtered write while keeping every other column, room_password included,
+-- unreadable directly off this table (real reads still go through
+-- quiz_exams_public).
+grant select (id) on quiz_exams to anon, authenticated;
