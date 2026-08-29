@@ -484,7 +484,8 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
       onClose();
     } catch (err) {
       console.error('Không lưu được đề thi:', err);
-      alert('Không thể lưu đề thi lên Supabase. Vui lòng thử lại.');
+      const detail = err instanceof Error ? err.message : JSON.stringify(err);
+      alert(`Không thể lưu đề thi lên Supabase.\n\nChi tiết lỗi: ${detail}`);
     }
   };
 
