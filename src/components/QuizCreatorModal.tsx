@@ -449,6 +449,10 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
       alert('Đề thi cần có ít nhất 1 câu hỏi.');
       return;
     }
+    if (publish && deadlineAt && new Date(deadlineAt).getTime() <= Date.now()) {
+      alert('Hạn Kết Thúc Phòng Thi đang ở quá khứ, nên phòng sẽ tự động bị lưu trữ lại ngay sau khi phát hành. Vui lòng đặt hạn mới hoặc để trống nếu phòng thi không có hạn.');
+      return;
+    }
 
     const savedExam: QuizExam = {
       id: editingExam?.id || `exam-${Date.now()}`,
