@@ -451,7 +451,7 @@ function solveCubic(a: number, b: number, c: number, d: number): { roots: EqnRoo
 
 export const SoftwareUtilities: React.FC = () => {
   const [utilities] = useState<SoftwareUtility[]>(SOFTWARE_UTILITIES);
-  const [selectedToolId, setSelectedToolId] = useState<string>('util-url-scanner');
+  const [selectedToolId, setSelectedToolId] = useState<string>(SOFTWARE_UTILITIES[0].id);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const activeTool = utilities.find((u) => u.id === selectedToolId) || utilities[0];
