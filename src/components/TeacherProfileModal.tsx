@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, User as UserIcon, Mail, Save, FileText, Eye } from 'lucide-react';
+import { X, User as UserIcon, Mail, Save, FileText, Eye, Pencil, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { QuizExam, ExamAttempt } from '../types';
 import { storageService } from '../services/storageService';
@@ -24,6 +24,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
   const [viewingExam, setViewingExam] = useState<QuizExam | null>(null);
   const [viewingExamAttempts, setViewingExamAttempts] = useState<ExamAttempt[]>([]);
   const [previewExam, setPreviewExam] = useState<QuizExam | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && profile) {
@@ -58,6 +59,20 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
   }, [viewingExam]);
 
   if (!isOpen) return null;
+
+  const handleDeleteExam = async (exam: QuizExam) => {
+    if (!window.confirm(`Xóa đề thi "${exam.title}"? Hành động này không thể hoàn tác.`)) return;
+    setDeletingId(exam.id);
+    try {
+      await storageService.deleteExam(exam.id);
+      setMyExams((prev) => prev.filter((e) => e.id !== exam.id));
+    } catch (err) {
+      console.error('Không xóa được đề thi:', err);
+      alert('Không thể xóa đề thi. Vui lòng thử lại.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -194,6 +209,21 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
                       className="shrink-0 p-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-400/50 rounded-xl text-slate-300 hover:text-cyan-300 transition-colors"
                     >
                       <Eye className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onEditExam(exam)}
+                      title="Sửa đề thi"
+                      className="shrink-0 p-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-400/50 rounded-xl text-slate-300 hover:text-cyan-300 transition-colors"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteExam(exam)}
+                      disabled={deletingId === exam.id}
+                      title="Xóa đề thi"
+                      className="shrink-0 p-2 bg-white/5 hover:bg-rose-500/20 border border-white/10 hover:border-rose-400/50 rounded-xl text-slate-300 hover:text-rose-300 disabled:opacity-50 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </li>
                 ))}

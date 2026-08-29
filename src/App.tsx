@@ -864,7 +864,10 @@ export default function App() {
       {/* Teacher Profile Modal */}
       <TeacherProfileModal
         isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
+        onClose={() => {
+          setIsProfileModalOpen(false);
+          setExamsRefreshKey((k) => k + 1);
+        }}
         onEditExam={openEditExamModal}
       />
 
