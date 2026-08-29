@@ -722,4 +722,19 @@ export const storageService = {
   async toggleLikeArticle(articleId: string): Promise<{ likes: number; isLiked: boolean }> {
     return this.toggleArticleLike(articleId);
   },
+
+  // --- Site visit counter (footer stat) ---
+  async getTotalVisits(): Promise<number> {
+    const { data, error } = await supabase.from('site_visits').select('total_count').eq('id', 1).maybeSingle();
+    if (error || !data) return 0;
+    return Number(data.total_count) || 0;
+  },
+
+  // Increments via a security-definer RPC (see supabase/auth.sql) rather than
+  // a direct UPDATE, so no client can write an arbitrary count to the table.
+  async incrementSiteVisit(): Promise<number> {
+    const { data, error } = await supabase.rpc('increment_site_visit');
+    if (error) throw error;
+    return Number(data) || 0;
+  },
 };

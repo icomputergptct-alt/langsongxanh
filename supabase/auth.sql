@@ -345,3 +345,34 @@ grant execute on function public.increment_exam_document_views(text) to anon, au
 -- unreadable directly off this table (real reads still go through
 -- quiz_exams_public).
 grant select (id) on quiz_exams to anon, authenticated;
+
+-- ============================================================================
+-- Site-wide visit counter (footer "lượt truy cập" stat).
+-- ============================================================================
+-- Single-row table holding a running total. Writes only ever go through the
+-- increment_site_visit() RPC below (security definer), never a direct
+-- UPDATE from the client — that's what stops any visitor from resetting or
+-- inflating the counter arbitrarily via the REST API.
+create table if not exists site_visits (
+  id int primary key default 1,
+  total_count bigint not null default 0,
+  constraint site_visits_singleton check (id = 1)
+);
+insert into site_visits (id, total_count) values (1, 0) on conflict (id) do nothing;
+
+alter table site_visits enable row level security;
+
+drop policy if exists "public read site_visits" on site_visits;
+create policy "public read site_visits" on site_visits for select using (true);
+
+create or replace function public.increment_site_visit()
+returns bigint
+language sql
+security definer
+set search_path = public
+as $$
+  update site_visits set total_count = total_count + 1 where id = 1
+  returning total_count;
+$$;
+
+grant execute on function public.increment_site_visit() to anon, authenticated;

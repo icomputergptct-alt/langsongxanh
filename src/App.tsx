@@ -31,6 +31,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { SoftwareUtilities } from './components/SoftwareUtilities';
 import { AuthModal } from './components/AuthModal';
 import { TeacherProfileModal } from './components/TeacherProfileModal';
+import { VisitorStats } from './components/VisitorStats';
 import { DocumentUploadModal } from './components/DocumentUploadModal';
 import { SearchResults } from './components/SearchResults';
 import { ContactPage } from './components/ContactPage';
@@ -889,6 +890,7 @@ export default function App() {
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-400">
+            <VisitorStats />
             <span className="flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
               <span>Offline Cache Vault Ready</span>
