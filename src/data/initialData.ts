@@ -673,6 +673,67 @@ export const SOFTWARE_UTILITIES: SoftwareUtility[] = [
     ]
   },
   {
+    id: 'util-sci-calculator',
+    name: 'Máy Tính Khoa Học Trực Tuyến (Scientific Calculator)',
+    slug: 'scientific-calculator',
+    category: 'Toán học & Khoa học',
+    icon: 'Calculator',
+    shortDesc: 'Mô phỏng đầy đủ chức năng của máy tính bỏ túi khoa học: lượng giác, logarit, căn bậc hai/ba, lũy thừa, giai thừa, bộ nhớ M+/M-/MR/MC và chế độ góc Độ/Radian.',
+    detailedDesc: 'Tái hiện trải nghiệm của các dòng máy tính khoa học phổ biến (Casio fx-570ES/991ES...) ngay trên trình duyệt: nhập biểu thức tự do hoặc bấm phím, xem trước kết quả theo thời gian thực, lưu lịch sử phép tính và chuyển đổi linh hoạt giữa độ (DEG) và radian (RAD).',
+    badge: 'Mới',
+    features: [
+      'Đầy đủ hàm lượng giác thuận/ngược (sin, cos, tan, sin⁻¹, cos⁻¹, tan⁻¹) và hyperbolic (sinh, cosh, tanh)',
+      'Logarit thập phân (log), logarit tự nhiên (ln), lũy thừa (xʸ, x², x³, x⁻¹, 10ˣ, eˣ), căn bậc hai/ba, giai thừa (x!), trị tuyệt đối (|x|)',
+      'Bộ nhớ độc lập STO/M+/M-/MR/MC và phím Ans lấy lại kết quả gần nhất',
+      'Phím S⇔D chuyển đổi kết quả qua lại giữa dạng thập phân và phân số tối giản gần đúng',
+      'Xem nhanh kết quả dưới dạng Thập phân/Nhị phân/Bát phân/Thập lục phân (DEC/BIN/OCT/HEX) với số nguyên không âm',
+      'Chuyển đổi tức thời giữa chế độ Độ (DEG) và Radian (RAD), xem trước kết quả khi đang nhập, lưu lịch sử phép tính gần đây',
+      'Chế độ EQN: giải phương trình bậc hai (ax² + bx + c = 0) và bậc ba (ax³ + bx² + cx + d = 0) theo đúng thao tác của máy tính vật lý — bấm mode, nhập từng hệ số rồi nhấn "=" để chuyển bước và xem nghiệm'
+    ],
+    useCases: [
+      'Tính toán lượng giác, logarit nhanh khi học tập hoặc làm bài tập kỹ thuật',
+      'Kiểm tra nhanh công thức toán học khi không có máy tính vật lý bên cạnh',
+      'Tính lãi suất, hàm mũ, căn bậc trong các bài toán tài chính/kỹ thuật cơ bản',
+      'Đổi nhanh một số nguyên sang hệ Nhị phân/Bát phân/Thập lục phân khi lập trình',
+      'Giải bài tập phương trình bậc hai hoặc bậc ba mà không cần tự tính tay công thức nghiệm'
+    ],
+    guides: [
+      {
+        step: 1,
+        title: 'Nhập biểu thức bằng phím bấm hoặc gõ trực tiếp',
+        instruction: 'Bấm các phím số/hàm để dựng biểu thức, hoặc gõ trực tiếp vào ô hiển thị (ví dụ: sin(30)+2^3). Kết quả xem trước hiển thị ngay bên dưới khi biểu thức hợp lệ.'
+      },
+      {
+        step: 2,
+        title: 'Chọn chế độ góc phù hợp',
+        instruction: 'Bấm nút DEG/RAD ở hàng điều khiển để chuyển đổi giữa Độ và Radian trước khi tính các hàm lượng giác.'
+      },
+      {
+        step: 3,
+        title: 'Dùng bộ nhớ và lịch sử',
+        instruction: 'Bấm STO để ghi đè giá trị hiện tại vào bộ nhớ, M+/M- để cộng/trừ dồn, MR để gọi lại, MC để xóa bộ nhớ. Nhấn vào một dòng trong lịch sử để dùng lại kết quả đó.',
+        tip: 'Phím "%" chia giá trị liền trước cho 100 theo kiểu đơn giản, không tính phần trăm theo ngữ cảnh như một số máy tính vật lý.'
+      },
+      {
+        step: 4,
+        title: 'Chuyển đổi phân số và hệ đếm',
+        instruction: 'Sau khi nhấn "=", bấm S⇔D để xem kết quả dưới dạng phân số tối giản gần đúng (bấm lại để quay về thập phân). Bấm HEX/OCT/BIN để xem kết quả nguyên không âm gần nhất ở hệ thập lục phân/bát phân/nhị phân; bấm lại nút đó để ẩn đi.'
+      },
+      {
+        step: 5,
+        title: 'Giải phương trình bậc hai (chế độ EQN)',
+        instruction: 'Bấm nút "EQN — Giải phương trình bậc 2" ở hàng điều khiển để vào chế độ giải phương trình. Màn hình sẽ nhắc "Nhập hệ số a" — gõ giá trị a rồi nhấn "=", tiếp tục nhập b nhấn "=", rồi nhập c nhấn "=" để ra nghiệm.',
+        tip: 'Sau khi có nghiệm, nhấn "=" tiếp để xem lần lượt x₁ rồi x₂ (Δ hiển thị ngay phía trên). Bấm lại nút EQN để thoát chế độ và quay về máy tính bình thường. Δ âm sẽ cho hai nghiệm phức dạng a+bi.'
+      },
+      {
+        step: 6,
+        title: 'Giải phương trình bậc ba (chế độ EQN³)',
+        instruction: 'Bấm nút "EQN — Giải phương trình bậc 3" để giải ax³ + bx² + cx + d = 0. Nhập lần lượt hệ số a, b, c, d — mỗi lần nhấn "=" để chuyển sang hệ số kế tiếp. Sau khi nhập xong d và nhấn "=", máy hiện nghiệm đầu tiên; nhấn "=" liên tiếp để xem cả 3 nghiệm.',
+        tip: 'Giá trị D hiển thị dùng công thức Cardano cho bậc ba, quy ước dấu ngược với Δ ở bậc hai: D > 0 nghĩa là có 1 nghiệm thực và 2 nghiệm phức; D < 0 nghĩa là có 3 nghiệm thực phân biệt; D ≈ 0 là trường hợp có nghiệm lặp.'
+      }
+    ]
+  },
+  {
     id: 'util-pass-gen',
     name: 'Trình Tạo Mật Khẩu Mạnh & Token Bảo Mật',
     slug: 'password-token-generator',
@@ -899,67 +960,6 @@ export const SOFTWARE_UTILITIES: SoftwareUtility[] = [
         step: 2,
         title: 'Quan sát bản xem trước',
         instruction: 'Khung bên phải hiển thị giao diện render đẹp mắt theo thời gian thực với độ chính xác cao.'
-      }
-    ]
-  },
-  {
-    id: 'util-sci-calculator',
-    name: 'Máy Tính Khoa Học Trực Tuyến (Scientific Calculator)',
-    slug: 'scientific-calculator',
-    category: 'Toán học & Khoa học',
-    icon: 'Calculator',
-    shortDesc: 'Mô phỏng đầy đủ chức năng của máy tính bỏ túi khoa học: lượng giác, logarit, căn bậc hai/ba, lũy thừa, giai thừa, bộ nhớ M+/M-/MR/MC và chế độ góc Độ/Radian.',
-    detailedDesc: 'Tái hiện trải nghiệm của các dòng máy tính khoa học phổ biến (Casio fx-570ES/991ES...) ngay trên trình duyệt: nhập biểu thức tự do hoặc bấm phím, xem trước kết quả theo thời gian thực, lưu lịch sử phép tính và chuyển đổi linh hoạt giữa độ (DEG) và radian (RAD).',
-    badge: 'Mới',
-    features: [
-      'Đầy đủ hàm lượng giác thuận/ngược (sin, cos, tan, sin⁻¹, cos⁻¹, tan⁻¹) và hyperbolic (sinh, cosh, tanh)',
-      'Logarit thập phân (log), logarit tự nhiên (ln), lũy thừa (xʸ, x², x³, x⁻¹, 10ˣ, eˣ), căn bậc hai/ba, giai thừa (x!), trị tuyệt đối (|x|)',
-      'Bộ nhớ độc lập STO/M+/M-/MR/MC và phím Ans lấy lại kết quả gần nhất',
-      'Phím S⇔D chuyển đổi kết quả qua lại giữa dạng thập phân và phân số tối giản gần đúng',
-      'Xem nhanh kết quả dưới dạng Thập phân/Nhị phân/Bát phân/Thập lục phân (DEC/BIN/OCT/HEX) với số nguyên không âm',
-      'Chuyển đổi tức thời giữa chế độ Độ (DEG) và Radian (RAD), xem trước kết quả khi đang nhập, lưu lịch sử phép tính gần đây',
-      'Chế độ EQN: giải phương trình bậc hai (ax² + bx + c = 0) và bậc ba (ax³ + bx² + cx + d = 0) theo đúng thao tác của máy tính vật lý — bấm mode, nhập từng hệ số rồi nhấn "=" để chuyển bước và xem nghiệm'
-    ],
-    useCases: [
-      'Tính toán lượng giác, logarit nhanh khi học tập hoặc làm bài tập kỹ thuật',
-      'Kiểm tra nhanh công thức toán học khi không có máy tính vật lý bên cạnh',
-      'Tính lãi suất, hàm mũ, căn bậc trong các bài toán tài chính/kỹ thuật cơ bản',
-      'Đổi nhanh một số nguyên sang hệ Nhị phân/Bát phân/Thập lục phân khi lập trình',
-      'Giải bài tập phương trình bậc hai hoặc bậc ba mà không cần tự tính tay công thức nghiệm'
-    ],
-    guides: [
-      {
-        step: 1,
-        title: 'Nhập biểu thức bằng phím bấm hoặc gõ trực tiếp',
-        instruction: 'Bấm các phím số/hàm để dựng biểu thức, hoặc gõ trực tiếp vào ô hiển thị (ví dụ: sin(30)+2^3). Kết quả xem trước hiển thị ngay bên dưới khi biểu thức hợp lệ.'
-      },
-      {
-        step: 2,
-        title: 'Chọn chế độ góc phù hợp',
-        instruction: 'Bấm nút DEG/RAD ở hàng điều khiển để chuyển đổi giữa Độ và Radian trước khi tính các hàm lượng giác.'
-      },
-      {
-        step: 3,
-        title: 'Dùng bộ nhớ và lịch sử',
-        instruction: 'Bấm STO để ghi đè giá trị hiện tại vào bộ nhớ, M+/M- để cộng/trừ dồn, MR để gọi lại, MC để xóa bộ nhớ. Nhấn vào một dòng trong lịch sử để dùng lại kết quả đó.',
-        tip: 'Phím "%" chia giá trị liền trước cho 100 theo kiểu đơn giản, không tính phần trăm theo ngữ cảnh như một số máy tính vật lý.'
-      },
-      {
-        step: 4,
-        title: 'Chuyển đổi phân số và hệ đếm',
-        instruction: 'Sau khi nhấn "=", bấm S⇔D để xem kết quả dưới dạng phân số tối giản gần đúng (bấm lại để quay về thập phân). Bấm HEX/OCT/BIN để xem kết quả nguyên không âm gần nhất ở hệ thập lục phân/bát phân/nhị phân; bấm lại nút đó để ẩn đi.'
-      },
-      {
-        step: 5,
-        title: 'Giải phương trình bậc hai (chế độ EQN)',
-        instruction: 'Bấm nút "EQN — Giải phương trình bậc 2" ở hàng điều khiển để vào chế độ giải phương trình. Màn hình sẽ nhắc "Nhập hệ số a" — gõ giá trị a rồi nhấn "=", tiếp tục nhập b nhấn "=", rồi nhập c nhấn "=" để ra nghiệm.',
-        tip: 'Sau khi có nghiệm, nhấn "=" tiếp để xem lần lượt x₁ rồi x₂ (Δ hiển thị ngay phía trên). Bấm lại nút EQN để thoát chế độ và quay về máy tính bình thường. Δ âm sẽ cho hai nghiệm phức dạng a+bi.'
-      },
-      {
-        step: 6,
-        title: 'Giải phương trình bậc ba (chế độ EQN³)',
-        instruction: 'Bấm nút "EQN — Giải phương trình bậc 3" để giải ax³ + bx² + cx + d = 0. Nhập lần lượt hệ số a, b, c, d — mỗi lần nhấn "=" để chuyển sang hệ số kế tiếp. Sau khi nhập xong d và nhấn "=", máy hiện nghiệm đầu tiên; nhấn "=" liên tiếp để xem cả 3 nghiệm.',
-        tip: 'Giá trị D hiển thị dùng công thức Cardano cho bậc ba, quy ước dấu ngược với Δ ở bậc hai: D > 0 nghĩa là có 1 nghiệm thực và 2 nghiệm phức; D < 0 nghĩa là có 3 nghiệm thực phân biệt; D ≈ 0 là trường hợp có nghiệm lặp.'
       }
     ]
   }
