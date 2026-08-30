@@ -48,6 +48,23 @@ async function fetchProfile(userId: string, email: string): Promise<Profile> {
   return { id: userId, email, isAdmin: false, fullName: null, schoolName: null, phone: null };
 }
 
+// A session restored from storage on page load only fires 'INITIAL_SESSION'
+// (never 'SIGNED_IN'), so relying on that event alone misses every login
+// except the very first password/OAuth submission — a reload, or opening the
+// site in a new tab while already signed in, would go unlogged. Deduped per
+// browser tab via sessionStorage so re-rendering or a token refresh mid-tab
+// doesn't spam the log with repeat "Đăng nhập" entries for the same visit.
+const LOGIN_LOGGED_KEY = 'techpulse_login_logged_v1';
+function logLoginOnce() {
+  try {
+    if (sessionStorage.getItem(LOGIN_LOGGED_KEY)) return;
+    sessionStorage.setItem(LOGIN_LOGGED_KEY, '1');
+  } catch {
+    // Storage unavailable (private mode, etc.) — fall through and log anyway.
+  }
+  storageService.logActivity('Đăng nhập').catch(() => {});
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -64,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fetchProfile(sessionUser.id, sessionUser.email || '').then((p) => {
           if (!cancelled) setProfile(p);
         });
+        logLoginOnce();
       }
       setIsLoading(false);
     });
@@ -75,10 +93,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fetchProfile(sessionUser.id, sessionUser.email || '').then((p) => {
           if (!cancelled) setProfile(p);
         });
-        // Only a real sign-in, not the session restore that fires on every
-        // page load (INITIAL_SESSION) or a background token refresh.
         if (event === 'SIGNED_IN') {
-          storageService.logActivity('Đăng nhập').catch(() => {});
+          logLoginOnce();
         }
       } else {
         setProfile(null);
@@ -122,6 +138,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Log while the session is still live — resolveActor would see no user
     // (and misfile this as a guest action) if it ran after signOut clears it.
     await storageService.logActivity('Đăng xuất').catch(() => {});
+    try {
+      sessionStorage.removeItem(LOGIN_LOGGED_KEY);
+    } catch {
+      // Storage unavailable — a subsequent login in this tab just won't be deduped.
+    }
     await supabase.auth.signOut();
   };
 

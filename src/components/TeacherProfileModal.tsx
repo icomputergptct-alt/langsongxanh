@@ -89,6 +89,11 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
       setErrorMsg(error);
     } else {
       setSavedMsg('Đã lưu thông tin hồ sơ.');
+      storageService
+        .logActivity('Cập nhật hồ sơ giáo viên', {
+          detail: [fullName.trim(), schoolName.trim()].filter(Boolean).join(' — ') || undefined,
+        })
+        .catch(() => {});
     }
   };
 
