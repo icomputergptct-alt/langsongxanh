@@ -79,21 +79,36 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
     setIsSaving(true);
     setSavedMsg(null);
     setErrorMsg(null);
+    const newFullName = fullName.trim();
+    const newSchoolName = schoolName.trim();
+    const newPhone = phone.trim();
+    // Diff against what was actually loaded into the form, so the log names
+    // exactly which field changed (e.g. "Sửa tên giáo viên: LƯU HỨA XUÂN")
+    // instead of a generic "updated profile" every time any field is saved.
+    const changes: { action: string; value: string }[] = [];
+    if (newFullName !== (profile?.fullName || '')) changes.push({ action: 'Sửa tên giáo viên', value: newFullName || '(trống)' });
+    if (newSchoolName !== (profile?.schoolName || '')) changes.push({ action: 'Sửa tên trường', value: newSchoolName || '(trống)' });
+    if (newPhone !== (profile?.phone || '')) changes.push({ action: 'Sửa số điện thoại', value: newPhone || '(trống)' });
+
     const { error } = await updateProfile({
-      fullName: fullName.trim(),
-      schoolName: schoolName.trim(),
-      phone: phone.trim(),
+      fullName: newFullName,
+      schoolName: newSchoolName,
+      phone: newPhone,
     });
     setIsSaving(false);
     if (error) {
       setErrorMsg(error);
     } else {
       setSavedMsg('Đã lưu thông tin hồ sơ.');
-      storageService
-        .logActivity('Cập nhật hồ sơ giáo viên', {
-          detail: [fullName.trim(), schoolName.trim()].filter(Boolean).join(' — ') || undefined,
-        })
-        .catch(() => {});
+      if (changes.length === 1) {
+        storageService.logActivity(changes[0].action, { detail: changes[0].value }).catch(() => {});
+      } else if (changes.length > 1) {
+        storageService
+          .logActivity('Cập nhật hồ sơ giáo viên', {
+            detail: changes.map((c) => `${c.action}: ${c.value}`).join('; '),
+          })
+          .catch(() => {});
+      }
     }
   };
 
