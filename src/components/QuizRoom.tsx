@@ -46,6 +46,48 @@ interface QuizRoomProps {
 // still matches a school year regardless of how the user typed the dash.
 const normalizeForSearch = (s: string) => s.toLowerCase().replace(/\s+/g, '');
 
+// Vietnamese vowels (all diacritic forms) — used to sniff out keyboard-mashed
+// "names" like "ddkdkd" or "aaaaa" that would otherwise sail past a plain
+// non-empty check.
+const VN_VOWELS = 'aàáảãạăằắẳẵặâầấẩẫậeèéẻẽẹêềếểễệiìíỉĩịoòóỏõọôồốổỗộơờớởỡợuùúủũụưừứửữựyỳýỷỹỵ';
+// Explicit character list (not a Unicode range — a range like à-ỹ silently
+// spans Cyrillic/Greek/Arabic code points too) so only actual Vietnamese/Latin
+// letters are accepted.
+const VN_NAME_CHARS = new RegExp(`^[a-zA-Z${VN_VOWELS}${VN_VOWELS.toUpperCase()}đĐ\\s]+$`);
+
+// A single "word" of a name is gibberish if it has no vowel at all, is one
+// character repeated, or strings together too many consonants in a row —
+// catches "abcd", "aaaaa", "ddkdkd" while still allowing real Vietnamese
+// names (which occasionally run 2 consonants together, e.g. "Nguyễn").
+function isGibberishWord(word: string): boolean {
+  const w = word.toLowerCase();
+  const hasVowel = [...w].some((ch) => VN_VOWELS.includes(ch));
+  if (!hasVowel) return true;
+  if (w.length >= 3 && new Set(w).size === 1) return true;
+  if (/(.)\1{2,}/.test(w)) return true;
+  const consonantRun = new RegExp(`[^${VN_VOWELS}]{4,}`, 'i');
+  if (consonantRun.test(w)) return true;
+  return false;
+}
+
+// Requires a full name: at least two words (họ + tên), letters only, and
+// no gibberish word — so a lone first name or keyboard-mashed text is rejected.
+function validateStudentName(rawName: string): string {
+  const trimmed = rawName.trim().replace(/\s+/g, ' ');
+  if (!trimmed) return 'Vui lòng nhập họ và tên trước khi vào phòng thi.';
+  if (!VN_NAME_CHARS.test(trimmed)) {
+    return 'Họ và tên chỉ được chứa chữ cái, không chứa số hoặc ký tự đặc biệt.';
+  }
+  const words = trimmed.split(' ').filter(Boolean);
+  if (words.length < 2) {
+    return 'Vui lòng nhập đầy đủ họ và tên (ít nhất 2 từ, ví dụ: Nguyễn Tính).';
+  }
+  if (words.some(isGibberishWord)) {
+    return 'Họ và tên không hợp lệ, vui lòng nhập đúng họ tên của bạn.';
+  }
+  return '';
+}
+
 // Pool of exam-card background images living in public/the — one is picked per
 // exam so the lobby doesn't read as one flat color anymore.
 const EXAM_CARD_BACKGROUNDS = Array.from(
@@ -85,7 +127,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
   // field only appears when the room actually has one.
   const [pendingEntryExam, setPendingEntryExam] = useState<QuizExam | null>(null);
   const [studentName, setStudentName] = useState('');
-  const [studentNameError, setStudentNameError] = useState(false);
+  const [studentNameError, setStudentNameError] = useState('');
   const [passwordAttempt, setPasswordAttempt] = useState('');
   const [passwordError, setPasswordError] = useState(false);
   const [isCheckingEntry, setIsCheckingEntry] = useState(false);
@@ -144,7 +186,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
   const handleRequestStartExam = (exam: QuizExam) => {
     setPendingEntryExam(exam);
     setStudentName('');
-    setStudentNameError(false);
+    setStudentNameError('');
     setPasswordAttempt('');
     setPasswordError(false);
     setAlreadyTookError(false);
@@ -166,8 +208,9 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
 
   const handleConfirmEntry = async () => {
     if (!pendingEntryExam) return;
-    if (!studentName.trim()) {
-      setStudentNameError(true);
+    const nameError = validateStudentName(studentName);
+    if (nameError) {
+      setStudentNameError(nameError);
       return;
     }
     setAlreadyTookError(false);
@@ -576,16 +619,16 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                   value={studentName}
                   onChange={(e) => {
                     setStudentName(e.target.value.toUpperCase());
-                    setStudentNameError(false);
+                    setStudentNameError('');
                   }}
                   onKeyDown={(e) => e.key === 'Enter' && !pendingEntryExam.hasPassword && handleConfirmEntry()}
-                  placeholder="Nhập họ và tên của bạn..."
+                  placeholder="Nhập họ và tên đầy đủ của bạn..."
                   className={`w-full bg-white/10 border rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-400 uppercase focus:outline-none ${
                     studentNameError ? 'border-rose-400 focus:border-rose-500' : 'border-white/20 focus:border-cyan-500'
                   }`}
                 />
                 {studentNameError && (
-                  <p className="text-xs text-rose-400 font-semibold mt-1.5">Vui lòng nhập họ và tên trước khi vào phòng thi.</p>
+                  <p className="text-xs text-rose-400 font-semibold mt-1.5">{studentNameError}</p>
                 )}
               </div>
 
