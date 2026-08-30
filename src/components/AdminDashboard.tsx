@@ -14,6 +14,7 @@ import {
   Calendar,
   Layers,
   Sparkles,
+  ChevronLeft,
   ChevronRight,
   ShieldCheck,
   Zap,
@@ -24,12 +25,18 @@ import {
   Eye,
   X,
   Mail,
-  FileSearch
+  FileSearch,
+  History,
+  UserCircle,
+  GraduationCap
 } from 'lucide-react';
-import { Article, ContactMessage, ExamAttempt, ExamDocument, QuizExam } from '../types';
+import { ActivityLog, Article, ContactMessage, ExamAttempt, ExamDocument, QuizExam } from '../types';
 import { storageService } from '../services/storageService';
 import { ArticleEditorModal } from './ArticleEditorModal';
 import { AttemptsPreviewModal } from './AttemptsPreviewModal';
+import { getPageNumbers } from '../utils/pagination';
+
+const ACTIVITY_LOGS_PER_PAGE = 20;
 
 interface AdminDashboardProps {
   onOpenCreateQuiz: () => void;
@@ -49,13 +56,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
   const [examDocuments, setExamDocuments] = useState<ExamDocument[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [searchCandidate, setSearchCandidate] = useState('');
   const [selectedAttempt, setSelectedAttempt] = useState<ExamAttempt | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'attempts' | 'exams' | 'analytics' | 'news' | 'contact'>('analytics');
+  const [activeSubTab, setActiveSubTab] = useState<'attempts' | 'exams' | 'analytics' | 'news' | 'contact' | 'activity'>('analytics');
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [isArticleEditorOpen, setIsArticleEditorOpen] = useState(false);
   const [viewingExamAttempts, setViewingExamAttempts] = useState<QuizExam | null>(null);
   const [showAttemptsPreview, setShowAttemptsPreview] = useState(false);
+  const [activityActorFilter, setActivityActorFilter] = useState<'all' | 'guest' | 'teacher' | 'admin'>('all');
+  const [activitySearch, setActivitySearch] = useState('');
+  const [activityPage, setActivityPage] = useState(1);
 
   useEffect(() => {
     storageService.getAttempts().then(setAttempts).catch((err) => console.error('Không tải được lượt thi:', err));
@@ -64,19 +75,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
     storageService.getArticles().then(setArticles).catch((err) => console.error('Không tải được bài viết:', err));
     if (isAdmin) {
       storageService.getContactMessages().then(setContactMessages).catch((err) => console.error('Không tải được tin nhắn liên hệ:', err));
+      storageService.getActivityLogs().then(setActivityLogs).catch((err) => console.error('Không tải được nhật ký hoạt động:', err));
     }
   }, [isAdmin]);
 
+  // Jump back to page 1 whenever the activity log's filters narrow/widen the
+  // result set — otherwise the user could land on a now-empty page.
+  useEffect(() => {
+    setActivityPage(1);
+  }, [activityActorFilter, activitySearch]);
+
   const handleDeleteExam = async (examId: string) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa đề thi này?')) {
+      const exam = exams.find((e) => e.id === examId);
       await storageService.deleteExam(examId);
+      storageService.logActivity('Xóa phòng thi', { detail: exam?.title || examId }).catch(() => {});
       setExams(await storageService.getAllExamsIncludingArchived());
     }
   };
 
   const handleDeleteExamDocument = async (docId: string) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa tài liệu đề thi này?')) {
+      const doc = examDocuments.find((d) => d.id === docId);
       await storageService.deleteExamDocument(docId);
+      storageService.logActivity('Xóa tài liệu đề thi', { detail: doc?.title || docId }).catch(() => {});
       setExamDocuments(await storageService.getExamDocuments());
     }
   };
@@ -94,7 +116,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
   const handleDeleteArticle = async (articleId: string) => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa bài viết này? Bình luận liên quan cũng sẽ bị xóa.')) return;
     try {
+      const article = articles.find((a) => a.id === articleId);
       await storageService.deleteArticle(articleId);
+      storageService.logActivity('Xóa bài viết', { detail: article?.title || articleId }).catch(() => {});
       setArticles(await storageService.getArticles());
     } catch (err) {
       console.error('Không xóa được bài viết:', err);
@@ -102,7 +126,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
     }
   };
 
-  const handleArticleSaved = async () => {
+  const handleArticleSaved = async (savedArticle: Article) => {
+    storageService
+      .logActivity(editingArticle ? 'Cập nhật bài viết' : 'Đăng bài viết mới', { detail: savedArticle.title })
+      .catch(() => {});
     setArticles(await storageService.getArticles());
   };
 
@@ -157,6 +184,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
     a.userName.toLowerCase().includes(searchCandidate.toLowerCase()) ||
     a.examTitle.toLowerCase().includes(searchCandidate.toLowerCase())
   );
+
+  // Nhật Ký Hoạt Động — filter by actor role and free-text search across
+  // who did it and what they did.
+  const activitySearchTerm = activitySearch.trim().toLowerCase();
+  const filteredActivityLogs = activityLogs.filter((log) => {
+    if (activityActorFilter !== 'all' && log.actorType !== activityActorFilter) return false;
+    if (!activitySearchTerm) return true;
+    return (
+      (log.actorName || '').toLowerCase().includes(activitySearchTerm) ||
+      (log.actorEmail || '').toLowerCase().includes(activitySearchTerm) ||
+      log.action.toLowerCase().includes(activitySearchTerm) ||
+      (log.detail || '').toLowerCase().includes(activitySearchTerm)
+    );
+  });
+  const activityTotalPages = Math.max(1, Math.ceil(filteredActivityLogs.length / ACTIVITY_LOGS_PER_PAGE));
+  const safeActivityPage = Math.min(activityPage, activityTotalPages);
+  const paginatedActivityLogs = filteredActivityLogs.slice(
+    (safeActivityPage - 1) * ACTIVITY_LOGS_PER_PAGE,
+    safeActivityPage * ACTIVITY_LOGS_PER_PAGE
+  );
+
+  const ACTOR_TYPE_LABELS: Record<ActivityLog['actorType'], string> = {
+    guest: 'Khách / Phụ huynh',
+    teacher: 'Giáo viên',
+    admin: 'Quản trị viên',
+  };
+  const ACTOR_TYPE_STYLES: Record<ActivityLog['actorType'], string> = {
+    guest: 'bg-slate-700/60 text-slate-200 border-slate-600',
+    teacher: 'bg-cyan-950/60 text-cyan-300 border-cyan-500/30',
+    admin: 'bg-amber-950/60 text-amber-300 border-amber-500/30',
+  };
 
   // Export CSV
   const handleExportCSV = () => {
@@ -315,6 +373,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
           >
             <Mail className="w-3.5 h-3.5" />
             <span>Tin Nhắn Liên Hệ ({contactMessages.length})</span>
+          </button>
+        )}
+
+        {isAdmin && (
+          <button
+            onClick={() => setActiveSubTab('activity')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+              activeSubTab === 'activity'
+                ? 'bg-slate-800 text-cyan-400 border border-slate-700 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <History className="w-3.5 h-3.5" />
+            <span>Nhật Ký Hoạt Động ({activityLogs.length})</span>
           </button>
         )}
       </div>
@@ -818,6 +890,153 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
             <Lock className="w-10 h-10 text-slate-600 mx-auto mb-3" />
             <h3 className="text-base font-bold text-slate-300 mb-1">Chỉ admin mới xem được tin nhắn liên hệ</h3>
             <p className="text-xs text-slate-500">Đăng nhập bằng tài khoản quản trị để xem các yêu cầu hỗ trợ.</p>
+          </div>
+        )
+      )}
+
+      {/* SUB-VIEW 6: Activity Log (admin only) — who did what and when, across
+          anonymous guests/parents and logged-in teachers/admins. */}
+      {activeSubTab === 'activity' && (
+        isAdmin ? (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={activitySearch}
+                  onChange={(e) => setActivitySearch(e.target.value)}
+                  placeholder="Tìm theo tên, hành động, chi tiết..."
+                  className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-xl pl-9 pr-4 py-2 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                {(['all', 'guest', 'teacher', 'admin'] as const).map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => setActivityActorFilter(filter)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors ${
+                      activityActorFilter === filter
+                        ? 'bg-slate-800 text-cyan-400 border-slate-700'
+                        : 'bg-transparent text-slate-400 border-slate-800 hover:text-slate-200'
+                    }`}
+                  >
+                    {filter === 'all' ? 'Tất cả' : ACTOR_TYPE_LABELS[filter]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <span className="text-xs text-slate-400 block">
+              Hiển thị {filteredActivityLogs.length} bản ghi hoạt động
+            </span>
+
+            <div className="glass-panel rounded-2xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="py-3.5 px-4">Thời gian</th>
+                      <th className="py-3.5 px-4">Vai trò</th>
+                      <th className="py-3.5 px-4">Người thực hiện</th>
+                      <th className="py-3.5 px-4">Hành động</th>
+                      <th className="py-3.5 px-4">Chi tiết</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/80">
+                    {paginatedActivityLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="text-center py-8 text-slate-500">
+                          Không tìm thấy hoạt động phù hợp.
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedActivityLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-slate-800/50 transition-colors">
+                          <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
+                            {new Date(log.createdAt).toLocaleString('vi-VN', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              day: 'numeric',
+                              month: 'numeric',
+                              year: 'numeric',
+                            })}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${ACTOR_TYPE_STYLES[log.actorType]}`}>
+                              {log.actorType === 'guest' ? (
+                                <UserCircle className="w-3 h-3" />
+                              ) : (
+                                <GraduationCap className="w-3 h-3" />
+                              )}
+                              {ACTOR_TYPE_LABELS[log.actorType]}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 font-medium text-slate-200 max-w-[200px] truncate">
+                            {log.actorName || 'Không rõ'}
+                            {log.actorEmail && <span className="block text-[10px] text-slate-500 font-normal">{log.actorEmail}</span>}
+                          </td>
+                          <td className="py-3 px-4 text-slate-200 whitespace-nowrap">{log.action}</td>
+                          <td className="py-3 px-4 text-slate-400 max-w-xs truncate">{log.detail || '—'}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {activityTotalPages > 1 && (
+              <div className="flex items-center justify-center gap-1.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
+                  disabled={safeActivityPage === 1}
+                  className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed text-slate-200 border border-slate-800 transition-colors"
+                  aria-label="Trang trước"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                {getPageNumbers(safeActivityPage, activityTotalPages).map((page, idx) =>
+                  page === '…' ? (
+                    <span key={`ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-slate-500 text-xs">
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setActivityPage(page)}
+                      className={`w-8 h-8 rounded-lg text-xs font-bold border transition-colors ${
+                        page === safeActivityPage
+                          ? 'bg-cyan-600 border-cyan-500 text-white'
+                          : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-200'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setActivityPage((p) => Math.min(activityTotalPages, p + 1))}
+                  disabled={safeActivityPage === activityTotalPages}
+                  className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed text-slate-200 border border-slate-800 transition-colors"
+                  aria-label="Trang sau"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-16 glass-panel rounded-3xl p-8">
+            <Lock className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-slate-300 mb-1">Chỉ admin mới xem được nhật ký hoạt động</h3>
+            <p className="text-xs text-slate-500">Đăng nhập bằng tài khoản quản trị để xem ai đã vào hệ thống và làm gì.</p>
           </div>
         )
       )}

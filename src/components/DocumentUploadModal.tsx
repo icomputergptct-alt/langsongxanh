@@ -55,6 +55,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
         uploadedAt: new Date().toISOString(),
       };
       await storageService.saveExamDocument(doc);
+      storageService.logActivity('Tải lên tài liệu', { detail: doc.title }).catch(() => {});
       onUploaded();
       onClose();
     } catch (err) {

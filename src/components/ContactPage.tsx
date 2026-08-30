@@ -25,6 +25,7 @@ export const ContactPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       await storageService.sendContactMessage(title, content, email);
+      storageService.logActivity('Gửi liên hệ', { guestName: email, detail: title }).catch(() => {});
       setIsSent(true);
       setTitle('');
       setContent('');

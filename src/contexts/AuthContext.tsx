@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
+import { storageService } from '../services/storageService';
 
 interface Profile {
   id: string;
@@ -67,13 +68,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       const sessionUser = session?.user ?? null;
       setUser(sessionUser);
       if (sessionUser) {
         fetchProfile(sessionUser.id, sessionUser.email || '').then((p) => {
           if (!cancelled) setProfile(p);
         });
+        // Only a real sign-in, not the session restore that fires on every
+        // page load (INITIAL_SESSION) or a background token refresh.
+        if (event === 'SIGNED_IN') {
+          storageService.logActivity('Đăng nhập').catch(() => {});
+        }
       } else {
         setProfile(null);
       }
@@ -113,6 +119,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    // Log while the session is still live — resolveActor would see no user
+    // (and misfile this as a guest action) if it ran after signOut clears it.
+    await storageService.logActivity('Đăng xuất').catch(() => {});
     await supabase.auth.signOut();
   };
 

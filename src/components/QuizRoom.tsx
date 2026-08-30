@@ -230,6 +230,9 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
       }
       const exam = pendingEntryExam;
       setPendingEntryExam(null);
+      storageService
+        .logActivity('Vào phòng thi', { guestName: studentName.trim(), detail: exam.title })
+        .catch(() => {});
       handleStartExam(exam);
     } finally {
       setIsCheckingEntry(false);
@@ -310,6 +313,12 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
     }
 
     storageService.recordAttempt(attempt).catch((err) => console.error('Không lưu được kết quả bài thi:', err));
+    storageService
+      .logActivity('Nộp bài thi', {
+        guestName: attempt.userName,
+        detail: `${selectedExam.title} — ${percentage}% (${passed ? 'Đạt' : 'Chưa đạt'})`,
+      })
+      .catch(() => {});
 
     // Trigger celebratory confetti if passed!
     if (passed) {

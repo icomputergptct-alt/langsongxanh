@@ -65,6 +65,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({ isOpen
     setDeletingId(exam.id);
     try {
       await storageService.deleteExam(exam.id);
+      storageService.logActivity('Xóa phòng thi', { detail: exam.title }).catch(() => {});
       setMyExams((prev) => prev.filter((e) => e.id !== exam.id));
     } catch (err) {
       console.error('Không xóa được đề thi:', err);

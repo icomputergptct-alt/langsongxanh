@@ -482,6 +482,12 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
 
     try {
       await storageService.saveExam(savedExam, !editingExam);
+      storageService
+        .logActivity(
+          editingExam ? 'Cập nhật phòng thi' : publish ? 'Tạo & phát hành phòng thi' : 'Lưu nháp phòng thi',
+          { detail: savedExam.title }
+        )
+        .catch(() => {});
       if (publish) {
         onExamCreated(savedExam);
       }

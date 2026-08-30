@@ -376,3 +376,39 @@ as $$
 $$;
 
 grant execute on function public.increment_site_visit() to anon, authenticated;
+
+-- ============================================================================
+-- Admin "Nhật Ký Hoạt Động" (activity log) — who did what and when, across
+-- guests/parents (no account — identified only by whatever name they typed,
+-- e.g. entering an exam room) and teachers/admins (resolved from their auth
+-- session, e.g. logging in, creating/deleting an exam or article).
+-- ============================================================================
+create table if not exists activity_logs (
+  id text primary key,
+  created_at timestamptz not null default now(),
+  actor_type text not null check (actor_type in ('guest', 'teacher', 'admin')),
+  actor_name text,
+  actor_email text,
+  actor_id uuid references auth.users(id) on delete set null,
+  action text not null,
+  detail text
+);
+create index if not exists activity_logs_created_at_idx on activity_logs(created_at desc);
+
+alter table activity_logs enable row level security;
+
+-- Anyone can write a log entry (guests have no account, so this has to stay
+-- open like exam_attempts/contact_messages), but a client can only claim to
+-- be a guest with no actor_id, or claim a teacher/admin identity that matches
+-- their own logged-in session — never spoof another account or fake identity.
+drop policy if exists "public write activity_logs" on activity_logs;
+create policy "public write activity_logs" on activity_logs for insert
+  with check (
+    (actor_type = 'guest' and actor_id is null)
+    or (actor_type in ('teacher', 'admin') and actor_id = auth.uid())
+  );
+
+-- Only admins can read the log back.
+drop policy if exists "admin read activity_logs" on activity_logs;
+create policy "admin read activity_logs" on activity_logs for select
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin));

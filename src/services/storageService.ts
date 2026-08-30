@@ -1,4 +1,4 @@
-﻿import { Article, Comment, ContactMessage, ExamAttempt, ExamDocument, OfflineArticle, QuizExam } from '../types';
+﻿import { ActivityLog, Article, Comment, ContactMessage, ExamAttempt, ExamDocument, OfflineArticle, QuizExam } from '../types';
 import { supabase } from './supabaseClient';
 import { generateExamPdfBlob } from './examPdf';
 
@@ -239,7 +239,79 @@ function rowToExamDocument(row: any): ExamDocument {
   };
 }
 
+function rowToActivityLog(row: any): ActivityLog {
+  return {
+    id: row.id,
+    createdAt: row.created_at,
+    actorType: row.actor_type,
+    actorName: row.actor_name,
+    actorEmail: row.actor_email,
+    actorId: row.actor_id,
+    action: row.action,
+    detail: row.detail,
+  };
+}
+
+// Identifies who is currently performing an action, for the activity log.
+// No session at all means an anonymous guest/parent (no account exists for
+// them); a session resolves to teacher or admin via their profile's is_admin
+// flag, exactly like the rest of the app's RLS policies do.
+async function resolveActor(): Promise<{
+  actorType: 'guest' | 'teacher' | 'admin';
+  actorId: string | null;
+  actorEmail: string | null;
+  actorName: string | null;
+}> {
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  if (!user) return { actorType: 'guest', actorId: null, actorEmail: null, actorName: null };
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin, full_name')
+    .eq('id', user.id)
+    .maybeSingle();
+  return {
+    actorType: profile?.is_admin ? 'admin' : 'teacher',
+    actorId: user.id,
+    actorEmail: user.email || null,
+    actorName: profile?.full_name || user.email || null,
+  };
+}
+
 export const storageService = {
+  // --- Activity Log ("Nhật Ký Hoạt Động" admin tab) ---
+  // Fire-and-forget from call sites (never throws) — a logging failure should
+  // never block the actual action (submitting an exam, saving an article...).
+  async logActivity(action: string, opts?: { detail?: string; guestName?: string }): Promise<void> {
+    try {
+      const actor = await resolveActor();
+      const actorName = actor.actorType === 'guest' ? (opts?.guestName?.trim() || 'Khách ẩn danh') : actor.actorName;
+      const row = {
+        id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        actor_type: actor.actorType,
+        actor_name: actorName,
+        actor_email: actor.actorEmail,
+        actor_id: actor.actorId,
+        action,
+        detail: opts?.detail || null,
+      };
+      const { error } = await supabase.from('activity_logs').insert(row);
+      if (error) throw error;
+    } catch (err) {
+      console.error('Không ghi được nhật ký hoạt động:', err);
+    }
+  },
+
+  async getActivityLogs(): Promise<ActivityLog[]> {
+    const { data, error } = await supabase
+      .from('activity_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1000);
+    if (error) throw error;
+    return (data || []).map(rowToActivityLog);
+  },
+
   // --- Articles ---
   async getArticles(): Promise<Article[]> {
     const { data, error } = await supabase

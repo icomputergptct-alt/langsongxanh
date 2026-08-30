@@ -108,6 +108,7 @@ const UploadExamFileModal: React.FC<UploadModalProps> = ({ defaultGrade, onClose
         views: 0,
         uploadedAt: new Date().toISOString(),
       });
+      storageService.logActivity('Tải lên tài liệu', { detail: title.trim() }).catch(() => {});
       onUploaded();
       onClose();
     } catch (err: any) {

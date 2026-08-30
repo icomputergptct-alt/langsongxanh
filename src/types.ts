@@ -131,6 +131,21 @@ export interface ContactMessage {
   createdAt: string;
 }
 
+// One row in the admin "Nhật Ký Hoạt Động" audit trail — who did what and
+// when. Guests/parents have no account (actorId/actorEmail null, identified
+// only by whatever name they typed); teachers/admins are resolved from their
+// Supabase auth session at the time the action happened.
+export interface ActivityLog {
+  id: string;
+  createdAt: string;
+  actorType: 'guest' | 'teacher' | 'admin';
+  actorName: string | null;
+  actorEmail: string | null;
+  actorId: string | null;
+  action: string;
+  detail: string | null;
+}
+
 export interface UserExamAnswer {
   questionId: string;
   selectedOptionId: string;
