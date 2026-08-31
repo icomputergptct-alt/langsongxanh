@@ -59,6 +59,9 @@ export interface OfflineArticle {
 export interface QuizOption {
   id: string; // 'A', 'B', 'C', 'D'
   text: string;
+  // A screenshot/photo of a formula that's easier to paste as an image than to
+  // retype (e.g. a fraction) — shown instead of/alongside `text` when set.
+  image?: string;
 }
 
 export interface QuizQuestion {

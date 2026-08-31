@@ -859,9 +859,20 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                         {opt.id}
                       </div>
 
-                      <span className="text-sm sm:text-base leading-relaxed flex-1">
-                        {opt.text}
-                      </span>
+                      <div className="flex-1 flex items-center gap-3">
+                        {opt.text && (
+                          <span className="text-sm sm:text-base leading-relaxed">
+                            {opt.text}
+                          </span>
+                        )}
+                        {opt.image && (
+                          <img
+                            src={opt.image}
+                            alt={`Hình minh họa đáp án ${opt.id}`}
+                            className="max-h-16 rounded-lg border border-slate-200"
+                          />
+                        )}
+                      </div>
                     </div>
                   );
                 })}

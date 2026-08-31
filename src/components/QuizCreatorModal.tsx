@@ -14,6 +14,7 @@ import {
   Download, 
   FileCode,
   AlertCircle,
+  AlertTriangle,
   X,
   Layers,
   FileCheck,
@@ -67,6 +68,77 @@ C. Tăng tốc độ truy vấn cơ sở dữ liệu NoSQL
 D. Quản lý bộ nhớ RAM ảo
 Đáp án: B
 Giải thích: ML-KEM là chuẩn mật mã hậu lượng tử thay thế ECDH theo tiêu chuẩn FIPS 203 của NIST.`;
+
+// mammoth.extractRawText() silently drops Word's *auto-numbered* list numbering
+// (e.g. a question list where "1.", "2.", "3." are rendered by the list style, not
+// typed as literal text) — it only extracts the paragraph text, not the number the
+// browser/Word would render. A question doc using that style then has no "Câu N."
+// marker anywhere in the extracted text at all, so the server-side line parser
+// (which looks for exactly that marker to know where one question ends and the next
+// begins) merges everything after the first question into it and silently drops the
+// rest — the editor ends up with far fewer questions than the file actually has.
+//
+// convertToHtml (unlike extractRawText) keeps each auto-numbered item as a real
+// <li>, so we can restore an explicit "Câu N." ourselves from list position instead.
+// Block elements are flattened to one line each (matching extractRawText's shape, so
+// the existing table/answer-key line-based detectors keep working); a <li> whose own
+// text already starts with a single letter marker (e.g. "A. ...") is left alone since
+// that's almost certainly an auto-lettered *option* list, not a question list.
+const BLOCK_TAGS = new Set(['P', 'LI', 'TR', 'TD', 'TH', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
+
+// A real inserted picture (as opposed to an OLE/Equation Editor object — see the
+// warning above) extracts fine as a normal displayable data: URI. Rather than drop
+// it like the equation images, emit a placeholder token holding its index into a
+// side `images` array — the server-side parser (api/_app.ts) looks for this exact
+// token to attach the picture as a question's questionImage or an option's image
+// instead of leaving that spot blank. IMG_TOKEN_RE must stay in sync with the same
+// pattern there.
+const IMG_TOKEN_RE = /〔IMG:(\d+)〕/;
+
+function htmlToNumberedText(root: Element): { text: string; images: string[] } {
+  let out = '';
+  let questionCounter = 0;
+  const images: string[] = [];
+
+  const walk = (node: ChildNode) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      out += node.textContent || '';
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const el = node as Element;
+    const tag = el.tagName;
+    if (tag === 'IMG') {
+      const src = el.getAttribute('src') || '';
+      // Only formats a browser can actually display — excludes the WMF/EMF images
+      // mammoth also emits for old "Equation Editor" objects (see the warning
+      // above); those have no usable content, capturing them would just paste a
+      // broken image icon into the exam instead of leaving an honest blank.
+      if (/^data:image\/(png|jpe?g|gif|webp|bmp);/i.test(src)) {
+        out += `〔IMG:${images.length}〕`;
+        images.push(src);
+      }
+      return;
+    }
+    if (tag === 'BR') {
+      out += '\n';
+      return;
+    }
+
+    if (tag === 'LI' && el.parentElement?.tagName === 'OL' && !/^[A-Da-d][.):\-]/.test((el.textContent || '').trim())) {
+      questionCounter += 1;
+      out += `Câu ${questionCounter}. `;
+    }
+
+    el.childNodes.forEach(walk);
+
+    if (BLOCK_TAGS.has(tag)) out += '\n\n';
+  };
+
+  root.childNodes.forEach(walk);
+  return { text: out, images };
+}
 
 // AI/parser output occasionally repeats an option (e.g. an explanation line like
 // "Đáp án: C. Lười biếng" gets re-detected as another "C" option). Keep only the
@@ -134,9 +206,11 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   // File upload state
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [rawFileText, setRawFileText] = useState('');
+  const [rawFileImages, setRawFileImages] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [parseMessage, setParseMessage] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [contentWarning, setContentWarning] = useState<string | null>(null);
   const [processProgress, setProcessProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -175,6 +249,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
 
   const loadFileAsText = async (file: File) => {
     setFileError(null);
+    setContentWarning(null);
 
     // The native file picker's "All Files" option (and drag-and-drop) can bypass
     // the input's accept filter, so enforce the .doc/.docx restriction here too.
@@ -186,22 +261,29 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
 
     setUploadedFile(file);
 
-    // .docx is a zipped XML format — extract its real text with mammoth
-    // instead of reading the raw bytes as "text".
+    // .docx is a zipped XML format — extract its real text with mammoth instead of
+    // reading the raw bytes as "text". Converted to HTML rather than plain text so
+    // auto-numbered question lists keep a recoverable "Câu N." marker — see
+    // htmlToNumberedText above.
     if (file.name.toLowerCase().endsWith('.docx')) {
       try {
         const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer });
-        setRawFileText(result.value || '');
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        const parsedHtml = new DOMParser().parseFromString(result.value || '', 'text/html');
+        const { text, images } = htmlToNumberedText(parsedHtml.body);
+        setRawFileText(text);
+        setRawFileImages(images);
       } catch (err) {
         console.error('Failed to extract .docx text:', err);
         setFileError(`Không thể đọc nội dung tệp "${file.name}". Vui lòng copy nội dung câu hỏi rồi dán trực tiếp vào ô bên dưới.`);
         setUploadedFile(null);
         setRawFileText('');
+        setRawFileImages([]);
       }
       return;
     }
 
+    setRawFileImages([]);
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = (event.target?.result as string) || '';
@@ -236,6 +318,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   // Load sample template text
   const handleLoadSampleText = () => {
     setRawFileText(SAMPLE_QUIZ_TEXT);
+    setRawFileImages([]);
     setUploadedFile(new File([SAMPLE_QUIZ_TEXT], 'de_thi_mau_cong_nghe.txt', { type: 'text/plain' }));
   };
 
@@ -267,6 +350,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
 
     setIsProcessing(true);
     setParseMessage('Đang phân tích cấu trúc câu hỏi và đáp án...');
+    setContentWarning(null);
     const progressInterval = startFakeProgress();
 
     try {
@@ -294,6 +378,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
         body: JSON.stringify({
           rawText: rawFileText,
           fileName: uploadedFile?.name || 'quiz_file.txt',
+          images: rawFileImages,
         }),
       });
 
@@ -305,6 +390,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
         if (result.data.durationMinutes) setDurationMinutes(result.data.durationMinutes);
         setQuestions(normalizeQuestions(result.data.questions));
         setParseMessage(`Trích xuất thành công ${result.data.questions.length} câu hỏi (${result.source === 'gemini' ? 'Gemini AI thông minh' : 'Bộ phân tích cấu trúc'})!`);
+        setContentWarning(result.data.warning || null);
       } else {
         throw new Error('Dữ liệu trả về không đúng cấu trúc đề thi');
       }
@@ -435,6 +521,55 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
 
   const handleRemoveQuestionImage = (qIndex: number) => {
     handleUpdateQuestion(qIndex, 'questionImage', undefined);
+  };
+
+  // Option image — same idea as the question image above, but per A/B/C/D choice
+  // (e.g. a fraction that's easier to screenshot than to retype for each option).
+  const handleUpdateOptionImage = (qIdx: number, optId: string, image: string | undefined) => {
+    const updated = [...questions];
+    updated[qIdx].options = updated[qIdx].options.map((opt) =>
+      opt.id === optId ? { ...opt, image } : opt
+    );
+    setQuestions(updated);
+  };
+
+  const applyOptionImageFile = (qIdx: number, optId: string, file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    if (file.size > MAX_QUESTION_IMAGE_BYTES) {
+      alert('Ảnh quá lớn (tối đa 4MB). Vui lòng chọn ảnh nhỏ hơn hoặc chụp lại với độ phân giải thấp hơn.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      handleUpdateOptionImage(qIdx, optId, (event.target?.result as string) || '');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleOptionImageFileChange = (qIdx: number, optId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) applyOptionImageFile(qIdx, optId, file);
+    e.target.value = '';
+  };
+
+  const handleOptionTextPaste = (qIdx: number, optId: string, e: React.ClipboardEvent<HTMLInputElement>) => {
+    const items = e.clipboardData.items;
+    let imageItem: DataTransferItem | null = null;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        imageItem = items[i];
+        break;
+      }
+    }
+    if (!imageItem) return;
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    applyOptionImageFile(qIdx, optId, file);
+  };
+
+  const handleRemoveOptionImage = (qIdx: number, optId: string) => {
+    handleUpdateOptionImage(qIdx, optId, undefined);
   };
 
   // Final submit & save exam. publish=false saves as a draft (not shown in the
@@ -680,6 +815,13 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                     <FileCheck className="w-4 h-4 text-cyan-400 shrink-0" />
                   )}
                   <span>{parseMessage}</span>
+                </div>
+              )}
+
+              {!isProcessing && contentWarning && (
+                <div className="bg-amber-950/50 border border-amber-500/30 text-amber-200 text-xs p-3 rounded-xl flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <span>{contentWarning}</span>
                 </div>
               )}
 
@@ -982,32 +1124,65 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                       return (
                         <div
                           key={opt.id}
-                          className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${
+                          className={`flex flex-col gap-1.5 p-2 rounded-lg border transition-colors ${
                             isCorrect
                               ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
                               : 'bg-slate-900 border-slate-800 text-slate-300'
                           }`}
                         >
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateQuestion(qIndex, 'correctOptionId', opt.id)}
-                            title={isCorrect ? 'Đáp án đúng' : 'Nhấp để chọn làm đáp án đúng'}
-                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all shrink-0 ${
-                              isCorrect
-                                ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                            }`}
-                          >
-                            {opt.id}
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateQuestion(qIndex, 'correctOptionId', opt.id)}
+                              title={isCorrect ? 'Đáp án đúng' : 'Nhấp để chọn làm đáp án đúng'}
+                              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all shrink-0 ${
+                                isCorrect
+                                  ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                              }`}
+                            >
+                              {opt.id}
+                            </button>
 
-                          <input
-                            type="text"
-                            value={opt.text}
-                            onChange={(e) => handleUpdateOption(qIndex, opt.id, e.target.value)}
-                            placeholder={`Lựa chọn ${opt.id}...`}
-                            className="w-full bg-transparent text-xs text-slate-200 focus:outline-none"
-                          />
+                            <input
+                              type="text"
+                              value={opt.text}
+                              onChange={(e) => handleUpdateOption(qIndex, opt.id, e.target.value)}
+                              onPaste={(e) => handleOptionTextPaste(qIndex, opt.id, e)}
+                              placeholder={`Lựa chọn ${opt.id}... (có thể dán ảnh chụp công thức)`}
+                              className="w-full bg-transparent text-xs text-slate-200 focus:outline-none"
+                            />
+                          </div>
+
+                          {/* Option image attachment — e.g. a screenshotted fraction/formula */}
+                          {opt.image ? (
+                            <div className="relative ml-8 inline-block">
+                              <img
+                                src={opt.image}
+                                alt={`Ảnh minh họa đáp án ${opt.id}`}
+                                className="max-h-20 rounded-lg border border-slate-800"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveOptionImage(qIndex, opt.id)}
+                                title="Xóa ảnh"
+                                className="absolute -top-2 -right-2 p-1 bg-rose-600 hover:bg-rose-500 text-white rounded-full shadow-md transition-colors"
+                              >
+                                <ImageOff className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="ml-8 inline-flex items-center gap-1.5 self-start text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 bg-slate-950/60 hover:bg-slate-800 border border-slate-800 px-2 py-1 rounded-lg cursor-pointer transition-colors">
+                              <ImagePlus className="w-3.5 h-3.5" />
+                              <span>Thêm ảnh</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => handleOptionImageFileChange(qIndex, opt.id, e)}
+                              />
+                            </label>
+                          )}
                         </div>
                       );
                     })}

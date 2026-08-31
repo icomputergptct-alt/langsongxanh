@@ -53,14 +53,15 @@ export function createApiApp() {
   // AI Quiz Parser from file content or raw text
   app.post("/api/ai/parse-quiz-file", async (req, res) => {
     try {
-      const { rawText, fileName } = req.body;
+      const { rawText, fileName, images } = req.body;
 
       if (!rawText || typeof rawText !== "string") {
         return res.status(400).json({ error: "Nội dung tệp rỗng hoặc không hợp lệ" });
       }
+      const imageList: string[] = Array.isArray(images) ? images.filter((i) => typeof i === "string") : [];
 
       // Prefer local rule-based parsing first — instant, free, no external API call.
-      const localQuiz = parseRawQuizLocally(rawText, fileName);
+      const localQuiz = parseRawQuizLocally(rawText, fileName, imageList);
       const isLowConfidence =
         localQuiz.questions.length === 0 ||
         (localQuiz.questions.length === 1 &&
@@ -80,7 +81,7 @@ Hãy phân tích nội dung câu hỏi và đáp án từ tệp văn bản sau (
 
 Nội dung thô:
 \`\`\`
-${rawText.slice(0, 15000)}
+${rawText.replace(/〔IMG:\d+〕/g, "[hình ảnh]").slice(0, 15000)}
 \`\`\`
 
 Yêu cầu trả về đúng định dạng JSON như sau (không kèm markdown thừa):
@@ -119,6 +120,7 @@ Yêu cầu trả về đúng định dạng JSON như sau (không kèm markdown 
 
           const text = response.text || "{}";
           const parsed = JSON.parse(text);
+          parsed.warning = detectMissingContentWarning(parsed.questions || []);
           return res.json({ success: true, data: parsed, source: "gemini" });
         } catch (geminiErr: any) {
           console.warn("Gemini fallback also failed, returning local best-effort result:", geminiErr?.message);
@@ -773,8 +775,30 @@ function extractBareAnswerTable(text: string): { body: string; answerMap: Record
   return { body: text, answerMap: {} };
 }
 
+// Marks where a real (non-equation) inserted picture used to be — see IMG_TOKEN_RE
+// in QuizCreatorModal.tsx, which is what actually emits these tokens; this file only
+// ever reads them back out. Kept in sync by hand since the two live in different
+// runtimes (this file never ships to the browser, so it can't just import the client
+// module's copy of the pattern).
+const IMG_TOKEN_RE = /〔IMG:(\d+)〕/;
+const IMG_TOKEN_RE_G = /〔IMG:(\d+)〕/g;
+
+// Pulls the first image token out of a question/option's text (if any) and resolves
+// it against the images array the client sent alongside rawText. Only the first
+// token becomes the attached image — the data model has room for one per question/
+// option — but every token is still stripped from the text either way so a second,
+// unusable one doesn't show up as raw 〔IMG:N〕 junk in the imported exam.
+function extractFirstImageToken(str: string, images: string[]): { text: string; image?: string } {
+  const s = str || "";
+  const m = IMG_TOKEN_RE.exec(s);
+  const text = s.replace(IMG_TOKEN_RE_G, " ").replace(/\s+/g, " ").trim();
+  if (!m) return { text };
+  const image = images[parseInt(m[1], 10)];
+  return { text, image };
+}
+
 // Local smart parser for quiz raw text (when user uploads a file format like Question 1:... A. B. C. D. Answer: A)
-function parseRawQuizLocally(text: string, fileName?: string) {
+function parseRawQuizLocally(text: string, fileName?: string, images: string[] = []) {
   // Try the strict bare-table shape first, on the untouched text: a "Đáp án" row-label
   // cell in that table layout would otherwise get matched by extractAnswerKeySection's
   // header regex below, which cuts the text at that point and, since the answer row's
@@ -796,9 +820,15 @@ function parseRawQuizLocally(text: string, fileName?: string) {
   // The lookbehind below excludes any position right after a letter/digit so a
   // marker-shaped substring glued to the end of a normal word (e.g. the "c." in
   // "khác." or "được.") is never mistaken for a real "C." option marker.
+  // The option marker's punctuation is `+` (one or more) rather than exactly one —
+  // a source doc can have a typo like "B.." (real example: a math exam where an
+  // Equation Editor image left a stray extra period behind it) and a single-char
+  // class would fail to split there at all, silently merging that option's text
+  // into the previous one and losing it (and, if it happened to be the answer key's
+  // pick for that question, silently misgrading every attempt at that question too).
   const normalized = body
     .replace(/(?<!^)(?<!\n)(?<![\p{L}\p{N}])\s*(?=(?:câu|question|q)\s*\d+\s*[\.:\)\-])/giu, "\n")
-    .replace(/(?<!^)(?<!\n)(?<![\p{L}\p{N}])\s*(?=[A-Da-d][\.:\)\-]\s)/gu, "\n")
+    .replace(/(?<!^)(?<!\n)(?<![\p{L}\p{N}])\s*(?=[A-Da-d][\.:\)\-]+\s)/gu, "\n")
     .replace(/(?<!^)(?<!\n)(?<![\p{L}\p{N}])\s*(?=(?:đáp án|câu trả lời đúng|answer|correct answer|key)[\s:])/giu, "\n")
     .replace(/(?<!^)(?<!\n)(?<![\p{L}\p{N}])\s*(?=(?:giải thích|lý do|explanation)[\s:])/giu, "\n");
 
@@ -812,7 +842,7 @@ function parseRawQuizLocally(text: string, fileName?: string) {
 
     // Check if line starts a question (e.g. "1.", "Câu 1:", "Question 1:", "Q1:")
     const qMatch = line.match(/^(?:câu|question|q)?\s*(\d+)[\.:\)\-]\s*(.*)/i);
-    const isExplicitOption = /^[A-Da-d][\.:\)\-]\s*(.*)/.test(line);
+    const isExplicitOption = /^[A-Da-d][\.:\)\-]+\s*(.*)/.test(line);
     const isAnswerLine = /^(?:đáp án|câu trả lời đúng|answer|correct answer|key)[\s:]+\s*([A-Da-d])/i.test(line);
 
     if (qMatch && !isExplicitOption) {
@@ -845,7 +875,7 @@ function parseRawQuizLocally(text: string, fileName?: string) {
     }
 
     // Check option A, B, C, D
-    const optMatch = line.match(/^([A-Da-d])[\.:\)\-]\s*(.*)/);
+    const optMatch = line.match(/^([A-Da-d])[\.:\)\-]+\s*(.*)/);
     // Skip if this letter was already captured for the current question — a later
     // line like "Đáp án đúng là: C. ..." can otherwise get mistaken for a 2nd option C.
     if (optMatch && !currentQ.options.some((o: any) => o.id === optMatch[1].toUpperCase())) {
@@ -900,6 +930,20 @@ function parseRawQuizLocally(text: string, fileName?: string) {
     }
   }
 
+  // Resolve any 〔IMG:N〕 tokens left in question/option text (see htmlToNumberedText
+  // in QuizCreatorModal.tsx) into questionImage / option.image, now that every
+  // question/option's final text is settled.
+  for (const q of questions) {
+    const qImg = extractFirstImageToken(q.question, images);
+    q.question = qImg.text;
+    if (qImg.image) q.questionImage = qImg.image;
+    for (const opt of q.options) {
+      const optImg = extractFirstImageToken(opt.text, images);
+      opt.text = optImg.text;
+      if (optImg.image) opt.image = optImg.image;
+    }
+  }
+
   // If failed to parse structured questions, create sample questions from text
   if (questions.length === 0) {
     questions.push({
@@ -924,5 +968,41 @@ function parseRawQuizLocally(text: string, fileName?: string) {
     durationMinutes: Math.max(10, questions.length * 2),
     passScorePercent: 70,
     questions,
+    warning: detectMissingContentWarning(questions),
   };
+}
+
+// A source .docx that embeds fractions/formulas as old-style "Microsoft Equation 3.0"
+// objects (OLE objects rendered as WMF images, rather than real OMML/text) has no
+// textual content at all for those spots — no text extractor (this one included) can
+// recover "2/3" from what is, underneath, just a picture. That leaves gaps exactly
+// where a question/option's text should be, e.g. "A. .	B. .	C. .	D. .". Rather than
+// silently importing an exam full of blank options, flag it so the teacher notices and
+// fills the gaps in manually instead of publishing a broken room by accident.
+function detectMissingContentWarning(questions: any[]): string | null {
+  const isEmptyish = (s: string) => /^[\s.,:;\-–—]*$/.test(s || "");
+
+  let total = 0;
+  let empty = 0;
+  for (const q of questions) {
+    total++;
+    // A pasted screenshot (as opposed to an Equation Editor object) resolves to a
+    // real questionImage/option.image — that's the content, an empty text field
+    // alongside it isn't a sign anything went missing.
+    if (isEmptyish(q.question) && !q.questionImage) empty++;
+    for (const opt of q.options || []) {
+      total++;
+      if (isEmptyish(opt.text) && !opt.image) empty++;
+    }
+  }
+
+  if (total === 0 || empty === 0) return null;
+  if (empty / total < 0.15) return null;
+
+  return (
+    `Phát hiện ${empty} câu hỏi/đáp án bị thiếu nội dung sau khi trích xuất. ` +
+    `Nguyên nhân thường gặp: đề gốc chứa công thức toán/phân số được chèn dưới dạng ảnh ` +
+    `(Equation Editor cũ) mà hệ thống không đọc được thành chữ. Vui lòng rà soát và bổ sung ` +
+    `thủ công các câu/đáp án còn trống trước khi lưu đề.`
+  );
 }
