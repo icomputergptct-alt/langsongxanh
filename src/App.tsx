@@ -803,7 +803,11 @@ export default function App() {
             initialExamId={pendingExamId || undefined}
             onInitialExamConsumed={() => setPendingExamId(null)}
             onAttemptRecorded={() => {
-              // triggers state update
+              // Bumps QuizRoom's exams list refresh so the room's "HS đã thi"
+              // count reflects the attempt just submitted (server-side
+              // participantsCount/averageScore are already updated by the
+              // submit_exam_attempt RPC — the client just needs to refetch).
+              setExamsRefreshKey((k) => k + 1);
             }}
           />
         )}
