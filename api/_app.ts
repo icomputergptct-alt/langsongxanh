@@ -647,8 +647,11 @@ function extractAnswerKeySection(text: string): { body: string; answerMap: Recor
 
   const answerMap: Record<number, string> = {};
 
-  // Strategy 1: adjacent "N. X" / "N-X" / "N: X" pairs, e.g. "1. A  2. B  3. D".
-  const pairRegex = /(?:câu\s*)?(\d{1,3})[ \t]*[.):\-]?[ \t]*([A-Da-d])\b/gi;
+  // Strategy 1: adjacent "N. X" / "N-X" / "N: X" pairs, e.g. "1. A  2. B  3. D". The
+  // letter isn't restricted to A-D so a stray out-of-range option (e.g. a 5th "E."
+  // choice) doesn't stop this from picking up every other question's real answer —
+  // the caller already ignores any letter that isn't one of that question's option ids.
+  const pairRegex = /(?:câu\s*)?(\d{1,3})[ \t]*[.):\-]?[ \t]*([A-Za-z])\b/gi;
   let pair: RegExpExecArray | null;
   while ((pair = pairRegex.exec(keySection)) !== null) {
     const num = parseInt(pair[1], 10);
@@ -683,9 +686,15 @@ function extractAnswerKeySection(text: string): { body: string; answerMap: Recor
 // questions, e.g. "Câu 1 | Câu 2 | ... | Câu 10" over "B | D | ... | C". Mammoth's
 // extractRawText renders each table cell as its own paragraph/line, so this shows up
 // as a run of lines that are ONLY "Câu <n>" (n increasing from 1) immediately followed
-// by an equal-length run of lines that are ONLY a single A-D letter. Requiring each
-// line to contain nothing but the cell's content is what keeps this from ever matching
-// a real question/option line, which always has more text after its marker.
+// by an equal-length run of lines that are ONLY a single letter. Requiring each line to
+// contain nothing but the cell's content is what keeps this from ever matching a real
+// question/option line, which always has more text after its marker.
+//
+// The letter itself is matched as any single A-Z letter, not just A-D: a source exam
+// can have a stray 5th option (e.g. "E. Cả A, C, D đều đúng") that the app's 4-option
+// model doesn't support, and if the whole run had to be A-D this one out-of-range
+// answer would abort matching for ALL 10 questions instead of just that one — the
+// caller already ignores any letter that isn't one of the question's real option ids.
 //
 // A common variant instead puts the row's own label in its own leading cell — "Câu"
 // then bare "1", "2", ...; "Đáp án" then bare "A", "E", ... — so a label cell for the
@@ -695,7 +704,7 @@ function extractAnswerKeySection(text: string): { body: string; answerMap: Recor
 function extractBareAnswerTable(text: string): { body: string; answerMap: Record<number, string> } {
   const rawLines = text.split(/\r?\n/);
   const numberLineRe = /^(?:câu\s*)?(\d{1,3})$/i;
-  const letterLineRe = /^([A-Da-d])$/;
+  const letterLineRe = /^([A-Za-z])$/;
   const MAX_LABEL_GAP_LINES = 3;
 
   for (let i = 0; i < rawLines.length; i++) {
@@ -855,7 +864,7 @@ function parseRawQuizLocally(text: string, fileName?: string) {
     }
 
     // Check Answer line
-    const ansMatch = line.match(/^(?:đáp án|câu trả lời đúng|answer|correct answer|key)[\s:]+\s*([A-Da-d])/i);
+    const ansMatch = line.match(/^(?:đáp án|câu trả lời đúng|answer|correct answer|key)[\s:]+\s*([A-Za-z])/i);
     if (ansMatch) {
       currentQ.correctOptionId = ansMatch[1].toUpperCase();
       continue;
