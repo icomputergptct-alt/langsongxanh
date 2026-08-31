@@ -678,18 +678,25 @@ function extractAnswerKeySection(text: string): { body: string; answerMap: Recor
   return { body, answerMap };
 }
 
-// Strategy 3: bare answer table with no "Đáp án" header at all — some documents
-// (see public/huongdantaodethi.docx) place a 2-row table right after the questions,
-// e.g. "Câu 1 | Câu 2 | ... | Câu 10" over "B | D | ... | C", with no label. Mammoth's
+// Strategy 3: bare answer table with no per-question "Đáp án" line at all — some
+// documents (see public/huongdantaodethi.docx) place a 2-row table right after the
+// questions, e.g. "Câu 1 | Câu 2 | ... | Câu 10" over "B | D | ... | C". Mammoth's
 // extractRawText renders each table cell as its own paragraph/line, so this shows up
 // as a run of lines that are ONLY "Câu <n>" (n increasing from 1) immediately followed
 // by an equal-length run of lines that are ONLY a single A-D letter. Requiring each
 // line to contain nothing but the cell's content is what keeps this from ever matching
 // a real question/option line, which always has more text after its marker.
+//
+// A common variant instead puts the row's own label in its own leading cell — "Câu"
+// then bare "1", "2", ...; "Đáp án" then bare "A", "E", ... — so a label cell for the
+// answer row sits directly between the number run and the letter run, breaking strict
+// adjacency. Tolerate a small run of such non-number/non-letter lines there (also
+// covers a label like "Đáp án" that mammoth happens to split across two lines).
 function extractBareAnswerTable(text: string): { body: string; answerMap: Record<number, string> } {
   const rawLines = text.split(/\r?\n/);
   const numberLineRe = /^(?:câu\s*)?(\d{1,3})$/i;
   const letterLineRe = /^([A-Da-d])$/;
+  const MAX_LABEL_GAP_LINES = 3;
 
   for (let i = 0; i < rawLines.length; i++) {
     if (rawLines[i].trim() === "") continue;
@@ -714,6 +721,22 @@ function extractBareAnswerTable(text: string): { body: string; answerMap: Record
     const count = numberLineIdx.length;
     if (count < 2) continue;
 
+    // Skip a short run of stray lines (blank, or a row-label like "Đáp án") between
+    // the number run and its letters, without wandering off into unrelated content.
+    const labelLineIdx: number[] = [];
+    let labelSkips = 0;
+    while (j < rawLines.length && labelSkips < MAX_LABEL_GAP_LINES) {
+      const trimmed = rawLines[j].trim();
+      if (trimmed === "") {
+        j++;
+        continue;
+      }
+      if (numberLineRe.test(trimmed) || letterLineRe.test(trimmed)) break;
+      labelLineIdx.push(j);
+      j++;
+      labelSkips++;
+    }
+
     const letterLineIdx: number[] = [];
     while (j < rawLines.length && letterLineIdx.length < count) {
       const trimmed = rawLines[j].trim();
@@ -733,7 +756,7 @@ function extractBareAnswerTable(text: string): { body: string; answerMap: Record
       answerMap[k + 1] = rawLines[letterLineIdx[k]].trim().toUpperCase();
     }
 
-    const removeIdx = new Set([...numberLineIdx, ...letterLineIdx]);
+    const removeIdx = new Set([...numberLineIdx, ...labelLineIdx, ...letterLineIdx]);
     const body = rawLines.filter((_, idx) => !removeIdx.has(idx)).join("\n");
     return { body, answerMap };
   }
@@ -743,11 +766,18 @@ function extractBareAnswerTable(text: string): { body: string; answerMap: Record
 
 // Local smart parser for quiz raw text (when user uploads a file format like Question 1:... A. B. C. D. Answer: A)
 function parseRawQuizLocally(text: string, fileName?: string) {
-  let { body, answerMap } = extractAnswerKeySection(text);
+  // Try the strict bare-table shape first, on the untouched text: a "Đáp án" row-label
+  // cell in that table layout would otherwise get matched by extractAnswerKeySection's
+  // header regex below, which cuts the text at that point and, since the answer row's
+  // numbers sit in the *header* row rather than next to its own letters, ends up
+  // discarding the letters into a keySection that has no numbers left to pair them
+  // with — losing the whole answer key. Running the table-shape parser first avoids
+  // that split ever happening for this layout.
+  let { body, answerMap } = extractBareAnswerTable(text);
   if (Object.keys(answerMap).length === 0) {
-    const bare = extractBareAnswerTable(body);
-    body = bare.body;
-    answerMap = bare.answerMap;
+    const keyed = extractAnswerKeySection(text);
+    body = keyed.body;
+    answerMap = keyed.answerMap;
   }
 
   // Some sources (e.g. text extracted from .docx via soft line-breaks, or copy-pasted
