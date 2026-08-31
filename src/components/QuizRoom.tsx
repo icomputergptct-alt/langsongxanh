@@ -2,9 +2,8 @@
 import { 
   GraduationCap, 
   Clock, 
-  Award, 
-  CheckCircle2, 
-  XCircle, 
+  Award,
+  XCircle,
   Flag, 
   ChevronLeft, 
   ChevronRight, 
@@ -120,7 +119,8 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
   const [startTime, setStartTime] = useState<string>('');
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [lastAttempt, setLastAttempt] = useState<ExamAttempt | null>(null);
-  const [reviewFilter, setReviewFilter] = useState<'all' | 'wrong' | 'flagged'>('all');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Entry gate — shown for every exam so the student can see the room's
   // school/grade/class and enter their name before starting; the password
@@ -260,78 +260,100 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
     });
   };
 
-  // Submit and grade exam
+  // Submit and grade exam. Grading itself now happens server-side (see
+  // submit_exam_attempt in supabase/auth.sql) — the client only sends what
+  // the student picked, not a score, so a student can no longer forge a
+  // result and the answer key never has to reach the browser.
   const handleSubmitExam = async () => {
-    if (!selectedExam) return;
+    if (!selectedExam || isSubmitting) return;
 
-    setIsSubmitModalOpen(false);
+    setSubmitError(null);
+    setIsSubmitting(true);
+
     const completedAt = new Date().toISOString();
     const durationSeconds = Math.max(
       1,
       selectedExam.durationMinutes * 60 - secondsRemaining
     );
+    const attemptId = `att-${Date.now()}`;
+    const userName = studentName.trim() || 'Thí sinh ẩn danh';
+    const selectedAnswers = selectedExam.questions.map((q) => ({
+      questionId: q.id,
+      selectedOptionId: userAnswers[q.id] || '',
+    }));
 
-    let correctCount = 0;
-    const answerDetails = selectedExam.questions.map((q) => {
-      const selected = userAnswers[q.id] || '';
-      const isCorrect = selected === q.correctOptionId;
-      if (isCorrect) correctCount++;
-      return {
-        questionId: q.id,
-        selectedOptionId: selected,
-        isCorrect,
+    try {
+      const graded = await storageService.submitExamAttempt({
+        attemptId,
+        examId: selectedExam.id,
+        userId: 'user-current',
+        userName,
+        userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        userRole: 'Kỹ sư Phần mềm',
+        startedAt: startTime,
+        completedAt,
+        durationSeconds,
+        selectedAnswers,
+        flaggedQuestions: Array.from(flaggedQuestions),
+      });
+
+      setIsSubmitModalOpen(false);
+
+      const attempt: ExamAttempt = {
+        id: attemptId,
+        examId: selectedExam.id,
+        examTitle: selectedExam.title,
+        userId: 'user-current',
+        userName,
+        userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        userRole: 'Kỹ sư Phần mềm',
+        score: graded.score,
+        maxScore: graded.maxScore,
+        percentage: graded.percentage,
+        passed: graded.passed,
+        startedAt: startTime,
+        completedAt,
+        durationSeconds,
+        answers: [],
+        flaggedQuestions: Array.from(flaggedQuestions),
       };
-    });
 
-    const percentage = Math.round((correctCount / selectedExam.questions.length) * 100);
-    const passed = percentage >= selectedExam.passScorePercent;
+      setLastAttempt(attempt);
+      setExamState('result');
+      setIsSubmitting(false);
 
-    const attempt: ExamAttempt = {
-      id: `att-${Date.now()}`,
-      examId: selectedExam.id,
-      examTitle: selectedExam.title,
-      userId: 'user-current',
-      userName: studentName.trim() || 'Thí sinh ẩn danh',
-      userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-      userRole: 'Kỹ sư Phần mềm',
-      score: correctCount,
-      maxScore: selectedExam.questions.length,
-      percentage,
-      passed,
-      startedAt: startTime,
-      completedAt,
-      durationSeconds,
-      answers: answerDetails,
-      flaggedQuestions: Array.from(flaggedQuestions),
-    };
-
-    setLastAttempt(attempt);
-    setExamState('result');
-
-    if (onAttemptRecorded) {
-      onAttemptRecorded();
-    }
-
-    storageService.recordAttempt(attempt).catch((err) => console.error('Không lưu được kết quả bài thi:', err));
-    storageService
-      .logActivity('Nộp bài thi', {
-        guestName: attempt.userName,
-        detail: `${selectedExam.title} — ${percentage}% (${passed ? 'Đạt' : 'Chưa đạt'})`,
-      })
-      .catch(() => {});
-
-    // Trigger celebratory confetti if passed!
-    if (passed) {
-      try {
-        confetti({
-          particleCount: 120,
-          spread: 80,
-          origin: { y: 0.6 },
-          colors: ['#06b6d4', '#6366f1', '#10b981', '#f59e0b'],
-        });
-      } catch (e) {
-        // confetti fallback
+      if (onAttemptRecorded) {
+        onAttemptRecorded();
       }
+
+      storageService
+        .logActivity('Nộp bài thi', {
+          guestName: userName,
+          detail: `${selectedExam.title} — ${graded.percentage}% (${graded.passed ? 'Đạt' : 'Chưa đạt'})`,
+        })
+        .catch(() => {});
+
+      // Trigger celebratory confetti if passed!
+      if (graded.passed) {
+        try {
+          confetti({
+            particleCount: 120,
+            spread: 80,
+            origin: { y: 0.6 },
+            colors: ['#06b6d4', '#6366f1', '#10b981', '#f59e0b'],
+          });
+        } catch (e) {
+          // confetti fallback
+        }
+      }
+    } catch (err) {
+      console.error('Không nộp được bài thi:', err);
+      setIsSubmitting(false);
+      setSubmitError('Không thể nộp bài lúc này. Vui lòng kiểm tra kết nối mạng và thử lại.');
+      // Reopen (or keep open) the confirm modal so the error and retry button
+      // are visible even when this was triggered by the timer running out
+      // rather than the student clicking "Nộp Bài".
+      setIsSubmitModalOpen(true);
     }
   };
 
@@ -1021,14 +1043,22 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                 )}
 
                 <p className="text-xs text-slate-500 text-center leading-relaxed">
-                  Sau khi nộp bài, hệ thống sẽ tự động chấm điểm và hiển thị kết quả chi tiết từng câu hỏi.
+                  Sau khi nộp bài, hệ thống sẽ tự động chấm điểm và cho biết số câu đúng/sai —
+                  không hiển thị đáp án chi tiết từng câu, để tránh lộ đề cho thí sinh thi sau.
                 </p>
+
+                {submitError && (
+                  <p className="text-xs text-rose-600 text-center font-semibold bg-rose-50 border border-rose-200 rounded-xl p-2.5">
+                    {submitError}
+                  </p>
+                )}
 
                 <div className="flex items-center justify-end gap-3 pt-2">
                   <button
                     type="button"
                     onClick={() => setIsSubmitModalOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 disabled:opacity-50"
                   >
                     Làm tiếp
                   </button>
@@ -1036,13 +1066,14 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                   <button
                     type="button"
                     onClick={handleSubmitExam}
-                    className={`px-5 py-2 text-xs font-bold rounded-xl shadow-lg transition-colors ${
+                    disabled={isSubmitting}
+                    className={`px-5 py-2 text-xs font-bold rounded-xl shadow-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
                       hasUnanswered
                         ? 'bg-amber-600 hover:bg-amber-500 text-white'
                         : 'bg-emerald-600 hover:bg-emerald-500 text-white'
                     }`}
                   >
-                    {hasUnanswered ? 'Vẫn Nộp Bài' : 'Nộp Bài Ngay'}
+                    {isSubmitting ? 'Đang nộp bài...' : hasUnanswered ? 'Vẫn Nộp Bài' : 'Nộp Bài Ngay'}
                   </button>
                 </div>
               </div>
@@ -1059,13 +1090,6 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
   // ----------------------------------------------------
   if (examState === 'result' && selectedExam && lastAttempt) {
     const wrongCount = lastAttempt.maxScore - lastAttempt.score;
-
-    const filteredQuestions = selectedExam.questions.filter((q) => {
-      const ans = lastAttempt.answers.find((a) => a.questionId === q.id);
-      if (reviewFilter === 'wrong') return !ans?.isCorrect;
-      if (reviewFilter === 'flagged') return lastAttempt.flaggedQuestions?.includes(q.id);
-      return true;
-    });
 
     return (
       <div id="quiz-result-view" className="max-w-4xl mx-auto pb-16">
@@ -1151,152 +1175,9 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
 
         </div>
 
-        {/* Detailed Question by Question Review Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h3 className="text-base sm:text-lg font-bold text-slate-900">
-              Xem Lại Chi Tiết & Giải Thích Từng Câu ({filteredQuestions.length})
-            </h3>
-            <p className="text-xs text-slate-500">
-              Đối chiếu câu trả lời của bạn với đáp án chuẩn và lời giải thích học thuật
-            </p>
-          </div>
-
-          {/* Filter options */}
-          <div className="flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-xl text-xs">
-            <button
-              onClick={() => setReviewFilter('all')}
-              className={`px-3 py-1.5 rounded-lg transition-colors ${
-                reviewFilter === 'all' ? 'bg-slate-100 text-cyan-600 font-bold' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Tất cả ({selectedExam.questions.length})
-            </button>
-            <button
-              onClick={() => setReviewFilter('wrong')}
-              className={`px-3 py-1.5 rounded-lg transition-colors ${
-                reviewFilter === 'wrong' ? 'bg-slate-100 text-rose-600 font-bold' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Câu sai ({wrongCount})
-            </button>
-            <button
-              onClick={() => setReviewFilter('flagged')}
-              className={`px-3 py-1.5 rounded-lg transition-colors ${
-                reviewFilter === 'flagged' ? 'bg-slate-100 text-amber-600 font-bold' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Đã gắn cờ ({lastAttempt.flaggedQuestions?.length || 0})
-            </button>
-          </div>
-        </div>
-
-        {/* Review Question List */}
-        <div className="space-y-6">
-          {filteredQuestions.map((q, idx) => {
-            const ans = lastAttempt.answers.find((a) => a.questionId === q.id);
-            const userSelected = ans?.selectedOptionId || '';
-            const isCorrect = !!ans?.isCorrect;
-
-            return (
-              <div
-                key={q.id}
-                className={`bg-white/90 border rounded-2xl p-6 shadow-md ${
-                  isCorrect ? 'border-slate-200' : 'border-rose-200 bg-rose-50/10'
-                }`}
-              >
-                {/* Question title */}
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-xs text-slate-500">
-                      Câu {selectedExam.questions.indexOf(q) + 1}:
-                    </span>
-                    <h4 className="font-bold text-sm sm:text-base text-slate-900 leading-snug">
-                      {q.question}
-                    </h4>
-                  </div>
-
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-lg shrink-0 flex items-center gap-1 ${
-                    isCorrect ? 'bg-emerald-500/20 text-emerald-700 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-700 border border-rose-500/30'
-                  }`}>
-                    {isCorrect ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                    <span>{isCorrect ? 'Chính xác' : 'Chưa đúng'}</span>
-                  </span>
-                </div>
-
-                {/* Question image if any */}
-                {q.questionImage && (
-                  <div className="my-3">
-                    <img
-                      src={q.questionImage}
-                      alt={`Hình minh họa câu hỏi ${q.id}`}
-                      className="max-w-full max-h-72 rounded-xl border border-slate-200 shadow-sm"
-                    />
-                  </div>
-                )}
-
-                {/* Code snippet if any */}
-                {q.codeSnippet && (
-                  <div className="my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 font-mono text-xs">
-                    <pre className="p-3 text-cyan-300 overflow-x-auto">
-                      <code>{q.codeSnippet}</code>
-                    </pre>
-                  </div>
-                )}
-
-                {/* Options Review */}
-                <div className="space-y-2 mt-4">
-                  {q.options.map((opt) => {
-                    const isUserChoice = userSelected === opt.id;
-                    const isRightChoice = q.correctOptionId === opt.id;
-
-                    let optClass = 'bg-slate-50 border-slate-200/80 text-slate-500';
-                    if (isRightChoice) {
-                      optClass = 'bg-emerald-50/50 border-emerald-500/60 text-emerald-800 font-semibold';
-                    } else if (isUserChoice && !isCorrect) {
-                      optClass = 'bg-rose-50/50 border-rose-500/60 text-rose-800 line-through';
-                    }
-
-                    return (
-                      <div
-                        key={opt.id}
-                        className={`flex items-center gap-3 p-3 rounded-xl border text-xs sm:text-sm ${optClass}`}
-                      >
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                          isRightChoice ? 'bg-emerald-500 text-slate-950' : isUserChoice ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-500'
-                        }`}>
-                          {opt.id}
-                        </span>
-
-                        <span className="flex-1">{opt.text}</span>
-
-                        {isRightChoice && (
-                          <span className="text-[11px] text-emerald-600 font-bold">
-                            (Đáp án chuẩn)
-                          </span>
-                        )}
-                        {isUserChoice && !isCorrect && (
-                          <span className="text-[11px] text-rose-600 font-bold">
-                            (Bạn đã chọn)
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Explanation block */}
-                {q.explanation && (
-                  <div className="mt-4 p-3.5 bg-slate-50 border-l-4 border-indigo-500 rounded-r-xl text-xs text-slate-600 leading-relaxed">
-                    <strong className="text-indigo-600 block mb-0.5">💡 Giải thích chi tiết:</strong>
-                    {q.explanation}
-                  </div>
-                )}
-
-              </div>
-            );
-          })}
-        </div>
+        {/* Note: Detailed per-question review (correct answers, explanations) is
+            intentionally not shown here so later students cannot learn the answer
+            key from a previous test-taker's result screen. */}
 
       </div>
     );

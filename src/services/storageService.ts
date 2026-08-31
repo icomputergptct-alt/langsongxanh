@@ -546,18 +546,28 @@ export const storageService = {
 
   // Rooms past their deadline get archived to a PDF in the document library and
   // hidden from the active list. There's no background server, so this runs
-  // lazily — called whenever someone opens the Quiz Room.
+  // lazily — called whenever someone opens the Quiz Room, almost always by a
+  // student rather than the room's own owner/admin.
   async archiveExpiredExams(): Promise<void> {
-    const { data, error } = await supabase
+    const { data: candidates, error } = await supabase
       .from('quiz_exams_public')
-      .select('*')
+      .select('id')
       .eq('is_archived', false)
       .not('deadline_at', 'is', null)
       .lt('deadline_at', new Date().toISOString());
-    if (error || !data || data.length === 0) return;
+    if (error || !candidates || candidates.length === 0) return;
 
-    for (const row of data) {
-      const exam = rowToExam(row);
+    for (const { id: examId } of candidates) {
+      // The PDF's answer-key column needs the real correctOptionId values,
+      // which quiz_exams_public no longer exposes to a non-owner (see
+      // supabase/auth.sql) — this RPC hands back the full row instead, and
+      // only for a room whose deadline has already passed, so nobody can
+      // still be taking it.
+      const { data: fullRows, error: fullError } = await supabase.rpc('get_exam_for_archival', {
+        p_exam_id: examId,
+      });
+      if (fullError || !fullRows || fullRows.length === 0) continue;
+      const exam = rowToExam(fullRows[0]);
       try {
         const pdfBlob = await generateExamPdfBlob(exam);
         const fileName = `${exam.title}.pdf`;
@@ -651,36 +661,47 @@ export const storageService = {
     return (data || []).map(rowToAttempt);
   },
 
-  async recordAttempt(attempt: ExamAttempt): Promise<void> {
-    const row = {
-      id: attempt.id,
-      exam_id: attempt.examId,
-      exam_title: attempt.examTitle,
-      user_id: attempt.userId,
-      user_name: attempt.userName,
-      user_avatar: attempt.userAvatar,
-      user_role: attempt.userRole || null,
-      score: attempt.score,
-      max_score: attempt.maxScore,
-      percentage: attempt.percentage,
-      passed: attempt.passed,
-      started_at: attempt.startedAt,
-      completed_at: attempt.completedAt,
-      duration_seconds: attempt.durationSeconds,
-      answers: attempt.answers,
-      flagged_questions: attempt.flaggedQuestions || [],
-    };
-    const { error } = await supabase.from('exam_attempts').insert(row);
-    if (error) throw error;
-
-    // Atomic RPC (see supabase/auth.sql) — works for anonymous students too,
-    // unlike a direct update against quiz_exams (RLS restricts that to the
-    // room's own creator/admin).
-    const { error: statsError } = await supabase.rpc('record_exam_participation', {
-      p_exam_id: attempt.examId,
-      p_percentage: attempt.percentage,
+  // Grading happens entirely server-side now (see submit_exam_attempt in
+  // supabase/auth.sql): the client only sends what the student actually
+  // picked, never a score. The RPC reads the real answer key, computes
+  // score/percentage/passed, writes the exam_attempts row itself, and hands
+  // back just the aggregate — direct client inserts into exam_attempts are no
+  // longer allowed, so a student can no longer submit a forged score via the
+  // REST API.
+  async submitExamAttempt(params: {
+    attemptId: string;
+    examId: string;
+    userId: string;
+    userName: string;
+    userAvatar: string;
+    userRole?: string;
+    startedAt: string;
+    completedAt: string;
+    durationSeconds: number;
+    selectedAnswers: { questionId: string; selectedOptionId: string }[];
+    flaggedQuestions?: string[];
+  }): Promise<{ score: number; maxScore: number; percentage: number; passed: boolean }> {
+    const { data, error } = await supabase.rpc('submit_exam_attempt', {
+      p_attempt_id: params.attemptId,
+      p_exam_id: params.examId,
+      p_user_id: params.userId,
+      p_user_name: params.userName,
+      p_user_avatar: params.userAvatar,
+      p_user_role: params.userRole || null,
+      p_started_at: params.startedAt,
+      p_completed_at: params.completedAt,
+      p_duration_seconds: params.durationSeconds,
+      p_selected_answers: params.selectedAnswers,
+      p_flagged_questions: params.flaggedQuestions || [],
     });
-    if (statsError) console.error('Không cập nhật được thống kê đề thi:', statsError);
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    return {
+      score: row.score,
+      maxScore: row.max_score,
+      percentage: Number(row.percentage),
+      passed: row.passed,
+    };
   },
 
   // --- Exam Document Library ("Kho đề thi kiểm tra" — real .docx/.pdf files) ---

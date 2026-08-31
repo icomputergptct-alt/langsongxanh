@@ -412,3 +412,180 @@ create policy "public write activity_logs" on activity_logs for insert
 drop policy if exists "admin read activity_logs" on activity_logs;
 create policy "admin read activity_logs" on activity_logs for select
   using (exists (select 1 from profiles where id = auth.uid() and is_admin));
+
+-- ============================================================================
+-- Server-side exam grading (2026-08-31).
+-- ============================================================================
+-- Root cause fixed here: quiz_exams_public exposed each question's full
+-- correctOptionId/explanation to EVERY visitor, including anonymous students
+-- who hadn't taken the exam yet — anyone could read the whole answer key
+-- straight out of the Network tab before or during an attempt (not just via
+-- the old post-submit review screen, which only made it easier to spot).
+-- Grading also ran entirely in the browser: the client computed its own
+-- score/percentage/passed and exam_attempts had an open "insert with check
+-- (true)" policy, so a student could submit any score they liked directly via
+-- the REST API, bypassing the app entirely.
+--
+-- Fix: the public view now strips the answer key from `questions` for anyone
+-- but the room's own creator/admin (who need it to edit the exam), and all
+-- grading + attempt-row writes move into one security-definer RPC that reads
+-- the real answer key server-side. Direct inserts into exam_attempts are no
+-- longer allowed from the client at all.
+
+-- --- Strip the answer key out of quiz_exams_public for non-owners ----------
+create or replace function public.strip_answer_key(p_questions jsonb)
+returns jsonb
+language sql
+immutable
+as $$
+  select coalesce(jsonb_agg(elem - 'correctOptionId' - 'explanation'), '[]'::jsonb)
+  from jsonb_array_elements(p_questions) as elem;
+$$;
+
+create or replace view public.quiz_exams_public as
+select
+  id, title, description, category, difficulty, duration_minutes, pass_score_percent,
+  case
+    when created_by = auth.uid()
+      or exists (select 1 from profiles where id = auth.uid() and is_admin)
+    then questions
+    else public.strip_answer_key(questions)
+  end as questions,
+  created_at, author_name, school_name, class_name, grade, school_year,
+  deadline_at, is_archived, is_draft, participants_count, average_score, source_file,
+  is_featured, created_by,
+  (room_password is not null and room_password <> '') as has_password,
+  case
+    when created_by = auth.uid()
+      or exists (select 1 from profiles where id = auth.uid() and is_admin)
+    then room_password
+    else null
+  end as room_password
+from quiz_exams;
+
+-- --- Grade server-side and write the attempt row ---------------------------
+-- Takes only the student's raw picks (questionId/selectedOptionId) — never a
+-- score, percentage, or per-answer correctness — and grades them against the
+-- real quiz_exams.questions (readable here despite the anon/authenticated
+-- revoke on that table, since this function runs as its owner). Returns just
+-- the aggregate result; per-question correctness/answer key is intentionally
+-- not returned to the client, so nothing leaks even by inspecting this call's
+-- network response.
+create or replace function public.submit_exam_attempt(
+  p_attempt_id text,
+  p_exam_id text,
+  p_user_id text,
+  p_user_name text,
+  p_user_avatar text,
+  p_user_role text,
+  p_started_at timestamptz,
+  p_completed_at timestamptz,
+  p_duration_seconds int,
+  p_selected_answers jsonb,
+  p_flagged_questions text[]
+)
+returns table (score int, max_score int, percentage numeric, passed boolean)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_exam_title text;
+  v_pass_score_percent int;
+  v_questions jsonb;
+  v_score int;
+  v_max_score int;
+  v_percentage numeric;
+  v_passed boolean;
+  v_answers jsonb;
+begin
+  select title, pass_score_percent, questions
+  into v_exam_title, v_pass_score_percent, v_questions
+  from quiz_exams
+  where id = p_exam_id;
+
+  if not found then
+    raise exception 'Exam % not found', p_exam_id;
+  end if;
+
+  with q as (
+    select value as question
+    from jsonb_array_elements(v_questions)
+  ),
+  ans as (
+    select "questionId", "selectedOptionId"
+    from jsonb_to_recordset(coalesce(p_selected_answers, '[]'::jsonb))
+      as x("questionId" text, "selectedOptionId" text)
+  ),
+  graded as (
+    select
+      q.question ->> 'id' as question_id,
+      coalesce(a."selectedOptionId", '') as selected_option_id,
+      (a."selectedOptionId" is not null and a."selectedOptionId" = q.question ->> 'correctOptionId') as is_correct
+    from q
+    left join ans a on a."questionId" = q.question ->> 'id'
+  )
+  select
+    count(*) filter (where is_correct),
+    count(*),
+    jsonb_agg(jsonb_build_object(
+      'questionId', question_id,
+      'selectedOptionId', selected_option_id,
+      'isCorrect', is_correct
+    ))
+  into v_score, v_max_score, v_answers
+  from graded;
+
+  v_percentage := case when v_max_score > 0 then round((v_score::numeric / v_max_score) * 100) else 0 end;
+  v_passed := v_percentage >= v_pass_score_percent;
+
+  insert into exam_attempts (
+    id, exam_id, exam_title, user_id, user_name, user_avatar, user_role,
+    score, max_score, percentage, passed, started_at, completed_at,
+    duration_seconds, answers, flagged_questions
+  ) values (
+    p_attempt_id, p_exam_id, v_exam_title, p_user_id, p_user_name, p_user_avatar, p_user_role,
+    v_score, v_max_score, v_percentage, v_passed, p_started_at, p_completed_at,
+    p_duration_seconds, coalesce(v_answers, '[]'::jsonb), coalesce(p_flagged_questions, '{}')
+  );
+
+  perform public.record_exam_participation(p_exam_id, v_percentage);
+
+  return query select v_score, v_max_score, v_percentage, v_passed;
+end;
+$$;
+
+grant execute on function public.submit_exam_attempt(
+  text, text, text, text, text, text, timestamptz, timestamptz, int, jsonb, text[]
+) to anon, authenticated;
+
+-- Direct inserts into exam_attempts are no longer allowed from the client —
+-- every attempt must go through submit_exam_attempt() above, which is the
+-- only thing that can compute a trustworthy score.
+drop policy if exists "public write exam_attempts" on exam_attempts;
+
+-- --- Full exam data for the deadline-archival flow --------------------------
+-- storageService.archiveExpiredExams runs for whichever visitor happens to
+-- have the Quiz Room open when a room's deadline passes, and needs the real
+-- correctOptionId values to print the archived PDF's answer-key column — but
+-- that visitor is essentially never the room's owner/admin, so
+-- quiz_exams_public's masked `questions` (see above) isn't enough anymore.
+-- This only ever returns data for a room that has ALREADY closed (deadline in
+-- the past) and isn't archived yet, so by the time anything can read the
+-- answer key through it, nobody can submit a new attempt for that room
+-- anymore — there's no "later test-taker" left for it to leak to.
+create or replace function public.get_exam_for_archival(p_exam_id text)
+returns setof quiz_exams
+language sql
+security definer
+set search_path = public
+as $$
+  select *
+  from quiz_exams
+  where id = p_exam_id
+    and is_archived = false
+    and deadline_at is not null
+    and deadline_at < now();
+$$;
+
+grant execute on function public.get_exam_for_archival(text) to anon, authenticated;
