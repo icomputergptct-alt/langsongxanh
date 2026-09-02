@@ -740,6 +740,27 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
     }
   };
 
+  // "Xoá Đề Thi" — moved here from the exam list (Hồ Sơ Giáo Viên) so deleting is a
+  // deliberate action taken from inside the exam you're actually looking at, not a
+  // stray trash icon next to every row in the list.
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteExam = async () => {
+    if (!editingExam) return;
+    if (!window.confirm(`Xóa đề thi "${editingExam.title}"? Hành động này không thể hoàn tác.`)) return;
+    setIsDeleting(true);
+    try {
+      await storageService.deleteExam(editingExam.id);
+      storageService.logActivity('Xóa phòng thi', { detail: editingExam.title }).catch(() => {});
+      onClose();
+    } catch (err) {
+      console.error('Không xóa được đề thi:', err);
+      alert('Không thể xóa đề thi. Vui lòng thử lại.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div id="quiz-creator-modal-overlay" className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
       <div className="glass-panel w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
@@ -1330,13 +1351,28 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
 
         {/* Modal Footer */}
         <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-xs text-slate-400 hover:text-slate-200 font-semibold px-4 py-2"
-          >
-            Hủy bỏ
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-xs text-slate-400 hover:text-slate-200 font-semibold px-4 py-2"
+            >
+              Hủy bỏ
+            </button>
+
+            {editingExam && (
+              <button
+                type="button"
+                onClick={handleDeleteExam}
+                disabled={isDeleting}
+                title="Xóa đề thi này"
+                className="flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 disabled:opacity-50 font-semibold px-3 py-2 rounded-lg hover:bg-rose-500/10 transition-colors"
+              >
+                {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <span>Xóa Đề Thi</span>
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             {editingExam ? (
