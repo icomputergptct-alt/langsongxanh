@@ -22,7 +22,8 @@ import {
   ImageOff,
   Save,
   FileType,
-  Loader2
+  Loader2,
+  Printer
 } from 'lucide-react';
 import { QuizExam, QuizQuestion, QuizOption } from '../types';
 import { storageService } from '../services/storageService';
@@ -694,6 +695,51 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
     }
   };
 
+  // "In Đề" — generates the same PDF as the Word/PDF export above and prints THAT
+  // (in a hidden iframe, no popup) instead of the live modal DOM, so what comes out
+  // of the printer matches the actual exam layout/pagination rather than whatever
+  // this editor's glass-panel UI happens to look like on paper.
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const handlePrintExam = async () => {
+    if (!title.trim()) {
+      alert('Vui lòng nhập tên đề thi trước khi in.');
+      return;
+    }
+    if (questions.length === 0) {
+      alert('Đề thi cần có ít nhất 1 câu hỏi trước khi in.');
+      return;
+    }
+    setIsPrinting(true);
+    try {
+      const exam = buildExamObject(false);
+      const blob = await generateExamPdfBlob(exam);
+      const url = URL.createObjectURL(blob);
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.src = url;
+      iframe.onload = () => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      };
+      document.body.appendChild(iframe);
+      // Leave the iframe (and its blob URL) around long enough for the OS print
+      // dialog to actually finish, then clean up.
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+        URL.revokeObjectURL(url);
+      }, 60000);
+    } catch (err) {
+      console.error('Không thể tạo tệp để in:', err);
+      alert('Không thể chuẩn bị đề thi để in. Vui lòng thử lại.');
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   return (
     <div id="quiz-creator-modal-overlay" className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
       <div className="glass-panel w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
@@ -1303,6 +1349,17 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                 >
                   <FileType className="w-4 h-4" />
                   <span>Lưu Thành File</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePrintExam}
+                  disabled={isPrinting}
+                  title="In đề thi hiện tại (kể cả thay đổi chưa lưu)"
+                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl border border-slate-700 transition-colors"
+                >
+                  {isPrinting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                  <span>In Đề</span>
                 </button>
 
                 {isDirty && (
