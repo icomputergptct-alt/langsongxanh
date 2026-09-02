@@ -20,10 +20,13 @@ import {
   FileCheck,
   ImagePlus,
   ImageOff,
-  Save
+  Save,
+  FileType,
+  Loader2
 } from 'lucide-react';
 import { QuizExam, QuizQuestion, QuizOption } from '../types';
 import { storageService } from '../services/storageService';
+import { generateExamWordBlob, generateExamPdfBlob } from '../services/examPdf';
 
 interface QuizCreatorModalProps {
   initialMode?: 'upload' | 'ai-prompt' | 'manual';
@@ -221,6 +224,19 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   // Questions list editor — starts empty (or pre-filled when editing a draft);
   // otherwise populated once a file/AI/manual source provides real questions
   const [questions, setQuestions] = useState<QuizQuestion[]>(editingExam?.questions || []);
+
+  // Dirty-state tracking for the "Lưu Đề Thi" button when editing an existing exam —
+  // it starts hidden and only lights up once the form actually differs from what was
+  // loaded, so a teacher who just opened the editor to look isn't nagged to save.
+  // The baseline snapshot is captured once (via useState's lazy initializer, which
+  // only ever runs on mount) from these same fields' initial values.
+  const buildEditableSnapshot = () =>
+    JSON.stringify({
+      title, description, category, difficulty, durationMinutes, passScorePercent,
+      className, roomPassword, grade, schoolYear, deadlineAt, questions,
+    });
+  const [initialSnapshot] = useState(buildEditableSnapshot);
+  const isDirty = !!editingExam && buildEditableSnapshot() !== initialSnapshot;
 
   // Auto-scroll to the newly added question card so teachers don't have to hunt for it
   const lastQuestionRef = useRef<HTMLDivElement | null>(null);
@@ -572,6 +588,39 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
     handleUpdateOptionImage(qIdx, optId, undefined);
   };
 
+  // Shared exam-object builder for both the actual save and the "Lưu Thành File"
+  // export below, so a Word/PDF export always reflects exactly what's on screen —
+  // including edits not saved to the room yet. publish only ever forces isDraft to
+  // false (an explicit "Phát Hành" click); otherwise editing an existing exam keeps
+  // whatever draft/published status it already had — the "Lưu Đề Thi" button (see
+  // handleSaveExam below) must not silently unpublish a live room just because it
+  // reuses the same isDraft:true default a brand new draft gets.
+  const buildExamObject = (publish: boolean): QuizExam => ({
+    id: editingExam?.id || `exam-${Date.now()}`,
+    title: title.trim(),
+    description: description.trim(),
+    category: category.trim() || 'Chưa phân loại',
+    difficulty: difficulty,
+    durationMinutes: Number(durationMinutes) || 15,
+    passScorePercent: Number(passScorePercent) || 70,
+    questions: questions,
+    createdAt: editingExam?.createdAt || new Date().toISOString(),
+    authorName: authorName || 'Quản trị viên / Giảng viên',
+    schoolName: schoolName || undefined,
+    className: className.trim() || undefined,
+    roomPassword: roomPassword.trim() || undefined,
+    hasPassword: !!roomPassword.trim(),
+    grade: grade ? Number(grade) : undefined,
+    schoolYear: schoolYear.trim() || undefined,
+    deadlineAt: deadlineAt ? new Date(deadlineAt).toISOString() : undefined,
+    isDraft: publish ? false : editingExam ? editingExam.isDraft : true,
+    participantsCount: editingExam?.participantsCount ?? 0,
+    averageScore: editingExam?.averageScore ?? 0,
+    sourceFile: uploadedFile?.name || editingExam?.sourceFile,
+    isFeatured: true,
+    createdBy: authorId,
+  });
+
   // Final submit & save exam. publish=false saves as a draft (not shown in the
   // student-facing Quiz Room list) so the teacher can finish it later from
   // their profile and publish when ready.
@@ -589,31 +638,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
       return;
     }
 
-    const savedExam: QuizExam = {
-      id: editingExam?.id || `exam-${Date.now()}`,
-      title: title.trim(),
-      description: description.trim(),
-      category: category.trim() || 'Chưa phân loại',
-      difficulty: difficulty,
-      durationMinutes: Number(durationMinutes) || 15,
-      passScorePercent: Number(passScorePercent) || 70,
-      questions: questions,
-      createdAt: editingExam?.createdAt || new Date().toISOString(),
-      authorName: authorName || 'Quản trị viên / Giảng viên',
-      schoolName: schoolName || undefined,
-      className: className.trim() || undefined,
-      roomPassword: roomPassword.trim() || undefined,
-      hasPassword: !!roomPassword.trim(),
-      grade: grade ? Number(grade) : undefined,
-      schoolYear: schoolYear.trim() || undefined,
-      deadlineAt: deadlineAt ? new Date(deadlineAt).toISOString() : undefined,
-      isDraft: !publish,
-      participantsCount: editingExam?.participantsCount ?? 0,
-      averageScore: editingExam?.averageScore ?? 0,
-      sourceFile: uploadedFile?.name || editingExam?.sourceFile,
-      isFeatured: true,
-      createdBy: authorId,
-    };
+    const savedExam = buildExamObject(publish);
 
     try {
       await storageService.saveExam(savedExam, !editingExam);
@@ -634,6 +659,41 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
     }
   };
 
+  // "Lưu Thành File" — exports whatever is currently on screen (including edits not
+  // saved to the room yet) to a real .docx/.pdf, without touching the saved exam.
+  const [isSaveFormatModalOpen, setIsSaveFormatModalOpen] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState<'word' | 'pdf' | null>(null);
+
+  const handleExportExam = async (format: 'word' | 'pdf') => {
+    if (!title.trim()) {
+      alert('Vui lòng nhập tên đề thi trước khi lưu thành file.');
+      return;
+    }
+    if (questions.length === 0) {
+      alert('Đề thi cần có ít nhất 1 câu hỏi trước khi lưu thành file.');
+      return;
+    }
+    setExportingFormat(format);
+    try {
+      const exam = buildExamObject(false);
+      const blob = format === 'word' ? await generateExamWordBlob(exam) : await generateExamPdfBlob(exam);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${exam.title}.${format === 'word' ? 'docx' : 'pdf'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setIsSaveFormatModalOpen(false);
+    } catch (err) {
+      console.error(`Không thể xuất tệp ${format === 'word' ? 'Word' : 'PDF'}:`, err);
+      alert(`Không thể tạo tệp ${format === 'word' ? 'Word' : 'PDF'}. Vui lòng thử lại.`);
+    } finally {
+      setExportingFormat(null);
+    }
+  };
+
   return (
     <div id="quiz-creator-modal-overlay" className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
       <div className="glass-panel w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
@@ -646,11 +706,13 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-100">
-                {editingExam ? 'Chỉnh Sửa Đề Thi (Bản Nháp)' : 'Tạo Đề Thi & Phòng Thi Trắc Nghiệm'}
+                {editingExam ? `Chỉnh Sửa Đề Thi${editingExam.isDraft ? ' (Bản Nháp)' : ''}` : 'Tạo Đề Thi & Phòng Thi Trắc Nghiệm'}
               </h2>
               <p className="text-xs text-slate-400">
                 {editingExam
-                  ? 'Chỉnh sửa nội dung rồi lưu nháp tiếp hoặc phát hành để mở phòng thi'
+                  ? editingExam.isDraft
+                    ? 'Chỉnh sửa nội dung rồi lưu nháp tiếp hoặc phát hành để mở phòng thi'
+                    : 'Chỉnh sửa nội dung rồi bấm Lưu Đề Thi để cập nhật phòng thi đang mở'
                   : 'Nhập từ tệp Word đính kèm (.doc, .docx) hoặc biên tập trực tiếp'}
               </p>
             </div>
@@ -1231,28 +1293,109 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
           </button>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleSaveExam(false)}
-              title="Lưu lại dưới dạng bản nháp, chưa mở phòng thi — có thể vào Hồ Sơ Giáo Viên để sửa và phát hành sau"
-              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl border border-slate-700 transition-colors"
-            >
-              <Save className="w-4 h-4" />
-              <span>Lưu Nháp</span>
-            </button>
+            {editingExam ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsSaveFormatModalOpen(true)}
+                  title="Xuất đề thi hiện tại (kể cả thay đổi chưa lưu) ra tệp Word hoặc PDF"
+                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl border border-slate-700 transition-colors"
+                >
+                  <FileType className="w-4 h-4" />
+                  <span>Lưu Thành File</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => handleSaveExam(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs sm:text-sm font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-cyan-600/20 transition-all hover:scale-[1.02]"
-            >
-              <Check className="w-4 h-4" />
-              <span>Phát Hành & Mở Phòng Thi ({questions.length} câu)</span>
-            </button>
+                {isDirty && (
+                  <button
+                    type="button"
+                    onClick={() => handleSaveExam(false)}
+                    title="Lưu thay đổi vào đề thi này"
+                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 transition-all animate-in fade-in zoom-in-95"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Lưu Đề Thi</span>
+                  </button>
+                )}
+
+                {editingExam.isDraft && (
+                  <button
+                    type="button"
+                    onClick={() => handleSaveExam(true)}
+                    className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs sm:text-sm font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-cyan-600/20 transition-all hover:scale-[1.02]"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Phát Hành & Mở Phòng Thi ({questions.length} câu)</span>
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleSaveExam(false)}
+                  title="Lưu lại dưới dạng bản nháp, chưa mở phòng thi — có thể vào Hồ Sơ Giáo Viên để sửa và phát hành sau"
+                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl border border-slate-700 transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Lưu Nháp</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSaveExam(true)}
+                  className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs sm:text-sm font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-cyan-600/20 transition-all hover:scale-[1.02]"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Phát Hành & Mở Phòng Thi ({questions.length} câu)</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
       </div>
+
+      {/* "Lưu Thành File" format picker */}
+      {isSaveFormatModalOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
+            <h3 className="text-base font-bold text-slate-100 text-center">
+              Bạn muốn lưu với định dạng nào?
+            </h3>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => handleExportExam('word')}
+                disabled={exportingFormat !== null}
+                className="w-full flex items-center gap-3 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-400/30 disabled:opacity-50 text-blue-100 text-sm font-semibold px-4 py-3 rounded-xl transition-colors"
+              >
+                {exportingFormat === 'word' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileType className="w-4 h-4" />}
+                <span>Word (.docx)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleExportExam('pdf')}
+                disabled={exportingFormat !== null}
+                className="w-full flex items-center gap-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-400/30 disabled:opacity-50 text-emerald-100 text-sm font-semibold px-4 py-3 rounded-xl transition-colors"
+              >
+                {exportingFormat === 'pdf' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                <span>PDF</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsSaveFormatModalOpen(false)}
+                disabled={exportingFormat !== null}
+                className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 text-sm font-semibold px-4 py-3 rounded-xl transition-colors"
+              >
+                <span>Quay Trở Lại Đề Thi</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showGuideModal && (
         <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
