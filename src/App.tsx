@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, 
   TrendingUp, 
@@ -86,8 +86,15 @@ export default function App() {
   const [quizCreatorInitialMode, setQuizCreatorInitialMode] = useState<'upload' | 'manual'>('upload');
   const [editingExam, setEditingExam] = useState<QuizExam | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  // Whether the quiz creator was opened from the teacher profile's exam list, so
+  // closing it (cancel, or a non-publishing save) can return there instead of just
+  // vanishing back to whatever page was underneath. A ref rather than state since
+  // the onClose closure below reads it at call time either way, and this avoids any
+  // risk of it reading a stale value from a state update that hasn't re-rendered yet.
+  const quizModalOpenedFromProfileRef = useRef(false);
 
   const openCreateQuizModal = (mode?: 'upload' | 'manual') => {
+    quizModalOpenedFromProfileRef.current = false;
     setEditingExam(null);
     setQuizCreatorInitialMode(mode === 'manual' ? 'manual' : 'upload');
     setIsCreateQuizModalOpen(true);
@@ -96,6 +103,7 @@ export default function App() {
   // Continuing a draft from the teacher's profile — closes the profile modal
   // and reopens the creator pre-filled with that exam's saved content.
   const openEditExamModal = (exam: QuizExam) => {
+    quizModalOpenedFromProfileRef.current = true;
     setIsProfileModalOpen(false);
     setEditingExam(exam);
     setQuizCreatorInitialMode('manual');
@@ -209,9 +217,11 @@ export default function App() {
     }
   };
 
-  // Handle Exam Created
+  // Handle Exam Created — publishing takes the teacher to see the now-live room in
+  // Quiz Room, not back to their profile, even if this edit was opened from there.
   const [examsRefreshKey, setExamsRefreshKey] = useState(0);
   const handleExamCreated = (newExam: QuizExam) => {
+    quizModalOpenedFromProfileRef.current = false;
     setActiveTab('quiz');
     setExamsRefreshKey((k) => k + 1);
   };
@@ -846,7 +856,12 @@ export default function App() {
       {isCreateQuizModalOpen && (
         <QuizCreatorModal
           initialMode={quizCreatorInitialMode}
-          onClose={() => setIsCreateQuizModalOpen(false)}
+          onClose={() => {
+            setIsCreateQuizModalOpen(false);
+            if (quizModalOpenedFromProfileRef.current) {
+              setIsProfileModalOpen(true);
+            }
+          }}
           onExamCreated={handleExamCreated}
           authorId={user?.id}
           authorName={profile?.fullName || user?.email}
