@@ -449,12 +449,25 @@ function solveCubic(a: number, b: number, c: number, d: number): { roots: EqnRoo
   return { roots: roots.map(({ re, im }) => ({ re: re - shift, im })), discriminant: D };
 }
 
-export const SoftwareUtilities: React.FC = () => {
+interface SoftwareUtilitiesProps {
+  initialToolId?: string;
+  onToolChange?: (tool: SoftwareUtility) => void;
+}
+
+export const SoftwareUtilities: React.FC<SoftwareUtilitiesProps> = ({ initialToolId, onToolChange }) => {
   const [utilities] = useState<SoftwareUtility[]>(SOFTWARE_UTILITIES);
-  const [selectedToolId, setSelectedToolId] = useState<string>(SOFTWARE_UTILITIES[0].id);
+  const [selectedToolId, setSelectedToolId] = useState<string>(initialToolId || SOFTWARE_UTILITIES[0].id);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const activeTool = utilities.find((u) => u.id === selectedToolId) || utilities[0];
+
+  // Report the active tool up so the parent can give it its own shareable URL
+  // (/cong-cu/{slug}) and SEO meta tags — each tool card is otherwise just a
+  // client-side state toggle that Google has no way to index separately.
+  useEffect(() => {
+    onToolChange?.(activeTool);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTool.id]);
 
   // ==========================================
   // TOOL 1: CODE / JSON / SQL FORMATTER STATE

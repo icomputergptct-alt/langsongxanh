@@ -35,10 +35,19 @@ import { VisitorStats } from './components/VisitorStats';
 import { DocumentUploadModal } from './components/DocumentUploadModal';
 import { SearchResults } from './components/SearchResults';
 import { ContactPage } from './components/ContactPage';
-import { Article, ExamDocument, QuizExam } from './types';
+import { Article, ExamDocument, QuizExam, SoftwareUtility } from './types';
 import { storageService } from './services/storageService';
 import { useAuth } from './contexts/AuthContext';
 import { getPageNumbers } from './utils/pagination';
+import { SOFTWARE_UTILITIES } from './data/initialData';
+import { setPageMeta, resetPageMeta } from './utils/seoMeta';
+
+// Deep-link helper: match a /cong-cu/{slug} pathname to its utility tool.
+const matchToolFromPath = (pathname: string): SoftwareUtility | null => {
+  const match = pathname.match(/^\/cong-cu\/([^/]+)\/?$/);
+  if (!match) return null;
+  return SOFTWARE_UTILITIES.find((u) => u.slug === decodeURIComponent(match[1])) || null;
+};
 
 // Articles per page in the news feed grid.
 const ARTICLES_PER_PAGE = 9;
@@ -46,7 +55,15 @@ const ARTICLES_PER_PAGE = 9;
 export default function App() {
   const { user, profile, isAdmin, signOut } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'contact'>('quiz');
+  const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'contact'>(() =>
+    matchToolFromPath(window.location.pathname) ? 'utilities' : 'quiz'
+  );
+  // Which tool /cong-cu/{slug} should deep-link to. Passed as SoftwareUtilities'
+  // `key` too, so browser back/forward (which can't call setSelectedToolId inside
+  // that component) forces a remount onto the right tool instead of no-op-ing.
+  const [initialToolId, setInitialToolId] = useState<string | undefined>(
+    () => matchToolFromPath(window.location.pathname)?.id
+  );
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoadingArticles, setIsLoadingArticles] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
@@ -129,6 +146,25 @@ export default function App() {
     }
   };
 
+  // Sync the active utility tool to the URL (/cong-cu/{slug}) + document meta,
+  // so each tool (Scientific Calculator, URL Scanner, ...) is a distinct,
+  // shareable, indexable page instead of hidden behind a client-only tab state.
+  const handleToolChange = (tool: SoftwareUtility) => {
+    const path = `/cong-cu/${tool.slug}`;
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+    setPageMeta(`${tool.name} - Long Hoa Số`, tool.shortDesc, path);
+  };
+
+  // Leaving the Utilities tab for another tab: drop the tool URL/meta back to "/".
+  useEffect(() => {
+    if (activeTab !== 'utilities' && window.location.pathname.startsWith('/cong-cu/')) {
+      window.history.pushState({}, '', '/');
+      resetPageMeta();
+    }
+  }, [activeTab]);
+
   // Load articles from Supabase on mount
   useEffect(() => {
     let cancelled = false;
@@ -162,12 +198,19 @@ export default function App() {
   useEffect(() => {
     const handlePopState = () => {
       const match = window.location.pathname.match(/^\/bai-viet\/([^/]+)\/?$/);
+      const tool = matchToolFromPath(window.location.pathname);
       if (match) {
         const found = articles.find((a) => a.slug === decodeURIComponent(match[1]));
         setSelectedArticle(found || null);
         setActiveTab('news');
+      } else if (tool) {
+        setSelectedArticle(null);
+        setInitialToolId(tool.id);
+        setActiveTab('utilities');
       } else {
         setSelectedArticle(null);
+        resetPageMeta();
+        setActiveTab((prev) => (prev === 'utilities' ? 'quiz' : prev));
       }
     };
     window.addEventListener('popstate', handlePopState);
@@ -838,7 +881,11 @@ export default function App() {
         {/* TAB 5: SOFTWARE UTILITIES & USER GUIDES                     */}
         {/* ============================================================ */}
         {activeTab === 'utilities' && (
-          <SoftwareUtilities />
+          <SoftwareUtilities
+            key={initialToolId || 'default'}
+            initialToolId={initialToolId}
+            onToolChange={handleToolChange}
+          />
         )}
 
         {/* ============================================================ */}
