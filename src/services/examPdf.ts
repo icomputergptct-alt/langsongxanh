@@ -201,9 +201,9 @@ export async function renderHtmlToPdfBlob(html: string): Promise<Blob> {
     const pdf = new jsPDF({ unit: 'px', format: 'a4' });
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = pageWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    const imgData = canvas.toDataURL('image/png');
+    // Canvas-pixel equivalent of one PDF page height, so page slicing below can work
+    // directly in the source canvas's own coordinate space.
+    const canvasPageHeight = (pageHeight * canvas.width) / pageWidth;
 
     // html2canvas flattens the whole exam into one tall image with no concept of
     // "page" — naively slicing it every `pageHeight` px (the old behaviour) cuts
@@ -212,17 +212,17 @@ export async function renderHtmlToPdfBlob(html: string): Promise<Blob> {
     // position in the laid-out DOM (a question, or an answer-key table) and, when
     // the next cut would land inside one, push the cut up to that block's top so
     // the whole block moves to the next page instead of being split.
-    const cssToImgScale = imgHeight / container.scrollHeight;
+    const cssToCanvasScale = canvas.height / container.scrollHeight;
     const blocks = Array.from(container.querySelectorAll<HTMLElement>('[data-pdf-block]')).map((el) => ({
-      top: el.offsetTop * cssToImgScale,
-      bottom: (el.offsetTop + el.offsetHeight) * cssToImgScale,
+      top: el.offsetTop * cssToCanvasScale,
+      bottom: (el.offsetTop + el.offsetHeight) * cssToCanvasScale,
     }));
 
     const pageStarts = [0];
     while (true) {
       const prevStart = pageStarts[pageStarts.length - 1];
-      const idealCut = prevStart + pageHeight;
-      if (idealCut >= imgHeight) break;
+      const idealCut = prevStart + canvasPageHeight;
+      if (idealCut >= canvas.height) break;
       const straddling = blocks.find((b) => idealCut > b.top + 0.5 && idealCut < b.bottom - 0.5);
       // If the straddling block is itself taller than a page, moving it down would
       // never let the cut advance — fall back to the raw cut for just that case.
@@ -230,9 +230,27 @@ export async function renderHtmlToPdfBlob(html: string): Promise<Blob> {
       pageStarts.push(cut);
     }
 
+    // Actually crop each page's slice onto its own canvas (rather than redrawing the
+    // whole image shifted and letting the page rectangle "naturally" clip it) — the
+    // shift-and-clip approach left whatever came after a shortened page still visible
+    // through to the old fixed page height, so a block moved to the next page for not
+    // being split ended up rendered TWICE: once cut off at the bottom of the page it
+    // was moved off of, and again in full at the top of the next one.
+    const pageCanvas = document.createElement('canvas');
+    pageCanvas.width = canvas.width;
+    pageCanvas.height = canvasPageHeight;
+    const pageCtx = pageCanvas.getContext('2d')!;
+
     pageStarts.forEach((start, i) => {
+      const end = i + 1 < pageStarts.length ? pageStarts[i + 1] : canvas.height;
+      const sliceHeight = Math.min(end - start, canvasPageHeight);
+
+      pageCtx.fillStyle = '#ffffff';
+      pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+      pageCtx.drawImage(canvas, 0, start, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
       if (i > 0) pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, -start, imgWidth, imgHeight);
+      pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 0, 0, pageWidth, pageHeight);
     });
 
     return pdf.output('blob');
