@@ -722,6 +722,20 @@ export const storageService = {
     return data ? rowToExamDocument(data) : null;
   },
 
+  // Exact-title lookup — lets "Lưu vào Kho Đề Thi" from the exam editor detect a
+  // duplicate and refuse before uploading another copy of the file. Plain `eq`
+  // (not `ilike`) so a title containing "%"/"_" can't be misread as a wildcard.
+  async findExamDocumentByTitle(title: string): Promise<ExamDocument | null> {
+    const { data, error } = await supabase
+      .from('exam_documents')
+      .select('*')
+      .eq('title', title.trim())
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? rowToExamDocument(data) : null;
+  },
+
   async uploadExamFile(file: File): Promise<{ fileUrl: string; fileName: string; fileType: string }> {
     const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
     const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;

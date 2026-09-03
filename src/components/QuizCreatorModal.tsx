@@ -23,9 +23,10 @@ import {
   Save,
   FileType,
   Loader2,
-  Printer
+  Printer,
+  Library
 } from 'lucide-react';
-import { QuizExam, QuizQuestion, QuizOption } from '../types';
+import { QuizExam, QuizQuestion, QuizOption, ExamDocument } from '../types';
 import { storageService } from '../services/storageService';
 import { generateExamWordBlob, generateExamPdfBlob } from '../services/examPdf';
 
@@ -692,6 +693,58 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
       alert(`Không thể tạo tệp ${format === 'word' ? 'Word' : 'PDF'}. Vui lòng thử lại.`);
     } finally {
       setExportingFormat(null);
+    }
+  };
+
+  // "Lưu vào Kho Đề Thi, Kiểm Tra" — exports the same Word file as above, but instead
+  // of downloading it, uploads it straight into the exam_documents library (the same
+  // one ExamLibrary/"Kho Đề Thi" browses), carrying over this exam's own grade/lớp/năm
+  // học/môn học so it lands in the right group there without re-entering anything.
+  const [isSavingToLibrary, setIsSavingToLibrary] = useState(false);
+
+  const handleSaveToLibrary = async () => {
+    if (!title.trim()) {
+      alert('Vui lòng nhập tên đề thi trước khi lưu vào kho đề thi.');
+      return;
+    }
+    if (questions.length === 0) {
+      alert('Đề thi cần có ít nhất 1 câu hỏi trước khi lưu vào kho đề thi.');
+      return;
+    }
+    setIsSavingToLibrary(true);
+    try {
+      const existing = await storageService.findExamDocumentByTitle(title);
+      if (existing) {
+        alert(`Đề thi "${title.trim()}" đã có trong Kho Đề Thi rồi, không thể lưu trùng. Hãy đổi tên đề thi nếu bạn muốn lưu thêm một bản khác.`);
+        return;
+      }
+
+      const exam = buildExamObject(false);
+      const blob = await generateExamWordBlob(exam);
+      const { fileUrl } = await storageService.uploadExamFileBlob(blob, 'docx');
+      const doc: ExamDocument = {
+        id: `doc-${Date.now()}`,
+        title: exam.title,
+        grade: exam.grade,
+        className: exam.className,
+        schoolYear: exam.schoolYear,
+        category: exam.category,
+        description: exam.description || undefined,
+        fileUrl,
+        fileName: `${exam.title}.docx`,
+        fileType: 'docx',
+        views: 0,
+        uploadedAt: new Date().toISOString(),
+      };
+      await storageService.saveExamDocument(doc);
+      storageService.logActivity('Lưu đề thi vào kho đề thi', { detail: doc.title }).catch(() => {});
+      setIsSaveFormatModalOpen(false);
+      alert('Đã lưu đề thi vào Kho Đề Thi.');
+    } catch (err) {
+      console.error('Không thể lưu vào kho đề thi:', err);
+      alert('Không thể lưu đề thi vào kho đề thi. Vui lòng thử lại.');
+    } finally {
+      setIsSavingToLibrary(false);
     }
   };
 
@@ -1380,11 +1433,11 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsSaveFormatModalOpen(true)}
-                  title="Xuất đề thi hiện tại (kể cả thay đổi chưa lưu) ra tệp Word hoặc PDF"
+                  title="Xuất đề thi hiện tại (kể cả thay đổi chưa lưu) ra tệp Word/PDF, hoặc lưu vào Kho Đề Thi"
                   className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl border border-slate-700 transition-colors"
                 >
                   <FileType className="w-4 h-4" />
-                  <span>Lưu Thành File</span>
+                  <span>Lưu Thành</span>
                 </button>
 
                 <button
@@ -1448,19 +1501,19 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
 
       </div>
 
-      {/* "Lưu Thành File" format picker */}
+      {/* "Lưu Thành" picker: download as Word/PDF, or file straight into Kho Đề Thi */}
       {isSaveFormatModalOpen && (
         <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
             <h3 className="text-base font-bold text-slate-100 text-center">
-              Bạn muốn lưu với định dạng nào?
+              Bạn muốn lưu thành gì?
             </h3>
 
             <div className="space-y-2">
               <button
                 type="button"
                 onClick={() => handleExportExam('word')}
-                disabled={exportingFormat !== null}
+                disabled={exportingFormat !== null || isSavingToLibrary}
                 className="w-full flex items-center gap-3 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-400/30 disabled:opacity-50 text-blue-100 text-sm font-semibold px-4 py-3 rounded-xl transition-colors"
               >
                 {exportingFormat === 'word' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileType className="w-4 h-4" />}
@@ -1470,7 +1523,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
               <button
                 type="button"
                 onClick={() => handleExportExam('pdf')}
-                disabled={exportingFormat !== null}
+                disabled={exportingFormat !== null || isSavingToLibrary}
                 className="w-full flex items-center gap-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-400/30 disabled:opacity-50 text-emerald-100 text-sm font-semibold px-4 py-3 rounded-xl transition-colors"
               >
                 {exportingFormat === 'pdf' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
@@ -1479,8 +1532,19 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
 
               <button
                 type="button"
+                onClick={handleSaveToLibrary}
+                disabled={exportingFormat !== null || isSavingToLibrary}
+                title="Lưu tệp Word của đề thi này vào Kho Đề Thi, dùng đúng khối/lớp/năm học/môn học đã thiết lập"
+                className="w-full flex items-center gap-3 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-400/30 disabled:opacity-50 text-cyan-100 text-sm font-semibold px-4 py-3 rounded-xl transition-colors"
+              >
+                {isSavingToLibrary ? <Loader2 className="w-4 h-4 animate-spin" /> : <Library className="w-4 h-4" />}
+                <span>Lưu vào Kho Đề Thi, Kiểm Tra</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setIsSaveFormatModalOpen(false)}
-                disabled={exportingFormat !== null}
+                disabled={exportingFormat !== null || isSavingToLibrary}
                 className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 text-sm font-semibold px-4 py-3 rounded-xl transition-colors"
               >
                 <span>Quay Trở Lại Đề Thi</span>
