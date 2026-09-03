@@ -5,9 +5,8 @@ import {
   Layers, 
   Flame, 
   Search, 
-  BookOpen, 
-  PlusCircle, 
-  ShieldCheck, 
+  BookOpen,
+  ShieldCheck,
   SlidersHorizontal,
   Compass,
   FileCheck2,
@@ -16,8 +15,6 @@ import {
   WifiOff,
   Zap,
   GraduationCap,
-  Wrench,
-  BarChart3,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
@@ -673,142 +670,6 @@ export default function App() {
                           className="text-slate-400 hover:text-blue-400 text-xs font-bold uppercase tracking-wider transition-colors"
                         >
                           Xem tất cả tin tức →
-                        </button>
-                      </div>
-                    </section>
-
-                    {/* BENTO 3: Quiz Management Widget (4 cols) */}
-                    <section className="glass-panel md:col-span-6 lg:col-span-4 rounded-3xl p-6 flex flex-col justify-between hover:border-slate-600/60 transition-colors">
-                      <div>
-                        <div className="flex justify-between items-center mb-4">
-                          <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                            <GraduationCap className="w-4 h-4 text-blue-400" />
-                            <span>Quản lý Thi cử</span>
-                          </h3>
-                          <button
-                            onClick={requireAuthThenOpenQuizModal}
-                            className="p-1.5 bg-blue-500/10 text-blue-400 rounded-lg hover:bg-blue-500/20 transition-colors"
-                            title="Tạo đề thi mới"
-                          >
-                            <PlusCircle className="w-4 h-4" />
-                          </button>
-                        </div>
-
-                        {/* Upload trigger dropzone styled as Bento card */}
-                        <div
-                          onClick={requireAuthThenOpenQuizModal}
-                          className="border-2 border-dashed border-slate-800 hover:border-blue-500/50 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 bg-slate-950/60 cursor-pointer transition-all group/drop mb-4"
-                        >
-                          <span className="text-xs text-slate-400 group-hover/drop:text-slate-300">
-                            Tải lên tệp câu hỏi (TXT / JSON / CSV)
-                          </span>
-                          <button className="text-xs font-bold text-blue-400 underline">
-                            Chọn tệp đính kèm
-                          </button>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div 
-                            onClick={() => setActiveTab('quiz')}
-                            className="flex items-center justify-between bg-slate-800/40 hover:bg-slate-800/80 p-3 rounded-xl border border-slate-700/50 cursor-pointer transition-colors"
-                          >
-                            <span className="text-xs font-medium text-slate-200">Zero-Trust & Cloud Security</span>
-                            <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded">
-                              Đang diễn ra
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="pt-3">
-                        <button
-                          onClick={() => setActiveTab('quiz')}
-                          className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition-colors"
-                        >
-                          Vào phòng thi trực tuyến
-                        </button>
-                      </div>
-                    </section>
-
-                    {/* BENTO 4: Software Utilities Widget (4 cols) */}
-                    <section className="glass-panel md:col-span-6 lg:col-span-4 rounded-3xl p-6 flex flex-col justify-between hover:border-slate-600/60 transition-colors">
-                      <div>
-                        <h3 className="text-base font-bold mb-4 text-slate-100 flex items-center gap-2">
-                          <Wrench className="w-4 h-4 text-blue-400" />
-                          <span>Tiện ích phần mềm</span>
-                        </h3>
-
-                        <div className="grid grid-cols-2 gap-3 mb-3">
-                          <div 
-                            onClick={() => setActiveTab('utilities')}
-                            className="bg-slate-800/50 hover:bg-slate-800 p-3.5 rounded-2xl border border-slate-700/60 cursor-pointer transition-colors"
-                          >
-                            <div className="w-7 h-7 bg-blue-500/20 text-blue-400 rounded-lg flex items-center justify-center mb-2 font-bold text-xs">
-                              {`{ }`}
-                            </div>
-                            <span className="text-xs font-bold text-slate-200 block">Code Formatter</span>
-                            <span className="text-[10px] text-slate-400">JSON, SQL, JS</span>
-                          </div>
-
-                          <div 
-                            onClick={() => setActiveTab('utilities')}
-                            className="bg-slate-800/50 hover:bg-slate-800 p-3.5 rounded-2xl border border-slate-700/60 cursor-pointer transition-colors"
-                          >
-                            <div className="w-7 h-7 bg-purple-500/20 text-purple-400 rounded-lg flex items-center justify-center mb-2 font-bold text-xs">
-                              .*
-                            </div>
-                            <span className="text-xs font-bold text-slate-200 block">Regex Tester</span>
-                            <span className="text-[10px] text-slate-400">Kiểm thử biểu thức</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="pt-2">
-                        <button
-                          onClick={() => setActiveTab('utilities')}
-                          className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition-colors"
-                        >
-                          Mở bộ 6 công cụ kỹ thuật
-                        </button>
-                      </div>
-                    </section>
-
-                    {/* BENTO 5: Admin Dashboard Progress Highlight (4 cols) */}
-                    <section className="md:col-span-12 lg:col-span-4 bg-blue-600/30 backdrop-blur-md border border-blue-400/30 rounded-3xl p-6 text-white shadow-xl shadow-blue-600/20 flex flex-col justify-between">
-                      <div className="space-y-4">
-                        <h3 className="text-base font-bold flex items-center gap-2">
-                          <BarChart3 className="w-4 h-4 text-white" />
-                          <span>Admin Dashboard</span>
-                        </h3>
-
-                        <div>
-                          <div className="flex justify-between text-xs mb-1.5 font-medium">
-                            <span className="opacity-90">Tỷ lệ hoàn thành đề thi</span>
-                            <span className="font-bold">84%</span>
-                          </div>
-                          <div className="w-full bg-blue-500/80 h-2 rounded-full overflow-hidden">
-                            <div className="bg-white h-full rounded-full w-[84%]"></div>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-blue-500/60 p-3 rounded-2xl backdrop-blur-sm border border-blue-400/30">
-                            <span className="text-[10px] block opacity-80 font-medium">Người dùng online</span>
-                            <span className="text-lg font-extrabold">1,248</span>
-                          </div>
-                          <div className="bg-blue-500/60 p-3 rounded-2xl backdrop-blur-sm border border-blue-400/30">
-                            <span className="text-[10px] block opacity-80 font-medium">Bài viết lưu trữ</span>
-                            <span className="text-lg font-extrabold">{articles.length + savedCount}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="pt-4">
-                        <button
-                          onClick={() => setActiveTab('admin')}
-                          className="w-full py-2.5 bg-white text-blue-600 hover:bg-blue-50 rounded-xl text-xs font-bold transition-colors shadow-sm"
-                        >
-                          Xem chi tiết tiến độ
                         </button>
                       </div>
                     </section>
