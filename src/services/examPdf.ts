@@ -42,7 +42,7 @@ export function buildExamHtml(exam: QuizExam): string {
         .map((opt) => `<div style="margin:3px 0 3px 16px;">${escapeHtml(opt.id.toUpperCase())}. ${escapeHtml(opt.text)}</div>`)
         .join('');
       return `
-        <div style="margin-bottom:14px; break-inside:avoid;">
+        <div data-pdf-block="1" style="margin-bottom:14px; break-inside:avoid;">
           <div style="font-weight:bold;">Câu ${idx + 1}: ${escapeHtml(q.question)}</div>
           ${optionsHtml}
         </div>
@@ -79,7 +79,7 @@ function buildAnswerKeyTableHtml(exam: QuizExam): string {
       .map((q) => `<td style="${cellStyle}">${escapeHtml(q.correctOptionId.toUpperCase())}</td>`)
       .join('');
     tablesHtml += `
-      <table style="border-collapse:collapse; width:100%; margin-bottom:10px; font-size:13px;">
+      <table data-pdf-block="1" style="border-collapse:collapse; width:100%; margin-bottom:10px; font-size:13px;">
         <tr>${headerCells}</tr>
         <tr>${answerCells}</tr>
       </table>
@@ -205,17 +205,35 @@ export async function renderHtmlToPdfBlob(html: string): Promise<Blob> {
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     const imgData = canvas.toDataURL('image/png');
 
-    let heightLeft = imgHeight;
-    let position = 0;
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
+    // html2canvas flattens the whole exam into one tall image with no concept of
+    // "page" — naively slicing it every `pageHeight` px (the old behaviour) cuts
+    // straight through whatever question happens to straddle that line, so half its
+    // text lands on each page. Instead, find each [data-pdf-block] element's real
+    // position in the laid-out DOM (a question, or an answer-key table) and, when
+    // the next cut would land inside one, push the cut up to that block's top so
+    // the whole block moves to the next page instead of being split.
+    const cssToImgScale = imgHeight / container.scrollHeight;
+    const blocks = Array.from(container.querySelectorAll<HTMLElement>('[data-pdf-block]')).map((el) => ({
+      top: el.offsetTop * cssToImgScale,
+      bottom: (el.offsetTop + el.offsetHeight) * cssToImgScale,
+    }));
 
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+    const pageStarts = [0];
+    while (true) {
+      const prevStart = pageStarts[pageStarts.length - 1];
+      const idealCut = prevStart + pageHeight;
+      if (idealCut >= imgHeight) break;
+      const straddling = blocks.find((b) => idealCut > b.top + 0.5 && idealCut < b.bottom - 0.5);
+      // If the straddling block is itself taller than a page, moving it down would
+      // never let the cut advance — fall back to the raw cut for just that case.
+      const cut = straddling && straddling.top > prevStart ? straddling.top : idealCut;
+      pageStarts.push(cut);
     }
+
+    pageStarts.forEach((start, i) => {
+      if (i > 0) pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, -start, imgWidth, imgHeight);
+    });
 
     return pdf.output('blob');
   } finally {
