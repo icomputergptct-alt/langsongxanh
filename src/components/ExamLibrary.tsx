@@ -36,6 +36,10 @@ interface ExamLibraryProps {
   onRefreshSavedCount: () => void;
   refreshKey?: number;
   globalSearchQuery?: string;
+  // Lifts the document a user opens to view up to the parent, which gives it
+  // its own shareable /de-thi/{id} URL + SEO meta tags instead of a modal that
+  // only ever exists behind whatever URL the tab happened to be on.
+  onViewDoc: (doc: ExamDocument | null) => void;
 }
 
 // Ignore spacing differences ("2024 - 2025" vs "2024-2025") so the global search bar
@@ -290,12 +294,12 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
   onRefreshSavedCount,
   refreshKey,
   globalSearchQuery,
+  onViewDoc,
 }) => {
   const [view, setView] = useState<'exams' | 'offline-articles'>('exams');
   const [docs, setDocs] = useState<ExamDocument[]>([]);
   const [gradeFilter, setGradeFilter] = useState<number | null>(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [viewingDoc, setViewingDoc] = useState<ExamDocument | null>(null);
 
   const loadDocs = () => {
     storageService.getExamDocuments().then(setDocs).catch((err) => console.error('Không tải được kho đề thi:', err));
@@ -439,7 +443,7 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
                   {newestDocs.map((doc) => (
                     <li key={doc.id}>
                       <button
-                        onClick={() => setViewingDoc(doc)}
+                        onClick={() => onViewDoc(doc)}
                         className="w-full flex items-center gap-3 py-2.5 text-left group"
                       >
                         <FileText className="w-4 h-4 text-blue-400 shrink-0" />
@@ -473,7 +477,7 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
                   {mostViewed.map((doc, idx) => (
                     <li key={doc.id}>
                       <button
-                        onClick={() => setViewingDoc(doc)}
+                        onClick={() => onViewDoc(doc)}
                         className="w-full flex items-start gap-2.5 text-left group"
                       >
                         <span className="text-xs font-bold text-slate-500 group-hover:text-cyan-300 shrink-0 pt-0.5">
@@ -498,10 +502,6 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
           onClose={() => setIsUploadOpen(false)}
           onUploaded={loadDocs}
         />
-      )}
-
-      {viewingDoc && (
-        <ExamDocumentViewerModal doc={viewingDoc} onClose={() => setViewingDoc(null)} />
       )}
     </div>
   );

@@ -2,3 +2,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://www.longhoaso.com/sitemap.xml
+Sitemap: https://www.longhoaso.com/api/sitemap-de-thi.xml

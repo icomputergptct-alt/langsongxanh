@@ -714,6 +714,14 @@ export const storageService = {
     return (data || []).map(rowToExamDocument);
   },
 
+  // Single-row lookup for the /de-thi/{id} deep link — avoids fetching the
+  // whole library just to resolve one shared/bookmarked/Google-referred URL.
+  async getExamDocumentById(id: string): Promise<ExamDocument | null> {
+    const { data, error } = await supabase.from('exam_documents').select('*').eq('id', id).maybeSingle();
+    if (error) throw error;
+    return data ? rowToExamDocument(data) : null;
+  },
+
   async uploadExamFile(file: File): Promise<{ fileUrl: string; fileName: string; fileType: string }> {
     const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
     const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;

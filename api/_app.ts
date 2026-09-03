@@ -4,6 +4,7 @@ import net from "net";
 import http from "http";
 import https from "https";
 import { GoogleGenAI } from "@google/genai";
+import { createClient } from "@supabase/supabase-js";
 
 function getGeminiClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -39,11 +40,60 @@ function createRateLimiter(maxRequests: number, windowMs: number) {
 
 const urlScanRateLimiter = createRateLimiter(10, 60_000);
 
+// exam_documents ("Kho Đề Thi") is admin-managed and grows over time, so a
+// static sitemap.xml can't list it — this generates one on request instead,
+// using the same read-only anon key the client already uses (exam_documents
+// has a public SELECT policy).
+const EMPTY_URLSET = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>\n';
+
+function escapeXml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function getServerSupabase() {
+  const url = process.env.VITE_SUPABASE_URL;
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) return null;
+  return createClient(url, anonKey, { auth: { persistSession: false } });
+}
+
 export function createApiApp() {
   const app = express();
 
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+  // Dynamic sitemap for "Kho Đề Thi" documents — see EMPTY_URLSET comment above.
+  app.get("/api/sitemap-de-thi.xml", async (req, res) => {
+    res.set("Content-Type", "application/xml; charset=utf-8");
+    const supabase = getServerSupabase();
+    if (!supabase) {
+      return res.status(200).send(EMPTY_URLSET);
+    }
+    try {
+      const { data, error } = await supabase
+        .from("exam_documents")
+        .select("id, uploaded_at")
+        .order("uploaded_at", { ascending: false })
+        .limit(5000);
+      if (error) throw error;
+
+      const urls = (data || [])
+        .map((row: { id: string; uploaded_at: string | null }) => {
+          const loc = escapeXml(`https://www.longhoaso.com/de-thi/${encodeURIComponent(row.id)}`);
+          const lastmod = row.uploaded_at ? new Date(row.uploaded_at).toISOString().slice(0, 10) : null;
+          return `  <url>\n    <loc>${loc}</loc>${
+            lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ""
+          }\n    <changefreq>monthly</changefreq>\n    <priority>0.6</priority>\n  </url>`;
+        })
+        .join("\n");
+
+      res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);
+    } catch (err) {
+      console.error("Không tạo được sitemap kho đề thi:", err);
+      res.status(500).send(EMPTY_URLSET);
+    }
+  });
 
   // Health check
   app.get("/api/health", (req, res) => {

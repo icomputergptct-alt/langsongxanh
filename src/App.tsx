@@ -80,15 +80,38 @@ const matchRouteFromPath = (
   return tool ? { tool, eqnDegree: null } : null;
 };
 
+// Deep-link helper: /de-thi/{id} → the exam_documents row id ("Kho Đề Thi" library).
+const matchExamDocId = (pathname: string): string | null => {
+  const match = pathname.match(/^\/de-thi\/([^/]+)\/?$/);
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
+// Meta tags for one exam document page — reuses whatever metadata the
+// uploader filled in, so the title/description actually contain the subject,
+// grade and exam name people search for (e.g. "đề trắc nghiệm 15 phút Toán").
+const buildExamDocMeta = (doc: ExamDocument): { title: string; description: string } => {
+  const titleParts = [doc.title];
+  if (doc.grade) titleParts.push(`Lớp ${doc.grade}`);
+  if (doc.category) titleParts.push(doc.category);
+  const description =
+    doc.description ||
+    `Xem trước và tải xuống miễn phí đề thi "${doc.title}"${doc.category ? ` môn ${doc.category}` : ''}${
+      doc.grade ? ` lớp ${doc.grade}` : ''
+    } tại Kho Đề Thi Long Hoa Số.`;
+  return { title: `${titleParts.join(' - ')} - Long Hoa Số`, description };
+};
+
 // Articles per page in the news feed grid.
 const ARTICLES_PER_PAGE = 9;
 
 export default function App() {
   const { user, profile, isAdmin, signOut } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'contact'>(() =>
-    matchRouteFromPath(window.location.pathname) ? 'utilities' : 'quiz'
-  );
+  const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'contact'>(() => {
+    if (matchRouteFromPath(window.location.pathname)) return 'utilities';
+    if (matchExamDocId(window.location.pathname)) return 'offline';
+    return 'quiz';
+  });
   // Which tool (and, for the EQN sub-pages, which equation degree) /cong-cu/{slug}
   // should deep-link to. Both feed into SoftwareUtilities' `key` too, so browser
   // back/forward (which can't call its internal setters directly) forces a
@@ -181,6 +204,44 @@ export default function App() {
     }
   };
 
+  // Sync the exam document being viewed to the URL (/de-thi/{id}) + document
+  // meta, so each file in "Kho Đề Thi" is a distinct, shareable, indexable page
+  // (with real question text once the .docx preview loads) instead of only
+  // ever appearing inside a modal at "/".
+  const selectExamDoc = (doc: ExamDocument | null) => {
+    setSearchViewingDoc(doc);
+    const path = doc ? `/de-thi/${doc.id}` : '/';
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+    if (doc) {
+      const meta = buildExamDocMeta(doc);
+      setPageMeta(meta.title, meta.description, path);
+    } else {
+      resetPageMeta();
+    }
+  };
+
+  // Deep-link support: opening /de-thi/{id} directly should fetch and open that
+  // one document, without waiting on the full library list to load.
+  useEffect(() => {
+    const id = matchExamDocId(window.location.pathname);
+    if (!id) return;
+    let cancelled = false;
+    storageService
+      .getExamDocumentById(id)
+      .then((doc) => {
+        if (cancelled || !doc) return;
+        setSearchViewingDoc(doc);
+        const meta = buildExamDocMeta(doc);
+        setPageMeta(meta.title, meta.description, window.location.pathname);
+      })
+      .catch((err) => console.error('Không tải được tài liệu đề thi:', err));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Sync the active utility tool to the URL (/cong-cu/{slug}) + document meta,
   // so each tool (Scientific Calculator, URL Scanner, ...) is a distinct,
   // shareable, indexable page instead of hidden behind a client-only tab state.
@@ -250,17 +311,34 @@ export default function App() {
     const handlePopState = () => {
       const match = window.location.pathname.match(/^\/bai-viet\/([^/]+)\/?$/);
       const route = matchRouteFromPath(window.location.pathname);
+      const docId = matchExamDocId(window.location.pathname);
       if (match) {
         const found = articles.find((a) => a.slug === decodeURIComponent(match[1]));
         setSelectedArticle(found || null);
         setActiveTab('news');
+        setSearchViewingDoc(null);
       } else if (route) {
         setSelectedArticle(null);
+        setSearchViewingDoc(null);
         setInitialToolId(route.tool.id);
         setInitialEqnDegree(route.eqnDegree);
         setActiveTab('utilities');
+      } else if (docId) {
+        setSelectedArticle(null);
+        setActiveTab('offline');
+        storageService
+          .getExamDocumentById(docId)
+          .then((doc) => {
+            setSearchViewingDoc(doc);
+            if (doc) {
+              const meta = buildExamDocMeta(doc);
+              setPageMeta(meta.title, meta.description, window.location.pathname);
+            }
+          })
+          .catch((err) => console.error('Không tải được tài liệu đề thi:', err));
       } else {
         setSelectedArticle(null);
+        setSearchViewingDoc(null);
         resetPageMeta();
         setActiveTab((prev) => (prev === 'utilities' ? 'quiz' : prev));
       }
@@ -453,7 +531,7 @@ export default function App() {
               setActiveTab('quiz');
               setSearchQuery('');
             }}
-            onOpenDocument={(doc) => setSearchViewingDoc(doc)}
+            onOpenDocument={(doc) => selectExamDoc(doc)}
           />
         ) : (
         <>
@@ -894,6 +972,7 @@ export default function App() {
             onRefreshSavedCount={() => setSavedCount(storageService.getOfflineArticles().length)}
             refreshKey={docsRefreshKey}
             globalSearchQuery={searchQuery}
+            onViewDoc={selectExamDoc}
           />
         )}
 
@@ -985,7 +1064,7 @@ export default function App() {
 
       {/* Document Viewer — opened directly from a global search result */}
       {searchViewingDoc && (
-        <ExamDocumentViewerModal doc={searchViewingDoc} onClose={() => setSearchViewingDoc(null)} />
+        <ExamDocumentViewerModal doc={searchViewingDoc} onClose={() => selectExamDoc(null)} />
       )}
 
       {/* Document Upload Modal — unmounted while closed so it always opens with a clean slate */}
