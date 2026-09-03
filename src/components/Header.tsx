@@ -220,7 +220,7 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <BookOpen className="w-4 h-4" />
-            <span>Bảng Điều Khiển & Bài Viết</span>
+            <span>Bài Viết</span>
           </button>
 
           {user && (
