@@ -42,11 +42,42 @@ import { getPageNumbers } from './utils/pagination';
 import { SOFTWARE_UTILITIES } from './data/initialData';
 import { setPageMeta, resetPageMeta } from './utils/seoMeta';
 
-// Deep-link helper: match a /cong-cu/{slug} pathname to its utility tool.
-const matchToolFromPath = (pathname: string): SoftwareUtility | null => {
+// The quadratic/cubic equation solver (EQN mode) lives inside the Scientific
+// Calculator tool, but "giải phương trình bậc 2/3" is searched for on its own —
+// give it its own indexable slugs that open the calculator straight into that mode.
+const EQN_SUBPAGE_DEGREES: Record<string, 2 | 3> = {
+  'giai-phuong-trinh-bac-2': 2,
+  'giai-phuong-trinh-bac-3': 3,
+};
+
+const EQN_SUBPAGE_META: Record<2 | 3, { title: string; description: string }> = {
+  2: {
+    title: 'Giải Phương Trình Bậc 2 Online (ax² + bx + c = 0) - Long Hoa Số',
+    description: 'Công cụ giải phương trình bậc 2 trực tuyến miễn phí: nhập hệ số a, b, c để nhận ngay nghiệm x1, x2 (kể cả nghiệm phức) cùng giá trị delta (Δ), thao tác giống hệt máy tính Casio fx-570ES/991ES.'
+  },
+  3: {
+    title: 'Giải Phương Trình Bậc 3 Online (ax³ + bx² + cx + d = 0) - Long Hoa Số',
+    description: 'Công cụ giải phương trình bậc 3 trực tuyến miễn phí theo công thức Cardano: nhập hệ số a, b, c, d để nhận ngay đầy đủ 3 nghiệm (thực hoặc phức), không cần cài đặt.'
+  }
+};
+
+// Deep-link helper: match a /cong-cu/{slug} pathname to its utility tool
+// (and, for the two EQN sub-pages, which equation degree to auto-open).
+const matchRouteFromPath = (
+  pathname: string
+): { tool: SoftwareUtility; eqnDegree: 2 | 3 | null } | null => {
   const match = pathname.match(/^\/cong-cu\/([^/]+)\/?$/);
   if (!match) return null;
-  return SOFTWARE_UTILITIES.find((u) => u.slug === decodeURIComponent(match[1])) || null;
+  const slug = decodeURIComponent(match[1]);
+
+  const eqnDegree = EQN_SUBPAGE_DEGREES[slug];
+  if (eqnDegree) {
+    const calculator = SOFTWARE_UTILITIES.find((u) => u.id === 'util-sci-calculator');
+    return calculator ? { tool: calculator, eqnDegree } : null;
+  }
+
+  const tool = SOFTWARE_UTILITIES.find((u) => u.slug === slug);
+  return tool ? { tool, eqnDegree: null } : null;
 };
 
 // Articles per page in the news feed grid.
@@ -56,13 +87,17 @@ export default function App() {
   const { user, profile, isAdmin, signOut } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'contact'>(() =>
-    matchToolFromPath(window.location.pathname) ? 'utilities' : 'quiz'
+    matchRouteFromPath(window.location.pathname) ? 'utilities' : 'quiz'
   );
-  // Which tool /cong-cu/{slug} should deep-link to. Passed as SoftwareUtilities'
-  // `key` too, so browser back/forward (which can't call setSelectedToolId inside
-  // that component) forces a remount onto the right tool instead of no-op-ing.
+  // Which tool (and, for the EQN sub-pages, which equation degree) /cong-cu/{slug}
+  // should deep-link to. Both feed into SoftwareUtilities' `key` too, so browser
+  // back/forward (which can't call its internal setters directly) forces a
+  // remount onto the right tool/mode instead of no-op-ing.
   const [initialToolId, setInitialToolId] = useState<string | undefined>(
-    () => matchToolFromPath(window.location.pathname)?.id
+    () => matchRouteFromPath(window.location.pathname)?.tool.id
+  );
+  const [initialEqnDegree, setInitialEqnDegree] = useState<2 | 3 | null>(
+    () => matchRouteFromPath(window.location.pathname)?.eqnDegree ?? null
   );
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoadingArticles, setIsLoadingArticles] = useState(true);
@@ -149,12 +184,28 @@ export default function App() {
   // Sync the active utility tool to the URL (/cong-cu/{slug}) + document meta,
   // so each tool (Scientific Calculator, URL Scanner, ...) is a distinct,
   // shareable, indexable page instead of hidden behind a client-only tab state.
-  const handleToolChange = (tool: SoftwareUtility) => {
-    const path = `/cong-cu/${tool.slug}`;
+  // When the calculator's EQN mode is active, this points at its own dedicated
+  // "giai-phuong-trinh-bac-2/3" slug instead, since that's searched for on its own.
+  const handleToolChange = (tool: SoftwareUtility, eqnDegree: 2 | 3 | null) => {
+    let path: string;
+    let title: string;
+    let description: string;
+
+    if (eqnDegree) {
+      const meta = EQN_SUBPAGE_META[eqnDegree];
+      path = `/cong-cu/${eqnDegree === 2 ? 'giai-phuong-trinh-bac-2' : 'giai-phuong-trinh-bac-3'}`;
+      title = meta.title;
+      description = meta.description;
+    } else {
+      path = `/cong-cu/${tool.slug}`;
+      title = `${tool.name} - Long Hoa Số`;
+      description = tool.shortDesc;
+    }
+
     if (window.location.pathname !== path) {
       window.history.pushState({}, '', path);
     }
-    setPageMeta(`${tool.name} - Long Hoa Số`, tool.shortDesc, path);
+    setPageMeta(title, description, path);
   };
 
   // Leaving the Utilities tab for another tab: drop the tool URL/meta back to "/".
@@ -198,14 +249,15 @@ export default function App() {
   useEffect(() => {
     const handlePopState = () => {
       const match = window.location.pathname.match(/^\/bai-viet\/([^/]+)\/?$/);
-      const tool = matchToolFromPath(window.location.pathname);
+      const route = matchRouteFromPath(window.location.pathname);
       if (match) {
         const found = articles.find((a) => a.slug === decodeURIComponent(match[1]));
         setSelectedArticle(found || null);
         setActiveTab('news');
-      } else if (tool) {
+      } else if (route) {
         setSelectedArticle(null);
-        setInitialToolId(tool.id);
+        setInitialToolId(route.tool.id);
+        setInitialEqnDegree(route.eqnDegree);
         setActiveTab('utilities');
       } else {
         setSelectedArticle(null);
@@ -882,8 +934,9 @@ export default function App() {
         {/* ============================================================ */}
         {activeTab === 'utilities' && (
           <SoftwareUtilities
-            key={initialToolId || 'default'}
+            key={`${initialToolId || 'default'}-${initialEqnDegree ?? 'none'}`}
             initialToolId={initialToolId}
+            initialEqnDegree={initialEqnDegree}
             onToolChange={handleToolChange}
           />
         )}

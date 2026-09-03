@@ -451,23 +451,20 @@ function solveCubic(a: number, b: number, c: number, d: number): { roots: EqnRoo
 
 interface SoftwareUtilitiesProps {
   initialToolId?: string;
-  onToolChange?: (tool: SoftwareUtility) => void;
+  initialEqnDegree?: 2 | 3 | null;
+  onToolChange?: (tool: SoftwareUtility, eqnDegree: 2 | 3 | null) => void;
 }
 
-export const SoftwareUtilities: React.FC<SoftwareUtilitiesProps> = ({ initialToolId, onToolChange }) => {
+export const SoftwareUtilities: React.FC<SoftwareUtilitiesProps> = ({
+  initialToolId,
+  initialEqnDegree,
+  onToolChange
+}) => {
   const [utilities] = useState<SoftwareUtility[]>(SOFTWARE_UTILITIES);
   const [selectedToolId, setSelectedToolId] = useState<string>(initialToolId || SOFTWARE_UTILITIES[0].id);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const activeTool = utilities.find((u) => u.id === selectedToolId) || utilities[0];
-
-  // Report the active tool up so the parent can give it its own shareable URL
-  // (/cong-cu/{slug}) and SEO meta tags — each tool card is otherwise just a
-  // client-side state toggle that Google has no way to index separately.
-  useEffect(() => {
-    onToolChange?.(activeTool);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTool.id]);
 
   // ==========================================
   // TOOL 1: CODE / JSON / SQL FORMATTER STATE
@@ -861,12 +858,21 @@ interface SystemConfig {
   // type each coefficient followed by "=" to advance (a -> b -> c[-> d] -> roots),
   // and "=" again cycles through the roots once solved.
   // ==========================================
-  const [eqnDegree, setEqnDegree] = useState<2 | 3 | null>(null);
+  const [eqnDegree, setEqnDegree] = useState<2 | 3 | null>(initialEqnDegree ?? null);
   const [eqnStage, setEqnStage] = useState<'a' | 'b' | 'c' | 'd' | 'result'>('a');
   const [eqnCoeffs, setEqnCoeffs] = useState<{ a?: number; b?: number; c?: number }>({});
   const [eqnRoots, setEqnRoots] = useState<EqnRoot[]>([]);
   const [eqnRootIndex, setEqnRootIndex] = useState(0);
   const [eqnDiscriminant, setEqnDiscriminant] = useState<number | null>(null);
+
+  // Report the active tool (and, if it's the calculator in EQN mode, which
+  // degree) up so the parent can give it its own shareable URL (/cong-cu/{slug}
+  // or /cong-cu/giai-phuong-trinh-bac-2|3) and SEO meta tags — otherwise this is
+  // all just a client-side state toggle that Google has no way to index separately.
+  useEffect(() => {
+    onToolChange?.(activeTool, activeTool.id === 'util-sci-calculator' ? eqnDegree : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTool.id, eqnDegree]);
 
   const toggleEqnMode = (degree: 2 | 3) => {
     setEqnDegree((prev) => (prev === degree ? null : degree));

@@ -11,6 +11,16 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://www.longhoaso.com/cong-cu/giai-phuong-trinh-bac-2</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.longhoaso.com/cong-cu/giai-phuong-trinh-bac-3</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.longhoaso.com/cong-cu/url-security-scanner</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
