@@ -816,9 +816,10 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Category Pills & Quick Filter Controls */}
-                <div className="space-y-4 pt-2">
-                  <div className="flex flex-col gap-4">
+                {/* Category Pills & Quick Filter Controls — one glass-panel card so both
+                    rows read as a single filter bar instead of floating loosely on the
+                    background art. */}
+                <div className="glass-panel flex flex-col gap-3 p-3 sm:p-4">
 
                     {/* Category Scrollable Bar */}
                     <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none min-w-0 w-full">
@@ -869,7 +870,6 @@ export default function App() {
                       </button>
                     </div>
 
-                  </div>
                 </div>
 
                 {/* Articles Grid */}
