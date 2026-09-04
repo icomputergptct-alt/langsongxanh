@@ -19,7 +19,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Header } from './components/Header';
-import { Fireflies } from './components/Fireflies';
+import { DragonFireflies } from './components/DragonFireflies';
 import { ArticleCard } from './components/ArticleCard';
 import { ArticleDetail } from './components/ArticleDetail';
 import { ExamLibrary, ExamDocumentViewerModal } from './components/ExamLibrary';
@@ -470,7 +470,7 @@ export default function App() {
       />
       <div className="fixed inset-0 -z-10 bg-slate-950/75" />
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <Fireflies count={50} size={6} colors={['253, 224, 71', '255, 255, 255']} />
+        <DragonFireflies fireflyCount={50} dragonCount={2} colors={['253, 224, 71', '255, 255, 255']} />
       </div>
 
       {/* Top Main Navigation Header */}
