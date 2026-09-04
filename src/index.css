@@ -30,6 +30,33 @@
   100% { background-position: 300% 50%; }
 }
 
+/* Firefly swarm — small glowing dots that drift and flicker, used as a
+   decorative layer behind card content (see Fireflies.tsx). */
+.firefly {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: #fde047;
+  box-shadow: 0 0 4px 1px rgba(253, 224, 71, 0.9), 0 0 10px 3px rgba(253, 224, 71, 0.5);
+  animation-name: firefly-float, firefly-glow;
+  animation-timing-function: ease-in-out, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+}
+
+@keyframes firefly-float {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(6px, -10px); }
+  40% { transform: translate(-5px, -18px); }
+  60% { transform: translate(8px, -6px); }
+  80% { transform: translate(-6px, -2px); }
+}
+
+@keyframes firefly-glow {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 1; }
+}
+
 /* Basic readable styling for mammoth-rendered .docx content in the exam library viewer
    (no @tailwindcss/typography plugin installed, so style the raw tags directly). */
 .docx-preview h1, .docx-preview h2, .docx-preview h3 {

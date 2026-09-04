@@ -24,6 +24,7 @@ import confetti from 'canvas-confetti';
 import { QuizExam, ExamAttempt, QuizQuestion } from '../types';
 import { storageService } from '../services/storageService';
 import { getPageNumbers } from '../utils/pagination';
+import { Fireflies } from './Fireflies';
 
 // Days left until an exam room's deadline (null if it has no deadline).
 function getDaysRemaining(deadlineAt?: string): number | null {
@@ -485,6 +486,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
               className="group relative min-h-[320px] h-full overflow-hidden rounded-3xl border-2 border-amber-400/40 hover:border-amber-400/70 p-3 flex flex-col transition-all duration-200 shadow-lg hover:shadow-2xl hover:shadow-amber-500/20 hover:scale-[1.01]"
             >
                 <div className="absolute inset-0 bg-teal-950/50 backdrop-blur-sm pointer-events-none" />
+                <Fireflies count={12} className="z-[5]" />
 
                 <div className="relative z-10">
                   {/* Header tags */}
