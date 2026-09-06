@@ -58,9 +58,11 @@ create policy "admin delete articles" on articles for delete
   using (exists (select 1 from profiles where id = auth.uid() and is_admin));
 
 drop policy if exists "public write quiz_exams" on quiz_exams;
+drop policy if exists "authenticated write quiz_exams" on quiz_exams;
 create policy "authenticated write quiz_exams" on quiz_exams for insert
   with check (auth.uid() is not null);
 drop policy if exists "public update quiz_exams" on quiz_exams;
+drop policy if exists "owner or admin update quiz_exams" on quiz_exams;
 create policy "owner or admin update quiz_exams" on quiz_exams for update
   using (
     created_by = auth.uid()
@@ -71,6 +73,7 @@ create policy "owner or admin update quiz_exams" on quiz_exams for update
     or exists (select 1 from profiles where id = auth.uid() and is_admin)
   );
 drop policy if exists "public delete quiz_exams" on quiz_exams;
+drop policy if exists "owner or admin delete quiz_exams" on quiz_exams;
 create policy "owner or admin delete quiz_exams" on quiz_exams for delete
   using (
     created_by = auth.uid()
@@ -111,6 +114,7 @@ create policy "admin read contact_messages" on contact_messages for select
 -- of every is_admin account being able to write/edit/delete articles. Reading
 -- articles stays public — this only tightens insert/update/delete.
 drop policy if exists "admin write articles" on articles;
+drop policy if exists "news manager write articles" on articles;
 create policy "news manager write articles" on articles for insert
   with check (
     exists (
@@ -119,6 +123,7 @@ create policy "news manager write articles" on articles for insert
     )
   );
 drop policy if exists "admin update articles" on articles;
+drop policy if exists "news manager update articles" on articles;
 create policy "news manager update articles" on articles for update
   using (
     exists (
@@ -133,6 +138,7 @@ create policy "news manager update articles" on articles for update
     )
   );
 drop policy if exists "admin delete articles" on articles;
+drop policy if exists "news manager delete articles" on articles;
 create policy "news manager delete articles" on articles for delete
   using (
     exists (
@@ -460,7 +466,11 @@ select
       or exists (select 1 from profiles where id = auth.uid() and is_admin)
     then room_password
     else null
-  end as room_password
+  end as room_password,
+  -- Appended at the end, not inserted among the columns above: CREATE OR
+  -- REPLACE VIEW matches existing columns by position, so adding a new one
+  -- anywhere but last makes Postgres think every later column got renamed.
+  allow_answer_review
 from quiz_exams;
 
 -- --- Grade server-side and write the attempt row ---------------------------
@@ -470,7 +480,18 @@ from quiz_exams;
 -- revoke on that table, since this function runs as its owner). Returns just
 -- the aggregate result; per-question correctness/answer key is intentionally
 -- not returned to the client, so nothing leaks even by inspecting this call's
--- network response.
+-- network response — UNLESS the room's own `allow_answer_review` flag is on,
+-- in which case the full per-question breakdown (including the real answer
+-- key) is returned in `review`, once, only to the browser that just submitted.
+-- This never creates a way to read it back later for a different visitor, so
+-- it doesn't reopen the "later test-taker reads a previous student's answer
+-- key" leak the aggregate-only design above was built to close — it only
+-- widens what the submitting student themselves immediately sees, which is
+-- the teacher's explicit choice per exam.
+drop function if exists public.submit_exam_attempt(
+  text, text, text, text, text, text, timestamptz, timestamptz, int, jsonb, text[]
+);
+
 create or replace function public.submit_exam_attempt(
   p_attempt_id text,
   p_exam_id text,
@@ -484,7 +505,7 @@ create or replace function public.submit_exam_attempt(
   p_selected_answers jsonb,
   p_flagged_questions text[]
 )
-returns table (score int, max_score int, percentage numeric, passed boolean)
+returns table (score int, max_score int, percentage numeric, passed boolean, review jsonb)
 language plpgsql
 security definer
 set search_path = public
@@ -493,14 +514,16 @@ declare
   v_exam_title text;
   v_pass_score_percent int;
   v_questions jsonb;
+  v_allow_answer_review boolean;
   v_score int;
   v_max_score int;
   v_percentage numeric;
   v_passed boolean;
   v_answers jsonb;
+  v_review jsonb;
 begin
-  select title, pass_score_percent, questions
-  into v_exam_title, v_pass_score_percent, v_questions
+  select title, pass_score_percent, questions, allow_answer_review
+  into v_exam_title, v_pass_score_percent, v_questions, v_allow_answer_review
   from quiz_exams
   where id = p_exam_id;
 
@@ -520,6 +543,7 @@ begin
   graded as (
     select
       q.question ->> 'id' as question_id,
+      q.question as question_body,
       coalesce(a."selectedOptionId", '') as selected_option_id,
       (a."selectedOptionId" is not null and a."selectedOptionId" = q.question ->> 'correctOptionId') as is_correct
     from q
@@ -532,8 +556,19 @@ begin
       'questionId', question_id,
       'selectedOptionId', selected_option_id,
       'isCorrect', is_correct
-    ))
-  into v_score, v_max_score, v_answers
+    )),
+    case when v_allow_answer_review then
+      jsonb_agg(jsonb_build_object(
+        'questionId', question_id,
+        'questionText', question_body ->> 'question',
+        'options', question_body -> 'options',
+        'selectedOptionId', selected_option_id,
+        'correctOptionId', question_body ->> 'correctOptionId',
+        'isCorrect', is_correct,
+        'explanation', question_body ->> 'explanation'
+      ))
+    else null end
+  into v_score, v_max_score, v_answers, v_review
   from graded;
 
   v_percentage := case when v_max_score > 0 then round((v_score::numeric / v_max_score) * 100) else 0 end;
@@ -551,7 +586,7 @@ begin
 
   perform public.record_exam_participation(p_exam_id, v_percentage);
 
-  return query select v_score, v_max_score, v_percentage, v_passed;
+  return query select v_score, v_max_score, v_percentage, v_passed, v_review;
 end;
 $$;
 

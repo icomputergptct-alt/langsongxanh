@@ -186,3 +186,10 @@ alter table quiz_exams add column if not exists is_archived boolean not null def
 -- Room list yet. The teacher finishes editing later (from their profile) and
 -- publishes when ready.
 alter table quiz_exams add column if not exists is_draft boolean not null default false;
+
+-- Migration: per-exam opt-in for showing each student their own per-question
+-- review (correct answer + explanation) right after they submit. Defaults to
+-- false so existing/new exams keep the current "score only" behavior unless a
+-- teacher explicitly turns it on for a given room (see submit_exam_attempt in
+-- auth.sql for how this is used).
+alter table quiz_exams add column if not exists allow_answer_review boolean not null default false;

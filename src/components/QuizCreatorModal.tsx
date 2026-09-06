@@ -207,6 +207,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
     });
   };
   const [deadlineAt, setDeadlineAt] = useState(editingExam?.deadlineAt ? toDatetimeLocalValue(editingExam.deadlineAt) : '');
+  const [allowAnswerReview, setAllowAnswerReview] = useState(editingExam?.allowAnswerReview ?? false);
 
   // File upload state
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -235,7 +236,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   const buildEditableSnapshot = () =>
     JSON.stringify({
       title, description, category, difficulty, durationMinutes, passScorePercent,
-      className, roomPassword, grade, schoolYear, deadlineAt, questions,
+      className, roomPassword, grade, schoolYear, deadlineAt, allowAnswerReview, questions,
     });
   const [initialSnapshot] = useState(buildEditableSnapshot);
   const isDirty = !!editingExam && buildEditableSnapshot() !== initialSnapshot;
@@ -615,6 +616,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
     grade: grade ? Number(grade) : undefined,
     schoolYear: schoolYear.trim() || undefined,
     deadlineAt: deadlineAt ? new Date(deadlineAt).toISOString() : undefined,
+    allowAnswerReview,
     isDraft: publish ? false : editingExam ? editingExam.isDraft : true,
     participantsCount: editingExam?.participantsCount ?? 0,
     averageScore: editingExam?.averageScore ?? 0,
@@ -1220,6 +1222,25 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
               <p className="text-[11px] text-slate-400 mt-1">
                 Để trống nếu phòng thi không có hạn. Sau thời điểm này, đề thi sẽ tự động chuyển thành tệp PDF và lưu vào Kho đề thi kiểm tra, đồng thời ẩn khỏi Phòng Thi Trắc Nghiệm.
               </p>
+            </div>
+
+            <div className="flex items-start gap-2.5 bg-slate-800/60 border border-slate-600 rounded-xl px-3 py-2.5">
+              <input
+                id="allow-answer-review"
+                type="checkbox"
+                checked={allowAnswerReview}
+                onChange={(e) => setAllowAnswerReview(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-cyan-500 cursor-pointer shrink-0"
+              />
+              <label htmlFor="allow-answer-review" className="cursor-pointer select-none">
+                <span className="block text-xs font-medium text-slate-200">
+                  Cho phép xem lại đáp án sau khi nộp bài
+                </span>
+                <span className="block text-[11px] text-slate-400 mt-0.5">
+                  Học sinh sẽ thấy đáp án đúng và giải thích cho từng câu ngay sau khi nộp. Chỉ nên bật cho đề luyện tập —
+                  nếu nhiều học sinh cùng làm chung một phòng thi với cùng bộ câu hỏi, người làm trước có thể lộ đáp án cho người làm sau.
+                </span>
+              </label>
             </div>
           </div>
 

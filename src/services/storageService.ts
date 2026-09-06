@@ -1,4 +1,4 @@
-﻿import { ActivityLog, Article, Comment, ContactMessage, ExamAttempt, ExamDocument, OfflineArticle, QuizExam } from '../types';
+﻿import { ActivityLog, Article, Comment, ContactMessage, ExamAttempt, ExamDocument, OfflineArticle, QuizExam, ReviewedQuestion } from '../types';
 import { supabase } from './supabaseClient';
 import { generateExamPdfBlob } from './examPdf';
 
@@ -139,6 +139,7 @@ function rowToExam(row: any): QuizExam {
     deadlineAt: row.deadline_at || undefined,
     isArchived: row.is_archived || false,
     isDraft: row.is_draft || false,
+    allowAnswerReview: row.allow_answer_review || false,
     participantsCount: row.participants_count,
     averageScore: row.average_score,
     sourceFile: row.source_file || undefined,
@@ -192,6 +193,7 @@ function examToRow(exam: QuizExam) {
     deadline_at: exam.deadlineAt || null,
     is_archived: !!exam.isArchived,
     is_draft: !!exam.isDraft,
+    allow_answer_review: !!exam.allowAnswerReview,
     participants_count: exam.participantsCount,
     average_score: exam.averageScore,
     source_file: exam.sourceFile || null,
@@ -680,7 +682,7 @@ export const storageService = {
     durationSeconds: number;
     selectedAnswers: { questionId: string; selectedOptionId: string }[];
     flaggedQuestions?: string[];
-  }): Promise<{ score: number; maxScore: number; percentage: number; passed: boolean }> {
+  }): Promise<{ score: number; maxScore: number; percentage: number; passed: boolean; review: ReviewedQuestion[] | null }> {
     const { data, error } = await supabase.rpc('submit_exam_attempt', {
       p_attempt_id: params.attemptId,
       p_exam_id: params.examId,
@@ -701,6 +703,7 @@ export const storageService = {
       maxScore: row.max_score,
       percentage: Number(row.percentage),
       passed: row.passed,
+      review: row.review || null,
     };
   },
 

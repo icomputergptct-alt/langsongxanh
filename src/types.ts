@@ -100,6 +100,11 @@ export interface QuizExam {
   deadlineAt?: string;
   isArchived?: boolean;
   isDraft?: boolean;
+  // When true, submit_exam_attempt returns each student their own per-question
+  // review (correct answer + explanation) right after they submit — off by
+  // default so a room reused across many sittings doesn't leak its answer key
+  // to later test-takers via an earlier student's screenshot.
+  allowAnswerReview?: boolean;
   participantsCount: number;
   averageScore: number;
   sourceFile?: string;
@@ -153,6 +158,19 @@ export interface UserExamAnswer {
   questionId: string;
   selectedOptionId: string;
   isCorrect: boolean;
+}
+
+// One question's full review detail, returned by submit_exam_attempt only when
+// the exam has allowAnswerReview on — transient (part of the submit response
+// only, never stored client-side or re-fetchable later).
+export interface ReviewedQuestion {
+  questionId: string;
+  questionText: string;
+  options: QuizOption[];
+  selectedOptionId: string;
+  correctOptionId: string;
+  isCorrect: boolean;
+  explanation: string;
 }
 
 export interface ExamAttempt {
