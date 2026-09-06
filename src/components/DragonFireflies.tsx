@@ -37,6 +37,25 @@ const SEGMENT_SPACING = 9;
 const DRAGON_LENGTH = 16;
 const EAT_RADIUS = 20;
 const DRAGON_HUES = ['244, 180, 60', '250, 100, 80', '120, 210, 170'];
+const GLOW_SPRITE_SIZE = 64;
+const MOBILE_BREAKPOINT = 640;
+
+// Bakes a firefly's glow into an offscreen canvas once per color so the render
+// loop can drawImage (scale + globalAlpha) instead of building a fresh
+// radialGradient — with 50 fireflies that was 50 gradient allocations/frame.
+const createGlowSprite = (color: string): HTMLCanvasElement => {
+  const sprite = document.createElement('canvas');
+  sprite.width = GLOW_SPRITE_SIZE;
+  sprite.height = GLOW_SPRITE_SIZE;
+  const sctx = sprite.getContext('2d')!;
+  const center = GLOW_SPRITE_SIZE / 2;
+  const grad = sctx.createRadialGradient(center, center, 0, center, center, center);
+  grad.addColorStop(0, `rgba(${color}, 1)`);
+  grad.addColorStop(1, `rgba(${color}, 0)`);
+  sctx.fillStyle = grad;
+  sctx.fillRect(0, 0, GLOW_SPRITE_SIZE, GLOW_SPRITE_SIZE);
+  return sprite;
+};
 
 // Canvas-based decorative background: a swarm of drifting, twinkling fireflies
 // hunted by a couple of small serpentine dragons. Runs entirely in a JS/canvas
@@ -56,9 +75,20 @@ export const DragonFireflies: React.FC<DragonFirefliesProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Respect reduced-motion preference and skip the animation entirely.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
     let width = window.innerWidth;
     let height = window.innerHeight;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    // Lighter swarm on small/mobile screens, where continuous canvas
+    // animation costs relatively more battery and CPU.
+    const isSmallScreen = width < MOBILE_BREAKPOINT;
+    const effectiveFireflyCount = isSmallScreen ? Math.max(15, Math.round(fireflyCount * 0.4)) : fireflyCount;
+    const effectiveDragonCount = isSmallScreen ? Math.min(1, dragonCount) : dragonCount;
+
+    const glowSprites = new Map<string, HTMLCanvasElement>(colors.map((c) => [c, createGlowSprite(c)]));
 
     const resize = () => {
       width = window.innerWidth;
@@ -110,8 +140,8 @@ export const DragonFireflies: React.FC<DragonFirefliesProps> = ({
       };
     };
 
-    const fireflies: Firefly[] = Array.from({ length: fireflyCount }).map(spawnFirefly);
-    const dragons: Dragon[] = Array.from({ length: dragonCount }).map((_, i) => spawnDragon(i));
+    const fireflies: Firefly[] = Array.from({ length: effectiveFireflyCount }).map(spawnFirefly);
+    const dragons: Dragon[] = Array.from({ length: effectiveDragonCount }).map((_, i) => spawnDragon(i));
 
     let raf = 0;
     let last = performance.now();
@@ -159,13 +189,13 @@ export const DragonFireflies: React.FC<DragonFirefliesProps> = ({
           }
         }
 
-        ctx.beginPath();
-        const glow = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, radius * 4);
-        glow.addColorStop(0, `rgba(${f.color}, ${alpha})`);
-        glow.addColorStop(1, `rgba(${f.color}, 0)`);
-        ctx.fillStyle = glow;
-        ctx.arc(f.x, f.y, radius * 4, 0, Math.PI * 2);
-        ctx.fill();
+        const glowR = radius * 4;
+        const sprite = glowSprites.get(f.color);
+        if (sprite) {
+          ctx.globalAlpha = alpha;
+          ctx.drawImage(sprite, f.x - glowR, f.y - glowR, glowR * 2, glowR * 2);
+          ctx.globalAlpha = 1;
+        }
 
         ctx.beginPath();
         ctx.fillStyle = `rgba(${f.color}, ${Math.min(1, alpha + 0.2)})`;
