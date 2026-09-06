@@ -1278,7 +1278,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                 <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide pt-3">
                   Phần II: Trắc Nghiệm Đúng/Sai
                 </h4>
-                {reviewSections.trueFalse.map((rq, idx) => renderReviewCard(rq, idx + 1))}
+                {reviewSections.trueFalse.map((rq, idx) => renderReviewCard(rq, reviewSections.regular.length + idx + 1))}
               </>
             )}
           </div>

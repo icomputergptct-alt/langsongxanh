@@ -57,7 +57,7 @@ export function buildExamHtml(exam: QuizExam): string {
         <h2 style="font-size:16px; margin:12px 0 8px;">Phần I: Trắc Nghiệm Nhiều Lựa Chọn</h2>
         ${regular.map((q, idx) => renderQuestionHtml(q, idx + 1)).join('')}
         <h2 style="font-size:16px; margin:20px 0 8px;">Phần II: Trắc Nghiệm Đúng/Sai</h2>
-        ${trueFalse.map((q, idx) => renderQuestionHtml(q, idx + 1)).join('')}
+        ${trueFalse.map((q, idx) => renderQuestionHtml(q, regular.length + idx + 1)).join('')}
       `;
 
   return `
@@ -77,13 +77,13 @@ export function buildExamHtml(exam: QuizExam): string {
 // of questions.
 const ANSWER_TABLE_CHUNK_SIZE = 10;
 
-function buildAnswerKeyTableBlock(questions: QuizExam['questions']): string {
+function buildAnswerKeyTableBlock(questions: QuizExam['questions'], startNum = 1): string {
   const cellStyle = 'border:1px solid #94a3b8; padding:6px 4px; text-align:center;';
   let tablesHtml = '';
   for (let i = 0; i < questions.length; i += ANSWER_TABLE_CHUNK_SIZE) {
     const chunk = questions.slice(i, i + ANSWER_TABLE_CHUNK_SIZE);
     const headerCells = chunk
-      .map((_, j) => `<td style="${cellStyle} font-weight:bold;">Câu ${i + j + 1}</td>`)
+      .map((_, j) => `<td style="${cellStyle} font-weight:bold;">Câu ${startNum + i + j}</td>`)
       .join('');
     const answerCells = chunk
       .map((q) => `<td style="${cellStyle}">${escapeHtml(q.correctOptionId.toUpperCase())}</td>`)
@@ -105,7 +105,7 @@ function buildAnswerKeyTableHtml(exam: QuizExam): string {
     <div style="font-weight:bold; margin:10px 0 4px;">Phần I: Trắc Nghiệm Nhiều Lựa Chọn</div>
     ${buildAnswerKeyTableBlock(regular)}
     <div style="font-weight:bold; margin:14px 0 4px;">Phần II: Trắc Nghiệm Đúng/Sai</div>
-    ${buildAnswerKeyTableBlock(trueFalse)}
+    ${buildAnswerKeyTableBlock(trueFalse, regular.length + 1)}
   `;
 }
 
@@ -136,11 +136,11 @@ export async function generateExamWordBlob(exam: QuizExam): Promise<Blob> {
     );
   }
 
-  const pushQuestionParagraphs = (questions: QuizExam['questions']) => {
+  const pushQuestionParagraphs = (questions: QuizExam['questions'], startNum = 1) => {
     questions.forEach((q, idx) => {
       children.push(
         new Paragraph({
-          children: [new TextRun({ text: `Câu ${idx + 1}: ${q.question}`, bold: true })],
+          children: [new TextRun({ text: `Câu ${startNum + idx}: ${q.question}`, bold: true })],
           spacing: { before: 200, after: 80 },
         })
       );
@@ -174,7 +174,7 @@ export async function generateExamWordBlob(exam: QuizExam): Promise<Blob> {
         spacing: { before: 300, after: 120 },
       })
     );
-    pushQuestionParagraphs(trueFalse);
+    pushQuestionParagraphs(trueFalse, regular.length + 1);
   }
 
   children.push(
@@ -200,7 +200,7 @@ export async function generateExamWordBlob(exam: QuizExam): Promise<Blob> {
         spacing: { before: 200, after: 80 },
       })
     );
-    children.push(...buildAnswerKeyTables(trueFalse));
+    children.push(...buildAnswerKeyTables(trueFalse, regular.length + 1));
   }
 
   const doc = new Document({ sections: [{ children }] });
@@ -210,7 +210,7 @@ export async function generateExamWordBlob(exam: QuizExam): Promise<Blob> {
 // Same 2-row "Câu N" / letter table as buildAnswerKeyTableHtml, built with docx's
 // Table API instead of raw HTML, chunked the same way so long exams still read
 // as several 10-column blocks rather than one unreadably wide table.
-function buildAnswerKeyTables(questions: QuizExam['questions']): (Paragraph | Table)[] {
+function buildAnswerKeyTables(questions: QuizExam['questions'], startNum = 1): (Paragraph | Table)[] {
   const cellBorders = {
     top: { style: BorderStyle.SINGLE, size: 4, color: '94A3B8' },
     bottom: { style: BorderStyle.SINGLE, size: 4, color: '94A3B8' },
@@ -230,7 +230,7 @@ function buildAnswerKeyTables(questions: QuizExam['questions']): (Paragraph | Ta
       new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
         rows: [
-          new TableRow({ children: chunk.map((_, j) => cell(`Câu ${i + j + 1}`, true)) }),
+          new TableRow({ children: chunk.map((_, j) => cell(`Câu ${startNum + i + j}`, true)) }),
           new TableRow({ children: chunk.map((q) => cell(q.correctOptionId.toUpperCase(), false)) }),
         ],
       })
