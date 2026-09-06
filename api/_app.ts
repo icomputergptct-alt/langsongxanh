@@ -761,12 +761,35 @@ function extractBareAnswerTable(text: string): { body: string; answerMap: Record
   const letterLineRe = /^([A-Za-z])$/;
   const MAX_LABEL_GAP_LINES = 3;
 
-  for (let i = 0; i < rawLines.length; i++) {
-    if (rawLines[i].trim() === "") continue;
-    const m = numberLineRe.exec(rawLines[i].trim());
-    if (!m || parseInt(m[1], 10) !== 1) continue;
+  const answerMap: Record<number, string> = {};
+  const removeIdx = new Set<number>();
+  let foundAny = false;
 
-    let expected = 1;
+  // A document can have more than one of these bare tables back-to-back — e.g. a
+  // "Phần I" (nhiều lựa chọn) answer table followed by a separately-numbered
+  // "Phần II" (Đúng/Sai) one, continuing the same count instead of restarting at 1
+  // (see buildAnswerKeyTables in src/services/examPdf.ts, which exports exactly this
+  // shape). Keep scanning for another run after each match instead of stopping at
+  // the first, merging all of them into one answerMap — otherwise every question
+  // after the first table's answers silently falls back to "always option A".
+  let i = 0;
+  while (i < rawLines.length) {
+    if (rawLines[i].trim() === "") {
+      i++;
+      continue;
+    }
+    const m = numberLineRe.exec(rawLines[i].trim());
+    const startNum = m ? parseInt(m[1], 10) : NaN;
+    // The very first table found must start at 1 — a strong guard against treating
+    // an unrelated bare number elsewhere in the document as a fake answer table.
+    // Once one real table has been found, a later one (Phần II) is allowed to pick
+    // up wherever the numbering continues from, since it won't restart at 1.
+    if (!m || (!foundAny && startNum !== 1)) {
+      i++;
+      continue;
+    }
+
+    let expected = startNum;
     const numberLineIdx: number[] = [];
     let j = i;
     while (j < rawLines.length) {
@@ -782,49 +805,56 @@ function extractBareAnswerTable(text: string): { body: string; answerMap: Record
       j++;
     }
     const count = numberLineIdx.length;
-    if (count < 2) continue;
+    if (count < 2) {
+      i++;
+      continue;
+    }
 
     // Skip a short run of stray lines (blank, or a row-label like "Đáp án") between
     // the number run and its letters, without wandering off into unrelated content.
     const labelLineIdx: number[] = [];
     let labelSkips = 0;
-    while (j < rawLines.length && labelSkips < MAX_LABEL_GAP_LINES) {
-      const trimmed = rawLines[j].trim();
+    let k = j;
+    while (k < rawLines.length && labelSkips < MAX_LABEL_GAP_LINES) {
+      const trimmed = rawLines[k].trim();
       if (trimmed === "") {
-        j++;
+        k++;
         continue;
       }
       if (numberLineRe.test(trimmed) || letterLineRe.test(trimmed)) break;
-      labelLineIdx.push(j);
-      j++;
+      labelLineIdx.push(k);
+      k++;
       labelSkips++;
     }
 
     const letterLineIdx: number[] = [];
-    while (j < rawLines.length && letterLineIdx.length < count) {
-      const trimmed = rawLines[j].trim();
+    while (k < rawLines.length && letterLineIdx.length < count) {
+      const trimmed = rawLines[k].trim();
       if (trimmed === "") {
-        j++;
+        k++;
         continue;
       }
       const lm = letterLineRe.exec(trimmed);
       if (!lm) break;
-      letterLineIdx.push(j);
-      j++;
+      letterLineIdx.push(k);
+      k++;
     }
-    if (letterLineIdx.length !== count) continue;
-
-    const answerMap: Record<number, string> = {};
-    for (let k = 0; k < count; k++) {
-      answerMap[k + 1] = rawLines[letterLineIdx[k]].trim().toUpperCase();
+    if (letterLineIdx.length !== count) {
+      i++;
+      continue;
     }
 
-    const removeIdx = new Set([...numberLineIdx, ...labelLineIdx, ...letterLineIdx]);
-    const body = rawLines.filter((_, idx) => !removeIdx.has(idx)).join("\n");
-    return { body, answerMap };
+    for (let n = 0; n < count; n++) {
+      answerMap[startNum + n] = rawLines[letterLineIdx[n]].trim().toUpperCase();
+    }
+    [...numberLineIdx, ...labelLineIdx, ...letterLineIdx].forEach((idx) => removeIdx.add(idx));
+    foundAny = true;
+    i = k; // resume scanning right after this table, looking for another one
   }
 
-  return { body: text, answerMap: {} };
+  if (!foundAny) return { body: text, answerMap: {} };
+  const body = rawLines.filter((_, idx) => !removeIdx.has(idx)).join("\n");
+  return { body, answerMap };
 }
 
 // Marks where a real (non-equation) inserted picture used to be — see IMG_TOKEN_RE
