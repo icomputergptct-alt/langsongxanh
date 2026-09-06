@@ -25,6 +25,7 @@ import { QuizExam, ExamAttempt, QuizQuestion, ReviewedQuestion } from '../types'
 import { storageService } from '../services/storageService';
 import { getPageNumbers } from '../utils/pagination';
 import { Fireflies } from './Fireflies';
+import { getMeaningfulOptions, splitIntoSections } from '../utils/quizQuestions';
 
 // Days left until an exam room's deadline (null if it has no deadline).
 function getDaysRemaining(deadlineAt?: string): number | null {
@@ -843,7 +844,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
 
               {/* Options List */}
               <div className="space-y-3 pt-2">
-                {currentQ.options.map((opt) => {
+                {getMeaningfulOptions(currentQ.options).map((opt) => {
                   const isSelected = userAnswers[currentQ.id] === opt.id;
                   return (
                     <div
@@ -1107,6 +1108,69 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
   if (examState === 'result' && selectedExam && lastAttempt) {
     const wrongCount = lastAttempt.maxScore - lastAttempt.score;
 
+    // One reviewed question's card — pulled out so it can be reused for both
+    // the regular section and the Đúng/Sai section with independent numbering.
+    const renderReviewCard = (rq: ReviewedQuestion, num: number) => (
+      <div
+        key={rq.questionId}
+        className={`border rounded-2xl p-5 bg-white shadow-sm ${
+          rq.isCorrect ? 'border-emerald-200' : 'border-rose-200'
+        }`}
+      >
+        <div className="flex items-start gap-2 mb-3">
+          {rq.isCorrect ? (
+            <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+          ) : (
+            <XCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+          )}
+          <h4 className="text-sm sm:text-base font-bold text-slate-900 leading-relaxed">
+            Câu {num}. {rq.questionText}
+          </h4>
+        </div>
+
+        <div className="space-y-2">
+          {getMeaningfulOptions(rq.options).map((opt) => {
+            const isSelected = rq.selectedOptionId === opt.id;
+            const isCorrectOption = rq.correctOptionId === opt.id;
+            const style = isCorrectOption
+              ? 'bg-emerald-50 border-emerald-400 text-emerald-900'
+              : isSelected
+              ? 'bg-rose-50 border-rose-400 text-rose-900'
+              : 'bg-slate-50/80 border-slate-200 text-slate-600';
+            return (
+              <div
+                key={opt.id}
+                className={`flex items-center gap-3 p-3 rounded-xl border text-sm ${style}`}
+              >
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold shrink-0 ${
+                  isCorrectOption ? 'bg-emerald-500 text-white' : isSelected ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  {opt.id}
+                </div>
+                <div className="flex-1 flex items-center gap-2">
+                  {opt.text && <span>{opt.text}</span>}
+                  {opt.image && (
+                    <img src={opt.image} alt={`Đáp án ${opt.id}`} className="max-h-14 rounded-lg border border-slate-200" />
+                  )}
+                </div>
+                {isCorrectOption && <span className="text-[11px] font-bold shrink-0">Đáp án đúng</span>}
+                {isSelected && !isCorrectOption && <span className="text-[11px] font-bold shrink-0">Bạn đã chọn</span>}
+              </div>
+            );
+          })}
+        </div>
+
+        {rq.explanation && (
+          <div className="mt-3 bg-cyan-50/60 border border-cyan-200 rounded-xl p-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
+            <strong className="text-cyan-700">Giải thích: </strong>
+            {rq.explanation}
+          </div>
+        )}
+      </div>
+    );
+
+    const reviewSections = reviewData ? splitIntoSections<ReviewedQuestion>(reviewData) : null;
+
     return (
       <div id="quiz-result-view" className="max-w-4xl mx-auto pb-16">
         
@@ -1194,70 +1258,29 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
         {/* Per-question review — only rendered when the exam owner turned on
             allowAnswerReview; the RPC only returns `review` data in that case,
             so this is exactly what's safe to show (see submit_exam_attempt). */}
-        {reviewData && reviewData.length > 0 && (
+        {reviewSections && reviewData && reviewData.length > 0 && (
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <BarChart2 className="w-5 h-5 text-cyan-600" />
               Xem Lại Đáp Án
             </h3>
-            {reviewData.map((rq, idx) => (
-              <div
-                key={rq.questionId}
-                className={`border rounded-2xl p-5 bg-white shadow-sm ${
-                  rq.isCorrect ? 'border-emerald-200' : 'border-rose-200'
-                }`}
-              >
-                <div className="flex items-start gap-2 mb-3">
-                  {rq.isCorrect ? (
-                    <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                  ) : (
-                    <XCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-                  )}
-                  <h4 className="text-sm sm:text-base font-bold text-slate-900 leading-relaxed">
-                    Câu {idx + 1}. {rq.questionText}
-                  </h4>
-                </div>
 
-                <div className="space-y-2">
-                  {rq.options.map((opt) => {
-                    const isSelected = rq.selectedOptionId === opt.id;
-                    const isCorrectOption = rq.correctOptionId === opt.id;
-                    const style = isCorrectOption
-                      ? 'bg-emerald-50 border-emerald-400 text-emerald-900'
-                      : isSelected
-                      ? 'bg-rose-50 border-rose-400 text-rose-900'
-                      : 'bg-slate-50/80 border-slate-200 text-slate-600';
-                    return (
-                      <div
-                        key={opt.id}
-                        className={`flex items-center gap-3 p-3 rounded-xl border text-sm ${style}`}
-                      >
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold shrink-0 ${
-                          isCorrectOption ? 'bg-emerald-500 text-white' : isSelected ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-500'
-                        }`}>
-                          {opt.id}
-                        </div>
-                        <div className="flex-1 flex items-center gap-2">
-                          {opt.text && <span>{opt.text}</span>}
-                          {opt.image && (
-                            <img src={opt.image} alt={`Đáp án ${opt.id}`} className="max-h-14 rounded-lg border border-slate-200" />
-                          )}
-                        </div>
-                        {isCorrectOption && <span className="text-[11px] font-bold shrink-0">Đáp án đúng</span>}
-                        {isSelected && !isCorrectOption && <span className="text-[11px] font-bold shrink-0">Bạn đã chọn</span>}
-                      </div>
-                    );
-                  })}
-                </div>
+            {reviewSections.trueFalse.length === 0 ? (
+              // No Đúng/Sai questions in this exam — render flat, exactly as before.
+              reviewData.map((rq, idx) => renderReviewCard(rq, idx + 1))
+            ) : (
+              <>
+                <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide pt-1">
+                  Phần I: Trắc Nghiệm Nhiều Lựa Chọn
+                </h4>
+                {reviewSections.regular.map((rq, idx) => renderReviewCard(rq, idx + 1))}
 
-                {rq.explanation && (
-                  <div className="mt-3 bg-cyan-50/60 border border-cyan-200 rounded-xl p-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
-                    <strong className="text-cyan-700">Giải thích: </strong>
-                    {rq.explanation}
-                  </div>
-                )}
-              </div>
-            ))}
+                <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide pt-3">
+                  Phần II: Trắc Nghiệm Đúng/Sai
+                </h4>
+                {reviewSections.trueFalse.map((rq, idx) => renderReviewCard(rq, idx + 1))}
+              </>
+            )}
           </div>
         )}
 

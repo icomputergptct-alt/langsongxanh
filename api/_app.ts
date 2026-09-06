@@ -158,7 +158,9 @@ Yêu cầu trả về đúng định dạng JSON như sau (không kèm markdown 
       "explanation": "Giải thích chi tiết vì sao đáp án này đúng"
     }
   ]
-}`;
+}
+
+Lưu ý về câu hỏi Đúng/Sai: nếu tài liệu gốc có câu hỏi dạng nhận định Đúng/Sai (chỉ có 2 phương án trả lời là "Đúng" và "Sai", không phải 4 phương án A/B/C/D), hãy giữ đúng 2 phần tử trong mảng "options" của câu đó (id "A" và "B"), TUYỆT ĐỐI không tự bịa thêm lựa chọn C, D cho câu này.`;
 
           const response = await ai.models.generateContent({
             model: "gemini-3.7-flash",

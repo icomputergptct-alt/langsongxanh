@@ -14,6 +14,7 @@ import {
   AlignmentType,
 } from 'docx';
 import { QuizExam } from '../types';
+import { getMeaningfulOptions, splitIntoSections } from '../utils/quizQuestions';
 
 // jsPDF's built-in fonts don't render Vietnamese diacritics. Instead of embedding a
 // custom font, we lay the exam out as real HTML (so the browser's own font handles
@@ -36,19 +37,28 @@ export function buildExamHtml(exam: QuizExam): string {
     .map((s) => escapeHtml(String(s)))
     .join(' &middot; ');
 
-  const questionsHtml = exam.questions
-    .map((q, idx) => {
-      const optionsHtml = q.options
-        .map((opt) => `<div style="margin:3px 0 3px 16px;">${escapeHtml(opt.id.toUpperCase())}. ${escapeHtml(opt.text)}</div>`)
-        .join('');
-      return `
-        <div data-pdf-block="1" style="margin-bottom:14px; break-inside:avoid;">
-          <div style="font-weight:bold;">Câu ${idx + 1}: ${escapeHtml(q.question)}</div>
-          ${optionsHtml}
-        </div>
+  const renderQuestionHtml = (q: QuizExam['questions'][number], num: number) => {
+    const optionsHtml = getMeaningfulOptions(q.options)
+      .map((opt) => `<div style="margin:3px 0 3px 16px;">${escapeHtml(opt.id.toUpperCase())}. ${escapeHtml(opt.text)}</div>`)
+      .join('');
+    return `
+      <div data-pdf-block="1" style="margin-bottom:14px; break-inside:avoid;">
+        <div style="font-weight:bold;">Câu ${num}: ${escapeHtml(q.question)}</div>
+        ${optionsHtml}
+      </div>
+    `;
+  };
+
+  const { regular, trueFalse } = splitIntoSections(exam.questions);
+  const questionsHtml =
+    trueFalse.length === 0
+      ? exam.questions.map((q, idx) => renderQuestionHtml(q, idx + 1)).join('')
+      : `
+        <h2 style="font-size:16px; margin:12px 0 8px;">Phần I: Trắc Nghiệm Nhiều Lựa Chọn</h2>
+        ${regular.map((q, idx) => renderQuestionHtml(q, idx + 1)).join('')}
+        <h2 style="font-size:16px; margin:20px 0 8px;">Phần II: Trắc Nghiệm Đúng/Sai</h2>
+        ${trueFalse.map((q, idx) => renderQuestionHtml(q, idx + 1)).join('')}
       `;
-    })
-    .join('');
 
   return `
     <h1 style="font-size:20px; margin:0 0 4px 0;">${escapeHtml(exam.title)}</h1>
@@ -67,11 +77,11 @@ export function buildExamHtml(exam: QuizExam): string {
 // of questions.
 const ANSWER_TABLE_CHUNK_SIZE = 10;
 
-function buildAnswerKeyTableHtml(exam: QuizExam): string {
+function buildAnswerKeyTableBlock(questions: QuizExam['questions']): string {
   const cellStyle = 'border:1px solid #94a3b8; padding:6px 4px; text-align:center;';
   let tablesHtml = '';
-  for (let i = 0; i < exam.questions.length; i += ANSWER_TABLE_CHUNK_SIZE) {
-    const chunk = exam.questions.slice(i, i + ANSWER_TABLE_CHUNK_SIZE);
+  for (let i = 0; i < questions.length; i += ANSWER_TABLE_CHUNK_SIZE) {
+    const chunk = questions.slice(i, i + ANSWER_TABLE_CHUNK_SIZE);
     const headerCells = chunk
       .map((_, j) => `<td style="${cellStyle} font-weight:bold;">Câu ${i + j + 1}</td>`)
       .join('');
@@ -86,6 +96,17 @@ function buildAnswerKeyTableHtml(exam: QuizExam): string {
     `;
   }
   return tablesHtml;
+}
+
+function buildAnswerKeyTableHtml(exam: QuizExam): string {
+  const { regular, trueFalse } = splitIntoSections(exam.questions);
+  if (trueFalse.length === 0) return buildAnswerKeyTableBlock(exam.questions);
+  return `
+    <div style="font-weight:bold; margin:10px 0 4px;">Phần I: Trắc Nghiệm Nhiều Lựa Chọn</div>
+    ${buildAnswerKeyTableBlock(regular)}
+    <div style="font-weight:bold; margin:14px 0 4px;">Phần II: Trắc Nghiệm Đúng/Sai</div>
+    ${buildAnswerKeyTableBlock(trueFalse)}
+  `;
 }
 
 // Real .docx (OOXML) export, mirroring the same title/meta/questions/answer-key
@@ -115,22 +136,46 @@ export async function generateExamWordBlob(exam: QuizExam): Promise<Blob> {
     );
   }
 
-  exam.questions.forEach((q, idx) => {
-    children.push(
-      new Paragraph({
-        children: [new TextRun({ text: `Câu ${idx + 1}: ${q.question}`, bold: true })],
-        spacing: { before: 200, after: 80 },
-      })
-    );
-    q.options.forEach((opt) => {
+  const pushQuestionParagraphs = (questions: QuizExam['questions']) => {
+    questions.forEach((q, idx) => {
       children.push(
         new Paragraph({
-          children: [new TextRun({ text: `${opt.id.toUpperCase()}. ${opt.text}` })],
-          indent: { left: 360 },
+          children: [new TextRun({ text: `Câu ${idx + 1}: ${q.question}`, bold: true })],
+          spacing: { before: 200, after: 80 },
         })
       );
+      getMeaningfulOptions(q.options).forEach((opt) => {
+        children.push(
+          new Paragraph({
+            children: [new TextRun({ text: `${opt.id.toUpperCase()}. ${opt.text}` })],
+            indent: { left: 360 },
+          })
+        );
+      });
     });
-  });
+  };
+
+  const { regular, trueFalse } = splitIntoSections(exam.questions);
+  if (trueFalse.length === 0) {
+    pushQuestionParagraphs(exam.questions);
+  } else {
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_2,
+        children: [new TextRun({ text: 'Phần I: Trắc Nghiệm Nhiều Lựa Chọn', bold: true })],
+        spacing: { before: 200, after: 120 },
+      })
+    );
+    pushQuestionParagraphs(regular);
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_2,
+        children: [new TextRun({ text: 'Phần II: Trắc Nghiệm Đúng/Sai', bold: true })],
+        spacing: { before: 300, after: 120 },
+      })
+    );
+    pushQuestionParagraphs(trueFalse);
+  }
 
   children.push(
     new Paragraph({
@@ -139,7 +184,24 @@ export async function generateExamWordBlob(exam: QuizExam): Promise<Blob> {
       spacing: { before: 400, after: 120 },
     })
   );
-  children.push(...buildAnswerKeyTables(exam.questions));
+  if (trueFalse.length === 0) {
+    children.push(...buildAnswerKeyTables(exam.questions));
+  } else {
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: 'Phần I: Trắc Nghiệm Nhiều Lựa Chọn', bold: true })],
+        spacing: { after: 80 },
+      })
+    );
+    children.push(...buildAnswerKeyTables(regular));
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: 'Phần II: Trắc Nghiệm Đúng/Sai', bold: true })],
+        spacing: { before: 200, after: 80 },
+      })
+    );
+    children.push(...buildAnswerKeyTables(trueFalse));
+  }
 
   const doc = new Document({ sections: [{ children }] });
   return Packer.toBlob(doc);

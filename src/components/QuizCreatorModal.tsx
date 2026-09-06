@@ -24,11 +24,14 @@ import {
   FileType,
   Loader2,
   Printer,
-  Library
+  Library,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 import { QuizExam, QuizQuestion, QuizOption, ExamDocument } from '../types';
 import { storageService } from '../services/storageService';
 import { generateExamWordBlob, generateExamPdfBlob } from '../services/examPdf';
+import { isTrueFalseQuestion } from '../utils/quizQuestions';
 
 interface QuizCreatorModalProps {
   initialMode?: 'upload' | 'ai-prompt' | 'manual';
@@ -496,6 +499,46 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
     updated[qIdx].options = updated[qIdx].options.map((opt) =>
       opt.id === optId ? { ...opt, text: newText } : opt
     );
+    setQuestions(updated);
+  };
+
+  // Toggles a question between the regular 4-option layout and a 2-option
+  // "Đúng/Sai" one — there's no separate question-type field, the rest of the
+  // app (review screen, exported PDF/Word) infers "Đúng/Sai" purely from a
+  // question having exactly 2 real options (see src/utils/quizQuestions.ts).
+  const handleToggleTrueFalse = (qIdx: number) => {
+    const q = questions[qIdx];
+    if (isTrueFalseQuestion(q.options)) {
+      // Expand back to 4 — keep A/B as they are, re-add empty C/D.
+      const byId = new Map(q.options.map((opt) => [opt.id, opt]));
+      const updated = [...questions];
+      updated[qIdx] = {
+        ...q,
+        options: ['A', 'B', 'C', 'D'].map((id) => byId.get(id) || { id, text: '' }),
+      };
+      setQuestions(updated);
+      return;
+    }
+    const c = q.options.find((opt) => opt.id === 'C');
+    const d = q.options.find((opt) => opt.id === 'D');
+    const hasRealContent = (opt?: QuizOption) => !!opt && (opt.text.trim() !== '' || !!opt.image);
+    if (
+      (hasRealContent(c) || hasRealContent(d)) &&
+      !window.confirm('Chuyển sang câu Đúng/Sai sẽ xóa nội dung lựa chọn C/D hiện tại của câu này. Tiếp tục?')
+    ) {
+      return;
+    }
+    const a = q.options.find((opt) => opt.id === 'A') || { id: 'A', text: '' };
+    const b = q.options.find((opt) => opt.id === 'B') || { id: 'B', text: '' };
+    const updated = [...questions];
+    updated[qIdx] = {
+      ...q,
+      options: [
+        { ...a, text: a.text.trim() || 'Đúng' },
+        { ...b, text: b.text.trim() || 'Sai' },
+      ],
+      correctOptionId: q.correctOptionId === 'B' ? 'B' : 'A',
+    };
     setQuestions(updated);
   };
 
@@ -1267,8 +1310,13 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
-                      <label className="block text-xs font-semibold text-cyan-400 mb-1">
-                        Câu hỏi {qIndex + 1}:
+                      <label className="text-xs font-semibold text-cyan-400 mb-1 flex items-center gap-1.5">
+                        <span>Câu hỏi {qIndex + 1}:</span>
+                        {isTrueFalseQuestion(q.options) && (
+                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            Đúng/Sai
+                          </span>
+                        )}
                       </label>
                       <textarea
                         rows={2}
@@ -1309,6 +1357,19 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
                         </label>
                       )}
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleToggleTrueFalse(qIndex)}
+                      title={isTrueFalseQuestion(q.options) ? 'Chuyển sang 4 lựa chọn' : 'Chuyển sang câu Đúng/Sai (2 lựa chọn)'}
+                      className="flex items-center gap-1 p-1.5 text-slate-500 hover:text-amber-400 hover:bg-slate-900 rounded-lg transition-colors mt-4 shrink-0"
+                    >
+                      {isTrueFalseQuestion(q.options) ? (
+                        <ToggleRight className="w-4 h-4 text-amber-400" />
+                      ) : (
+                        <ToggleLeft className="w-4 h-4" />
+                      )}
+                    </button>
 
                     <button
                       type="button"
