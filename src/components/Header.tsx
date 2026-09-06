@@ -67,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
             />
             <div className="flex items-baseline gap-1">
               <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-100">
-                LONG HOA <span className="text-blue-400">SỐ</span>
+                LONG HOÀ <span className="text-blue-400">SỐ</span>
               </span>
               <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 tracking-wider hidden sm:inline-block">
                 Trắc nghiệm của rồng
