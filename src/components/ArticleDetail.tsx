@@ -312,7 +312,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2 text-indigo-300 font-bold text-sm sm:text-base">
               <Sparkles className="w-4 h-4 text-indigo-400" />
-              <span>AI Long Hoa Số Assistant: Tóm tắt & Trích xuất Điểm Cốt lõi</span>
+              <span>AI Long Hoà Số Assistant: Tóm tắt & Trích xuất Điểm Cốt lõi</span>
             </div>
             {!aiSummary && (
               <button
@@ -447,7 +447,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
           </button>
 
           <div className={`flex items-center gap-3 text-xs ${theme.muted}`}>
-            <span>Bản quyền nội dung thuộc Long Hoa Số</span>
+            <span>Bản quyền nội dung thuộc Long Hoà Số</span>
           </div>
         </div>
 

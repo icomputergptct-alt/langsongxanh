@@ -427,7 +427,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
                   </h1>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-100 max-w-2xl leading-relaxed [text-shadow:_0_1px_3px_rgba(0,0,0,0.6)]">
-                  Long Hoa Số là nền tảng tạo đề thi trắc nghiệm và mở phòng thi kiểm tra trắc nghiệm trực tuyến, chấm điểm tự động bằng công nghệ AI. Khám phá kho câu hỏi trắc nghiệm hay theo từng môn học – hoàn toàn miễn phí.
+                  Long Hoà Số là nền tảng tạo đề thi trắc nghiệm và mở phòng thi kiểm tra trắc nghiệm trực tuyến, chấm điểm tự động bằng công nghệ AI. Khám phá kho câu hỏi trắc nghiệm hay theo từng môn học – hoàn toàn miễn phí.
                 </p>
               </div>
 

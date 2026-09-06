@@ -50,11 +50,11 @@ const EQN_SUBPAGE_DEGREES: Record<string, 2 | 3> = {
 
 const EQN_SUBPAGE_META: Record<2 | 3, { title: string; description: string }> = {
   2: {
-    title: 'Giải Phương Trình Bậc 2 Online (ax² + bx + c = 0) - Long Hoa Số',
+    title: 'Giải Phương Trình Bậc 2 Online (ax² + bx + c = 0) - Long Hoà Số',
     description: 'Công cụ giải phương trình bậc 2 trực tuyến miễn phí: nhập hệ số a, b, c để nhận ngay nghiệm x1, x2 (kể cả nghiệm phức) cùng giá trị delta (Δ), thao tác giống hệt máy tính Casio fx-570ES/991ES.'
   },
   3: {
-    title: 'Giải Phương Trình Bậc 3 Online (ax³ + bx² + cx + d = 0) - Long Hoa Số',
+    title: 'Giải Phương Trình Bậc 3 Online (ax³ + bx² + cx + d = 0) - Long Hoà Số',
     description: 'Công cụ giải phương trình bậc 3 trực tuyến miễn phí theo công thức Cardano: nhập hệ số a, b, c, d để nhận ngay đầy đủ 3 nghiệm (thực hoặc phức), không cần cài đặt.'
   }
 };
@@ -95,8 +95,8 @@ const buildExamDocMeta = (doc: ExamDocument): { title: string; description: stri
     doc.description ||
     `Xem trước và tải xuống miễn phí đề thi "${doc.title}"${doc.category ? ` môn ${doc.category}` : ''}${
       doc.grade ? ` lớp ${doc.grade}` : ''
-    } tại Kho Đề Thi Long Hoa Số.`;
-  return { title: `${titleParts.join(' - ')} - Long Hoa Số`, description };
+    } tại Kho Đề Thi Long Hoà Số.`;
+  return { title: `${titleParts.join(' - ')} - Long Hoà Số`, description };
 };
 
 // Articles per page in the news feed grid.
@@ -257,7 +257,7 @@ export default function App() {
       description = meta.description;
     } else {
       path = `/cong-cu/${tool.slug}`;
-      title = `${tool.name} - Long Hoa Số`;
+      title = `${tool.name} - Long Hoà Số`;
       description = tool.shortDesc;
     }
 
@@ -947,8 +947,8 @@ export default function App() {
       <footer className="border-t border-slate-900 bg-slate-950/80 backdrop-blur text-slate-500 text-xs py-8 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <img src="/logo2.png" alt="Long Hoa Số" className="w-6 h-6 rounded-lg" />
-            <span className="font-semibold text-slate-300">Long Hoa Số</span>
+            <img src="/logo2.png" alt="Long Hoà Số" className="w-6 h-6 rounded-lg" />
+            <span className="font-semibold text-slate-300">Long Hoà Số</span>
             <span className="text-slate-600">| Nền tảng kết nối Tri thức Công nghệ Số</span>
           </div>
 
