@@ -624,3 +624,69 @@ as $$
 $$;
 
 grant execute on function public.get_exam_for_archival(text) to anon, authenticated;
+
+-- ============================================================================
+-- Lock down exam_documents writes (2026-09-15).
+-- ============================================================================
+-- exam_documents still had "insert with check (true)" from schema.sql, so
+-- anyone hitting the REST API directly with the anon key could write a
+-- document row (arbitrary title/file_url/grade) without ever going through
+-- the app's upload UI — the client-side "must be logged in" gate added to the
+-- upload buttons doesn't stop that. The only legitimate unauthenticated
+-- writer is archiveExpiredExams (storageService.ts), which runs for whichever
+-- guest happens to have an expired quiz room open. That path moves into the
+-- security-definer RPC below (which also fixes a latent bug: its old direct
+-- `.update(quiz_exams).eq('id', ...)` silently did nothing for a guest caller,
+-- since "owner or admin update quiz_exams" blocks anyone who isn't the room's
+-- creator/admin — is_archived never actually stuck, so the same expired room
+-- would get re-archived, and a duplicate document row inserted, every time
+-- another guest opened it). Every other write to exam_documents now requires
+-- a real account.
+create or replace function public.archive_exam_as_document(
+  p_exam_id text,
+  p_file_url text,
+  p_file_name text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_title text;
+  v_grade int;
+  v_class_name text;
+  v_school_year text;
+begin
+  -- Atomically claim the archival: only an exam that's still past its
+  -- deadline and not yet archived matches, and this marks it archived in
+  -- the same statement — so two guests racing to open the same expired
+  -- room can't both pass the check and insert a duplicate document row.
+  update quiz_exams
+  set is_archived = true
+  where id = p_exam_id
+    and is_archived = false
+    and deadline_at is not null
+    and deadline_at < now()
+  returning title, grade, class_name, school_year
+  into v_title, v_grade, v_class_name, v_school_year;
+
+  if not found then
+    return;
+  end if;
+
+  insert into exam_documents (
+    id, title, grade, class_name, school_year, file_url, file_name, file_type, views, uploaded_at
+  ) values (
+    'doc-' || floor(extract(epoch from clock_timestamp()) * 1000)::text || '-' || substr(md5(random()::text), 1, 8),
+    v_title, v_grade, v_class_name, v_school_year, p_file_url, p_file_name, 'pdf', 0, now()
+  );
+end;
+$$;
+
+grant execute on function public.archive_exam_as_document(text, text, text) to anon, authenticated;
+
+drop policy if exists "public write exam_documents" on exam_documents;
+drop policy if exists "authenticated write exam_documents" on exam_documents;
+create policy "authenticated write exam_documents" on exam_documents for insert
+  with check (auth.uid() is not null);

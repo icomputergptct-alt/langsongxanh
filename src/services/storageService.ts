@@ -574,19 +574,17 @@ export const storageService = {
         const pdfBlob = await generateExamPdfBlob(exam);
         const fileName = `${exam.title}.pdf`;
         const { fileUrl } = await this.uploadExamFileBlob(pdfBlob, 'pdf');
-        await this.saveExamDocument({
-          id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          title: exam.title,
-          grade: exam.grade,
-          className: exam.className,
-          schoolYear: exam.schoolYear,
-          fileUrl,
-          fileName,
-          fileType: 'pdf',
-          views: 0,
-          uploadedAt: new Date().toISOString(),
+        // Goes through a security-definer RPC (see supabase/auth.sql) instead of
+        // saveExamDocument + a direct quiz_exams update: exam_documents inserts
+        // now require an authenticated caller, which this guest-triggered path
+        // never is, and the RPC does the claim-and-insert atomically so two
+        // guests racing to open the same expired room can't double-archive it.
+        const { error: archiveError } = await supabase.rpc('archive_exam_as_document', {
+          p_exam_id: exam.id,
+          p_file_url: fileUrl,
+          p_file_name: fileName,
         });
-        await supabase.from('quiz_exams').update({ is_archived: true }).eq('id', exam.id);
+        if (archiveError) throw archiveError;
       } catch (err) {
         console.error(`Không thể lưu trữ đề thi hết hạn "${exam.title}":`, err);
       }

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { Article, ExamDocument } from '../types';
 import { storageService } from '../services/storageService';
+import { useAuth } from '../contexts/AuthContext';
 import { OfflineLibrary } from './OfflineLibrary';
 
 interface ExamLibraryProps {
@@ -40,6 +41,10 @@ interface ExamLibraryProps {
   // its own shareable /de-thi/{id} URL + SEO meta tags instead of a modal that
   // only ever exists behind whatever URL the tab happened to be on.
   onViewDoc: (doc: ExamDocument | null) => void;
+  // Opens App's login dialog. Uploading here requires an account, same as the
+  // header's "Tải Lên Tài Liệu" button and creating a quiz — but the AuthModal
+  // is owned by App, so the button has to ask for it rather than open it.
+  onRequireAuth: () => void;
 }
 
 // Ignore spacing differences ("2024 - 2025" vs "2024-2025") so the global search bar
@@ -295,11 +300,24 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
   refreshKey,
   globalSearchQuery,
   onViewDoc,
+  onRequireAuth,
 }) => {
+  const { user } = useAuth();
   const [view, setView] = useState<'exams' | 'offline-articles'>('exams');
   const [docs, setDocs] = useState<ExamDocument[]>([]);
   const [gradeFilter, setGradeFilter] = useState<number | null>(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+
+  // Uploading a document requires an account (App.tsx applies the same rule to
+  // the header's upload button). Without this the exam bank was the one way in
+  // for an anonymous visitor to write into exam_documents.
+  const requireAuthThenUpload = () => {
+    if (!user) {
+      onRequireAuth();
+    } else {
+      setIsUploadOpen(true);
+    }
+  };
 
   const loadDocs = () => {
     storageService.getExamDocuments().then(setDocs).catch((err) => console.error('Không tải được kho đề thi:', err));
@@ -360,7 +378,7 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
 
         {view === 'exams' && (
           <button
-            onClick={() => setIsUploadOpen(true)}
+            onClick={requireAuthThenUpload}
             className="flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl shadow-md transition-all shrink-0"
           >
             <UploadCloud className="w-4 h-4" />
@@ -496,7 +514,9 @@ export const ExamLibrary: React.FC<ExamLibraryProps> = ({
         </div>
       )}
 
-      {isUploadOpen && (
+      {/* `user &&` so signing out while the dialog is open tears it down too,
+          instead of leaving a form behind that can no longer succeed. */}
+      {isUploadOpen && user && (
         <UploadExamFileModal
           defaultGrade={gradeFilter}
           onClose={() => setIsUploadOpen(false)}

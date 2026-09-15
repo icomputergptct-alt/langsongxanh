@@ -838,6 +838,7 @@ export default function App() {
             refreshKey={docsRefreshKey}
             globalSearchQuery={searchQuery}
             onViewDoc={selectExamDoc}
+            onRequireAuth={() => setIsAuthModalOpen(true)}
           />
         )}
 
