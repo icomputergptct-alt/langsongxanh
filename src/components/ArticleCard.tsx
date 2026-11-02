@@ -29,17 +29,17 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
     <article
       id={`article-card-${article.id}`}
       onClick={() => onSelectArticle(article)}
-      className="group relative bg-slate-900 hover:bg-slate-900/90 border border-amber-400/40 hover:border-amber-400/70 rounded-3xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl hover:shadow-amber-500/20 flex flex-col"
+      className="group relative bg-white hover:bg-slate-50 border border-amber-400/60 hover:border-amber-400 rounded-3xl overflow-hidden cursor-pointer transition-all duration-300 shadow-md shadow-black/10 hover:shadow-xl hover:shadow-amber-500/30 flex flex-col"
     >
       {/* Cover Image & Badges */}
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-950">
+      <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
         <img
           src={article.coverImage}
           alt={article.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
 
         {/* Badges */}
         <div className="absolute top-3.5 left-3.5 flex flex-wrap gap-1.5">
@@ -85,49 +85,49 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           {/* Tags */}
           <div className="flex flex-wrap gap-1.5 mb-3">
             {article.tags.slice(0, 3).map((tag, i) => (
-              <span key={i} className="text-[10px] font-medium text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-lg border border-slate-700/50">
+              <span key={i} className="text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
                 #{tag}
               </span>
             ))}
           </div>
 
           {/* Title */}
-          <h3 className="text-base sm:text-lg font-bold text-slate-100 group-hover:text-blue-400 transition-colors line-clamp-2 leading-snug mb-2 flex items-start justify-between gap-2">
+          <h3 className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug mb-2 flex items-start justify-between gap-2">
             <span>{article.title}</span>
-            <ArrowUpRight className="w-4 h-4 text-slate-500 group-hover:text-blue-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0 mt-0.5" />
+            <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0 mt-0.5" />
           </h3>
 
           {/* Summary */}
-          <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed mb-4">
+          <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed mb-4">
             {article.summary}
           </p>
         </div>
 
         {/* Footer Meta */}
-        <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+        <div className="pt-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
           {/* Author */}
           <div className="flex items-center gap-2">
             <img
               src={article.author.avatar}
               alt={article.author.name}
-              className="w-6 h-6 rounded-full object-cover border border-slate-700"
+              className="w-6 h-6 rounded-full object-cover border border-slate-200"
             />
-            <span className="text-slate-300 font-medium truncate max-w-[120px]">
+            <span className="text-slate-700 font-medium truncate max-w-[120px]">
               {article.author.name}
             </span>
           </div>
 
           {/* Stats */}
           <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1 text-slate-400">
-              <Clock className="w-3.5 h-3.5 text-slate-500" />
+            <span className="flex items-center gap-1 text-slate-500">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
               <span>{article.readTimeMinutes}p</span>
             </span>
 
             <button
               onClick={(e) => onToggleLike(article.id, e)}
-              className={`flex items-center gap-1 hover:text-blue-400 transition-colors ${
-                article.isLikedByUser ? 'text-blue-400 font-bold' : 'text-slate-400'
+              className={`flex items-center gap-1 hover:text-blue-600 transition-colors ${
+                article.isLikedByUser ? 'text-blue-600 font-bold' : 'text-slate-500'
               }`}
             >
               <ThumbsUp className="w-3.5 h-3.5" />
