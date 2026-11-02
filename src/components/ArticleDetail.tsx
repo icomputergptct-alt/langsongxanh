@@ -41,8 +41,10 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
     summary?: string;
     keyPoints?: string[];
     techTerms?: { term: string; meaning: string }[];
+    actionableTakeaways?: string;
   } | null>(null);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [copiedNotification, setCopiedNotification] = useState(false);
 
   const handleLike = () => {
@@ -59,6 +61,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
 
   const handleGenerateAiSummary = async () => {
     setIsGeneratingAi(true);
+    setAiError(null);
     try {
       const res = await fetch('/api/ai/summarize-article', {
         method: 'POST',
@@ -68,24 +71,15 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
           content: article.content,
         }),
       });
-      const data = await res.json();
-      if (data && data.data) {
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.data) {
         setAiSummary(data.data);
+      } else {
+        setAiError(data?.error || 'AI tạm thời không phân tích được bài viết. Vui lòng thử lại sau.');
       }
     } catch (e) {
-      console.warn('AI summary failed, providing local insight:', e);
-      setAiSummary({
-        summary: article.summary,
-        keyPoints: article.keyInsights || [
-          'Phân tích chuyên sâu về kiến trúc và nguyên lý vận hành cốt lõi.',
-          'Đánh giá ưu nhược điểm so với các mô hình truyền thống.',
-          'Khuyến nghị phương pháp áp dụng thực tiễn cho kỹ sư và nhà phát triển.'
-        ],
-        techTerms: [
-          { term: 'Architecture', meaning: 'Cấu trúc tổng thể của hệ thống' },
-          { term: 'Optimization', meaning: 'Quá trình nâng cao hiệu suất' }
-        ]
-      });
+      console.warn('AI summary failed:', e);
+      setAiError('Không kết nối được tới máy chủ. Vui lòng kiểm tra mạng và thử lại.');
     } finally {
       setIsGeneratingAi(false);
     }
@@ -351,7 +345,17 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
                   ))}
                 </div>
               )}
+              {aiSummary.actionableTakeaways && (
+                <div className="pt-1">
+                  <h4 className="font-semibold text-indigo-300 mb-1.5 text-xs uppercase tracking-wider">Khuyến nghị áp dụng:</h4>
+                  <p className="leading-relaxed">{aiSummary.actionableTakeaways}</p>
+                </div>
+              )}
             </div>
+          ) : aiError ? (
+            <p className="text-xs text-rose-300 leading-relaxed bg-rose-500/10 border border-rose-500/30 rounded-lg p-3">
+              {aiError}
+            </p>
           ) : (
             <p className="text-xs text-slate-400 leading-relaxed">
               Nhấn nút để AI trích xuất tự động các luận điểm kỹ thuật quan trọng nhất, thuật ngữ chuyên ngành và khuyến nghị áp dụng thực tiễn từ bài viết này.

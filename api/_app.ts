@@ -39,6 +39,7 @@ function createRateLimiter(maxRequests: number, windowMs: number) {
 }
 
 const urlScanRateLimiter = createRateLimiter(10, 60_000);
+const articleSummaryRateLimiter = createRateLimiter(5, 60_000);
 
 // exam_documents ("Kho Đề Thi") is admin-managed and grows over time, so a
 // static sitemap.xml can't list it — this generates one on request instead,
@@ -248,34 +249,25 @@ Yêu cầu: Câu hỏi thực tế, sắc bén, có code snippet nếu là chủ
   });
 
   // AI Article Summarizer & Key Insights
-  app.post("/api/ai/summarize-article", async (req, res) => {
+  app.post("/api/ai/summarize-article", articleSummaryRateLimiter, async (req, res) => {
     try {
-      const { title, content } = req.body;
-      const ai = getGeminiClient();
-
-      if (!ai) {
-        // Fallback simple summary
-        return res.json({
-          success: true,
-          data: {
-            summary: "Bài viết cung cấp góc nhìn toàn diện về xu hướng công nghệ hiện đại, kiến trúc hệ thống và giải pháp triển khai thực tế.",
-            keyPoints: [
-              "Phân tích chuyên sâu về kiến trúc và nguyên lý vận hành cốt lõi.",
-              "Đánh giá ưu nhược điểm so với các mô hình truyền thống.",
-              "Khuyến nghị phương pháp áp dụng thực tiễn cho kỹ sư và nhà phát triển."
-            ],
-            techTerms: [
-              { term: "Scalability", meaning: "Khả năng mở rộng hệ thống khi lượng tải tăng" },
-              { term: "Latency", meaning: "Độ trễ phản hồi trong xử lý dữ liệu" }
-            ]
-          }
-        });
+      const { title, content } = req.body || {};
+      if (typeof title !== "string" || typeof content !== "string" || !content.trim()) {
+        return res.status(400).json({ error: "Thiếu tiêu đề hoặc nội dung bài viết." });
       }
 
+      const ai = getGeminiClient();
+      if (!ai) {
+        return res.status(503).json({ error: "Tính năng AI chưa được cấu hình trên máy chủ (thiếu GEMINI_API_KEY)." });
+      }
+
+      // Image lines (![](url)) carry nothing for the model to summarize.
+      const textOnly = content.replace(/^!\[[^\]]*\]\([^)]*\)\s*$/gm, "");
+
       const prompt = `Phân tích và tóm tắt bài viết công nghệ sau:
-Tiêu đề: ${title}
+Tiêu đề: ${title.slice(0, 300)}
 Nội dung:
-${content.slice(0, 10000)}
+${textOnly.slice(0, 10000)}
 
 Hãy trả về JSON với cấu trúc:
 {
@@ -296,12 +288,14 @@ Hãy trả về JSON với cấu trúc:
         },
       });
 
-      const text = response.text || "{}";
-      const parsed = JSON.parse(text);
+      const parsed = JSON.parse(response.text || "{}");
+      if (typeof parsed?.summary !== "string" || !parsed.summary.trim()) {
+        return res.status(502).json({ error: "AI không trả về kết quả hợp lệ. Vui lòng thử lại." });
+      }
       return res.json({ success: true, data: parsed });
     } catch (err: any) {
       console.error("Error in summarize-article:", err);
-      res.status(500).json({ error: "Lỗi tóm tắt bài viết", details: err?.message });
+      res.status(500).json({ error: "AI tạm thời không phân tích được bài viết. Vui lòng thử lại sau." });
     }
   });
 
