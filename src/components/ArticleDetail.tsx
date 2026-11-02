@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { 
+import React, { useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import {
+  Printer,
   ArrowLeft, 
   Bookmark, 
   BookmarkCheck, 
@@ -57,6 +59,69 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
     navigator.clipboard?.writeText(window.location.href);
     setCopiedNotification(true);
     setTimeout(() => setCopiedNotification(false), 2000);
+  };
+
+  const articleRef = useRef<HTMLElement>(null);
+
+  // Prints just the article (in the light reader theme) from a hidden iframe that
+  // reuses the page's stylesheets, so menus, the AI box, likes and comments stay out.
+  const handlePrint = () => {
+    const previousTheme = readerTheme;
+    if (previousTheme !== 'light') flushSync(() => setReaderTheme('light'));
+    const node = articleRef.current;
+    const clone = node?.cloneNode(true) as HTMLElement | undefined;
+    if (previousTheme !== 'light') setReaderTheme(previousTheme);
+    if (!clone) return;
+
+    clone.querySelectorAll('[data-print-hide]').forEach((el) => el.remove());
+    clone.querySelectorAll('img').forEach((img) => img.removeAttribute('loading'));
+
+    const escapeHtml = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map((el) => el.outerHTML)
+      .join('');
+
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument;
+    const win = iframe.contentWindow;
+    if (!doc || !win) {
+      iframe.remove();
+      return;
+    }
+
+    doc.open();
+    doc.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8">
+<title>${escapeHtml(article.title)}</title>
+<base href="${window.location.origin}/">
+${styles}
+<style>
+  @page { margin: 15mm; }
+  html, body { background: #fff !important; margin: 0; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  article { border: none !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; }
+  img { max-width: 100%; break-inside: avoid; }
+  h1, h2, h3 { break-after: avoid; }
+  pre { white-space: pre-wrap; }
+  .print-source { margin-top: 24px; padding-top: 8px; border-top: 1px solid #e2e8f0; font: 11px sans-serif; color: #64748b; }
+</style></head><body>
+${clone.outerHTML}
+<p class="print-source">Nguồn: ${escapeHtml(window.location.href)}</p>
+</body></html>`);
+    doc.close();
+
+    const images = Array.from(doc.images);
+    Promise.all(
+      images.map((img) =>
+        img.complete ? null : new Promise((resolve) => { img.onload = img.onerror = resolve; })
+      )
+    ).then(() => {
+      win.focus();
+      win.print();
+      setTimeout(() => iframe.remove(), 1000);
+    });
   };
 
   const handleGenerateAiSummary = async () => {
@@ -189,6 +254,16 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
             </button>
           </div>
 
+          {/* Print */}
+          <button
+            id="print-article-btn"
+            onClick={handlePrint}
+            title="In bài viết / Lưu PDF"
+            className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-slate-300 transition-colors"
+          >
+            <Printer className="w-4 h-4" />
+          </button>
+
           {/* Share */}
           <button
             onClick={handleCopyLink}
@@ -229,7 +304,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
       </div>
 
       {/* Main Article Container */}
-      <article className={`border rounded-2xl p-6 sm:p-10 shadow-xl ${themeClasses[readerTheme]}`}>
+      <article ref={articleRef} className={`border rounded-2xl p-6 sm:p-10 shadow-xl ${themeClasses[readerTheme]}`}>
         
         {/* Category & Tags */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -302,7 +377,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
         </div>
 
         {/* AI Smart Summary Generator Button & Box */}
-        <div className="mb-8 p-5 bg-gradient-to-br from-indigo-950/60 via-slate-900 to-slate-950 border border-indigo-500/30 rounded-xl">
+        <div data-print-hide className="mb-8 p-5 bg-gradient-to-br from-indigo-950/60 via-slate-900 to-slate-950 border border-indigo-500/30 rounded-xl">
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2 text-indigo-300 font-bold text-sm sm:text-base">
               <Sparkles className="w-4 h-4 text-indigo-400" />
@@ -452,6 +527,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
         <div className={`mt-12 pt-6 border-t flex flex-wrap items-center justify-between gap-4 ${theme.border}`}>
           <button
             id="article-like-btn"
+            data-print-hide
             onClick={handleLike}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
               isLiked
@@ -469,7 +545,9 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
         </div>
 
         {/* Live Discussion & Comments Section */}
-        <CommentSection articleId={article.id} articleTitle={article.title} theme={readerTheme} />
+        <div data-print-hide>
+          <CommentSection articleId={article.id} articleTitle={article.title} theme={readerTheme} />
+        </div>
 
       </article>
 
