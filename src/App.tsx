@@ -33,6 +33,7 @@ import { VisitorStats } from './components/VisitorStats';
 import { DocumentUploadModal } from './components/DocumentUploadModal';
 import { SearchResults } from './components/SearchResults';
 import { ContactPage } from './components/ContactPage';
+import { MeetingRoom, parseRoomInput } from './components/MeetingRoom';
 import { Article, ExamDocument, QuizExam, SoftwareUtility } from './types';
 import { storageService } from './services/storageService';
 import { useAuth } from './contexts/AuthContext';
@@ -84,6 +85,13 @@ const matchExamDocId = (pathname: string): string | null => {
   return match ? decodeURIComponent(match[1]) : null;
 };
 
+// Deep-link helper: /phong-hop → meeting lobby (room null), /phong-hop/{room} → that room.
+const matchMeetingPath = (pathname: string): { room: string | null } | null => {
+  const match = pathname.match(/^\/phong-hop(?:\/([^/]+))?\/?$/);
+  if (!match) return null;
+  return { room: match[1] ? parseRoomInput(decodeURIComponent(match[1])) : null };
+};
+
 // Meta tags for one exam document page — reuses whatever metadata the
 // uploader filled in, so the title/description actually contain the subject,
 // grade and exam name people search for (e.g. "đề trắc nghiệm 15 phút Toán").
@@ -105,11 +113,15 @@ const ARTICLES_PER_PAGE = 9;
 export default function App() {
   const { user, profile, isAdmin, signOut } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'contact'>(() => {
+  const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'meeting' | 'contact'>(() => {
     if (matchRouteFromPath(window.location.pathname)) return 'utilities';
     if (matchExamDocId(window.location.pathname)) return 'offline';
+    if (matchMeetingPath(window.location.pathname)) return 'meeting';
     return 'news';
   });
+  const [meetingRoom, setMeetingRoom] = useState<string | null>(
+    () => matchMeetingPath(window.location.pathname)?.room ?? null
+  );
   // Which tool (and, for the EQN sub-pages, which equation degree) /cong-cu/{slug}
   // should deep-link to. Both feed into SoftwareUtilities' `key` too, so browser
   // back/forward (which can't call its internal setters directly) forces a
@@ -275,6 +287,27 @@ export default function App() {
     }
   }, [activeTab]);
 
+  // Sync the open meeting room to the URL (/phong-hop/{room}) so the address bar
+  // doubles as the invite link; leaving the tab drops it back to "/".
+  const handleMeetingRoomChange = (room: string | null) => {
+    setMeetingRoom(room);
+    const path = room ? `/phong-hop/${encodeURIComponent(room)}` : '/phong-hop';
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'meeting') {
+      if (!window.location.pathname.startsWith('/phong-hop')) {
+        window.history.pushState({}, '', meetingRoom ? `/phong-hop/${encodeURIComponent(meetingRoom)}` : '/phong-hop');
+      }
+    } else if (window.location.pathname.startsWith('/phong-hop')) {
+      setMeetingRoom(null);
+      window.history.pushState({}, '', '/');
+    }
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Load articles from Supabase on mount
   useEffect(() => {
     let cancelled = false;
@@ -310,7 +343,13 @@ export default function App() {
       const match = window.location.pathname.match(/^\/bai-viet\/([^/]+)\/?$/);
       const route = matchRouteFromPath(window.location.pathname);
       const docId = matchExamDocId(window.location.pathname);
-      if (match) {
+      const meeting = matchMeetingPath(window.location.pathname);
+      if (meeting) {
+        setSelectedArticle(null);
+        setSearchViewingDoc(null);
+        setMeetingRoom(meeting.room);
+        setActiveTab('meeting');
+      } else if (match) {
         const found = articles.find((a) => a.slug === decodeURIComponent(match[1]));
         setSelectedArticle(found || null);
         setActiveTab('news');
@@ -338,7 +377,7 @@ export default function App() {
         setSelectedArticle(null);
         setSearchViewingDoc(null);
         resetPageMeta();
-        setActiveTab((prev) => (prev === 'utilities' ? 'quiz' : prev));
+        setActiveTab((prev) => (prev === 'utilities' || prev === 'meeting' ? 'news' : prev));
       }
     };
     window.addEventListener('popstate', handlePopState);
@@ -894,8 +933,19 @@ export default function App() {
         )}
 
         {/* ============================================================ */}
-        {/* TAB 6: SYSTEM CONTACT PAGE                                   */}
+        {/* TAB 7: SYSTEM CONTACT PAGE                                   */}
         {/* ============================================================ */}
+        {/* ============================================================ */}
+        {/* TAB 6: ONLINE MEETING ROOM (Jitsi)                           */}
+        {/* ============================================================ */}
+        {activeTab === 'meeting' && (
+          <MeetingRoom
+            room={meetingRoom}
+            defaultDisplayName={profile?.fullName || undefined}
+            onRoomChange={handleMeetingRoomChange}
+          />
+        )}
+
         {activeTab === 'contact' && (
           <ContactPage />
         )}
