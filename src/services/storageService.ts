@@ -869,6 +869,18 @@ export const storageService = {
     return (data || []).map(rowToMeeting);
   },
 
+  async getMyOpenMeetings(userId: string): Promise<Meeting[]> {
+    const { data, error } = await supabase
+      .from('meetings')
+      .select('*')
+      .eq('created_by', userId)
+      .is('ended_at', null)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (error) throw error;
+    return (data || []).map(rowToMeeting);
+  },
+
   async countActiveMeetings(): Promise<number> {
     const { data, error } = await supabase.rpc('count_active_meetings');
     if (error) throw error;

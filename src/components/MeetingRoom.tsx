@@ -129,6 +129,10 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ room, onRoomChange, on
   const [loadError, setLoadError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [activeMeetings, setActiveMeetings] = useState<Meeting[]>([]);
+  // The signed-in user's own not-yet-ended rooms, live or not, so they can always
+  // get back in or end one after leaving its page.
+  const [myMeetings, setMyMeetings] = useState<Meeting[]>([]);
+  const [lobbyRefreshKey, setLobbyRefreshKey] = useState(0);
   // undefined = still checking, null = room doesn't exist or has ended
   const [currentMeeting, setCurrentMeeting] = useState<Meeting | null | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -142,9 +146,12 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ room, onRoomChange, on
     if (!user || room) return;
     let cancelled = false;
     const load = () =>
-      storageService
-        .getActiveMeetings()
-        .then((list) => !cancelled && setActiveMeetings(list))
+      Promise.all([storageService.getActiveMeetings(), storageService.getMyOpenMeetings(user.id)])
+        .then(([active, mine]) => {
+          if (cancelled) return;
+          setActiveMeetings(active.filter((m) => m.createdBy !== user.id));
+          setMyMeetings(mine);
+        })
         .catch((err) => console.error('Không tải được danh sách cuộc họp:', err));
     load();
     const timer = setInterval(load, 30_000);
@@ -152,7 +159,7 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ room, onRoomChange, on
       cancelled = true;
       clearInterval(timer);
     };
-  }, [user, room]);
+  }, [user, room, lobbyRefreshKey]);
 
   // In a room: confirm it exists, then heartbeat so it shows as live while this page is open.
   useEffect(() => {
@@ -293,12 +300,13 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ room, onRoomChange, on
     joinRoom(parsed);
   };
 
-  const handleEndMeeting = async () => {
-    if (!room || !window.confirm('Kết thúc cuộc họp này? Mọi người sẽ không vào lại được bằng link mời nữa.')) return;
+  const handleEndMeeting = async (id: string) => {
+    if (!window.confirm('Kết thúc cuộc họp này? Mọi người sẽ không vào lại được bằng link mời nữa.')) return;
     try {
-      await storageService.endMeeting(room);
+      await storageService.endMeeting(id);
       onMeetingsChanged();
-      onRoomChange(null);
+      if (room) onRoomChange(null);
+      else setLobbyRefreshKey((k) => k + 1);
     } catch (err) {
       console.error('Không kết thúc được cuộc họp:', err);
       setFormError('Không kết thúc được cuộc họp. Vui lòng thử lại.');
@@ -392,7 +400,7 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ room, onRoomChange, on
             {isHost && (
               <button
                 type="button"
-                onClick={handleEndMeeting}
+                onClick={() => handleEndMeeting(room)}
                 className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
               >
                 <PhoneOff className="w-4 h-4" />
@@ -450,6 +458,52 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ room, onRoomChange, on
   return (
     <div className="space-y-6">
       {pageTitle}
+
+      {myMeetings.length > 0 && (
+        <div className="glass-panel p-5 sm:p-6 space-y-3">
+          <div className="flex items-center gap-2 text-slate-100 font-bold">
+            <Video className="w-5 h-5 text-emerald-400" />
+            <span>Phòng họp bạn đã tạo ({myMeetings.length})</span>
+          </div>
+          <ul className="divide-y divide-slate-800">
+            {myMeetings.map((m) => {
+              const isLive = Date.now() - new Date(m.lastActiveAt).getTime() < storageService.MEETING_ACTIVE_WINDOW_MS;
+              return (
+                <li key={m.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-100 truncate flex items-center gap-2">
+                      {isLive && <span className="inline-flex rounded-full h-2 w-2 bg-rose-500 shrink-0" />}
+                      <span className="truncate">{m.title || m.id}</span>
+                    </p>
+                    <p className="text-xs text-slate-400 truncate">
+                      {isLive ? 'Đang diễn ra' : 'Không có ai trong phòng'} · Tạo lúc {formatStartedAt(m.createdAt)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => joinRoom(m.id)}
+                      disabled={isBusy}
+                      className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      <span>Vào lại</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleEndMeeting(m.id)}
+                      className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
+                    >
+                      <PhoneOff className="w-4 h-4" />
+                      <span>Kết thúc</span>
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {activeMeetings.length > 0 && (
         <div className="glass-panel p-5 sm:p-6 space-y-3">
