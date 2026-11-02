@@ -131,6 +131,16 @@ export interface ExamDocument {
 }
 
 // A message submitted through the public "Liên Hệ Hệ Thống" contact form
+// A "Phòng Họp Online" room; the id is the Jitsi room name.
+export interface Meeting {
+  id: string;
+  title: string | null;
+  createdBy: string;
+  createdByName: string | null;
+  createdAt: string;
+  lastActiveAt: string;
+}
+
 export interface ContactMessage {
   id: string;
   title: string;

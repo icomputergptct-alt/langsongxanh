@@ -690,3 +690,82 @@ drop policy if exists "public write exam_documents" on exam_documents;
 drop policy if exists "authenticated write exam_documents" on exam_documents;
 create policy "authenticated write exam_documents" on exam_documents for insert
   with check (auth.uid() is not null);
+
+-- ============================================================================
+-- Online meetings ("Phòng Họp Online", 2026-11-02).
+-- ============================================================================
+-- Calls themselves run on Jitsi; this table only tracks which rooms exist and
+-- whether one is in progress, so the header can badge live meetings. Jitsi can't
+-- tell us when a call ends, so "in progress" means: not ended by its host and
+-- someone has had the room page open recently (the page heartbeats via
+-- touch_meeting). Creating a meeting and listing them require an account;
+-- joining doesn't, so a signed-out guest with an invite link can look up and
+-- heartbeat that one room through the RPCs below, and otherwise only gets a
+-- count — room ids (= join links) aren't listed to them.
+create table if not exists meetings (
+  id text primary key,
+  title text,
+  created_by uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  created_by_name text,
+  created_at timestamptz not null default now(),
+  last_active_at timestamptz not null default now(),
+  ended_at timestamptz
+);
+
+alter table meetings enable row level security;
+
+drop policy if exists "authenticated read meetings" on meetings;
+create policy "authenticated read meetings" on meetings for select
+  using (auth.uid() is not null);
+drop policy if exists "authenticated create meetings" on meetings;
+create policy "authenticated create meetings" on meetings for insert
+  with check (auth.uid() = created_by);
+drop policy if exists "host updates meetings" on meetings;
+create policy "host updates meetings" on meetings for update
+  using (auth.uid() = created_by)
+  with check (auth.uid() = created_by);
+
+-- Participants (not just the host, and guests too) keep a meeting marked live
+-- while its page is open. Returns false for a room that doesn't exist or was
+-- ended, which is also how joining by code rejects unknown rooms.
+create or replace function public.touch_meeting(p_id text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update meetings set last_active_at = now()
+  where id = p_id and ended_at is null;
+  return found;
+end;
+$$;
+
+grant execute on function public.touch_meeting(text) to anon, authenticated;
+
+-- One open meeting by id, for guests arriving from an invite link (they can't
+-- read the table directly).
+create or replace function public.get_meeting(p_id text)
+returns setof meetings
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select * from meetings where id = p_id and ended_at is null;
+$$;
+
+grant execute on function public.get_meeting(text) to anon, authenticated;
+
+create or replace function public.count_active_meetings()
+returns integer
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select count(*)::int from meetings
+  where ended_at is null and last_active_at > now() - interval '5 minutes';
+$$;
+
+grant execute on function public.count_active_meetings() to anon, authenticated;

@@ -1,4 +1,4 @@
-﻿import { ActivityLog, Article, Comment, ContactMessage, ExamAttempt, ExamDocument, OfflineArticle, QuizExam, ReviewedQuestion } from '../types';
+﻿import { ActivityLog, Article, Comment, ContactMessage, ExamAttempt, ExamDocument, Meeting, OfflineArticle, QuizExam, ReviewedQuestion } from '../types';
 import { supabase } from './supabaseClient';
 import { generateExamPdfBlob } from './examPdf';
 
@@ -251,6 +251,17 @@ function rowToActivityLog(row: any): ActivityLog {
     actorId: row.actor_id,
     action: row.action,
     detail: row.detail,
+  };
+}
+
+function rowToMeeting(row: any): Meeting {
+  return {
+    id: row.id,
+    title: row.title,
+    createdBy: row.created_by,
+    createdByName: row.created_by_name,
+    createdAt: row.created_at,
+    lastActiveAt: row.last_active_at,
   };
 }
 
@@ -814,6 +825,54 @@ export const storageService = {
     };
     const { error } = await supabase.from('contact_messages').insert(row);
     if (error) throw error;
+  },
+
+  // A meeting counts as live while it isn't ended and someone has had its page
+  // open within this window (the page heartbeats via touchMeeting).
+  MEETING_ACTIVE_WINDOW_MS: 5 * 60_000,
+
+  async createMeeting(id: string, title: string | null, createdByName: string | null): Promise<void> {
+    const { error } = await supabase
+      .from('meetings')
+      .insert({ id, title: title || null, created_by_name: createdByName || null });
+    if (error) throw error;
+  },
+
+  // Also how joining validates a room: false if it doesn't exist or was ended.
+  async touchMeeting(id: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('touch_meeting', { p_id: id });
+    if (error) throw error;
+    return !!data;
+  },
+
+  async endMeeting(id: string): Promise<void> {
+    const { error } = await supabase.from('meetings').update({ ended_at: new Date().toISOString() }).eq('id', id);
+    if (error) throw error;
+  },
+
+  async getMeeting(id: string): Promise<Meeting | null> {
+    const { data, error } = await supabase.rpc('get_meeting', { p_id: id });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    return row ? rowToMeeting(row) : null;
+  },
+
+  async getActiveMeetings(): Promise<Meeting[]> {
+    const cutoff = new Date(Date.now() - this.MEETING_ACTIVE_WINDOW_MS).toISOString();
+    const { data, error } = await supabase
+      .from('meetings')
+      .select('*')
+      .is('ended_at', null)
+      .gt('last_active_at', cutoff)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(rowToMeeting);
+  },
+
+  async countActiveMeetings(): Promise<number> {
+    const { data, error } = await supabase.rpc('count_active_meetings');
+    if (error) throw error;
+    return Number(data) || 0;
   },
 
   async getContactMessages(): Promise<ContactMessage[]> {

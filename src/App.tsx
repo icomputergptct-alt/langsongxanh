@@ -33,7 +33,7 @@ import { VisitorStats } from './components/VisitorStats';
 import { DocumentUploadModal } from './components/DocumentUploadModal';
 import { SearchResults } from './components/SearchResults';
 import { ContactPage } from './components/ContactPage';
-import { MeetingRoom, parseRoomInput } from './components/MeetingRoom';
+import { MeetingRoom, parseRoomInput, POST_LOGIN_PATH_KEY } from './components/MeetingRoom';
 import { Article, ExamDocument, QuizExam, SoftwareUtility } from './types';
 import { storageService } from './services/storageService';
 import { useAuth } from './contexts/AuthContext';
@@ -91,6 +91,22 @@ const matchMeetingPath = (pathname: string): { room: string | null } | null => {
   if (!match) return null;
   return { room: match[1] ? parseRoomInput(decodeURIComponent(match[1])) : null };
 };
+
+// Google sign-in returns to the site root; put a visitor who signed in from a
+// meeting page (e.g. an invite link) back on it before the first render reads the URL.
+// The hash/query carrying the OAuth result is kept for Supabase to pick up.
+(() => {
+  try {
+    const path = sessionStorage.getItem(POST_LOGIN_PATH_KEY);
+    if (!path) return;
+    sessionStorage.removeItem(POST_LOGIN_PATH_KEY);
+    if (window.location.pathname === '/' && matchMeetingPath(path)) {
+      window.history.replaceState(null, '', path + window.location.search + window.location.hash);
+    }
+  } catch {
+    // storage unavailable — the visitor just stays on the home page
+  }
+})();
 
 // Meta tags for one exam document page — reuses whatever metadata the
 // uploader filled in, so the title/description actually contain the subject,
@@ -296,6 +312,20 @@ export default function App() {
       window.history.pushState({}, '', path);
     }
   };
+
+  // Live-meeting count for the header badge, polled so it appears for everyone browsing.
+  const [activeMeetingCount, setActiveMeetingCount] = useState(0);
+  const refreshActiveMeetingCount = () => {
+    storageService
+      .countActiveMeetings()
+      .then(setActiveMeetingCount)
+      .catch((err) => console.error('Không đếm được cuộc họp đang diễn ra:', err));
+  };
+  useEffect(() => {
+    refreshActiveMeetingCount();
+    const timer = setInterval(refreshActiveMeetingCount, 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'meeting') {
@@ -528,6 +558,7 @@ export default function App() {
         }}
         isOffline={isOffline}
         savedOfflineCount={savedCount}
+        activeMeetingCount={activeMeetingCount}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         openCreateQuizModal={requireAuthThenOpenQuizModal}
@@ -941,8 +972,9 @@ export default function App() {
         {activeTab === 'meeting' && (
           <MeetingRoom
             room={meetingRoom}
-            defaultDisplayName={profile?.fullName || undefined}
             onRoomChange={handleMeetingRoomChange}
+            onRequireAuth={() => setIsAuthModalOpen(true)}
+            onMeetingsChanged={refreshActiveMeetingCount}
           />
         )}
 

@@ -24,6 +24,7 @@ interface HeaderProps {
   setActiveTab: (tab: 'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'meeting' | 'contact') => void;
   isOffline: boolean;
   savedOfflineCount: number;
+  activeMeetingCount: number;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   openCreateQuizModal: (mode?: 'upload' | 'manual') => void;
@@ -40,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   isOffline,
   savedOfflineCount,
+  activeMeetingCount,
   searchQuery,
   setSearchQuery,
   openCreateQuizModal,
@@ -255,7 +257,8 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             id="tab-meeting-btn"
             onClick={() => setActiveTab('meeting')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+            title={activeMeetingCount > 0 ? `${activeMeetingCount} cuộc họp đang diễn ra` : undefined}
+            className={`relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
               activeTab === 'meeting'
                 ? 'bg-blue-600/30 backdrop-blur-md border border-blue-400/40 text-white shadow-md shadow-blue-600/20'
                 : 'border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -263,6 +266,12 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Video className="w-4 h-4" />
             <span>Phòng Họp Online</span>
+            {activeMeetingCount > 0 && (
+              <span className="absolute -top-1.5 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none shadow-md shadow-rose-500/40">
+                <span className="absolute inset-0 rounded-full bg-rose-400 animate-ping opacity-60" />
+                <span className="relative">{activeMeetingCount}</span>
+              </span>
+            )}
           </button>
 
           <button
