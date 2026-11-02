@@ -57,7 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Logo & Brand - Bento Theme Style */}
           <div 
             id="brand-logo"
-            onClick={() => setActiveTab('quiz')}
+            onClick={() => setActiveTab('news')}
             className="flex items-center gap-2.5 cursor-pointer select-none group"
           >
             <img
@@ -176,7 +176,20 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Navigation Tabs Bar - Bento Clean Style */}
         <nav id="nav-tabs-bar" className="flex items-center space-x-2 sm:space-x-4 overflow-x-auto py-2 scrollbar-none border-t border-slate-800/60">
-          
+
+          <button
+            id="tab-news-btn"
+            onClick={() => setActiveTab('news')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+              activeTab === 'news'
+                ? 'bg-blue-600/30 backdrop-blur-md border border-blue-400/40 text-white shadow-md shadow-blue-600/20'
+                : 'border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Bài Viết</span>
+          </button>
+
           <button
             id="tab-quiz-rooms-btn"
             onClick={() => setActiveTab('quiz')}
@@ -208,19 +221,6 @@ export const Header: React.FC<HeaderProps> = ({
                 {savedOfflineCount}
               </span>
             )}
-          </button>
-
-          <button
-            id="tab-news-btn"
-            onClick={() => setActiveTab('news')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
-              activeTab === 'news'
-                ? 'bg-blue-600/30 backdrop-blur-md border border-blue-400/40 text-white shadow-md shadow-blue-600/20'
-                : 'border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <span>Bài Viết</span>
           </button>
 
           {user && (

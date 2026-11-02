@@ -108,7 +108,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'contact'>(() => {
     if (matchRouteFromPath(window.location.pathname)) return 'utilities';
     if (matchExamDocId(window.location.pathname)) return 'offline';
-    return 'quiz';
+    return 'news';
   });
   // Which tool (and, for the EQN sub-pages, which equation degree) /cong-cu/{slug}
   // should deep-link to. Both feed into SoftwareUtilities' `key` too, so browser
@@ -128,7 +128,7 @@ export default function App() {
   // "Quản Trị & Tiến Độ" requires login; bounce back if the session ends while it's open.
   useEffect(() => {
     if (!user && activeTab === 'admin') {
-      setActiveTab('quiz');
+      setActiveTab('news');
     }
   }, [user, activeTab]);
 
