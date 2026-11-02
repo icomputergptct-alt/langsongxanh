@@ -458,6 +458,13 @@ export default function App() {
     safeArticlePage * ARTICLES_PER_PAGE
   );
 
+  // Page controls sit below the grid, so bring the new page's first row into view.
+  const articleListTopRef = useRef<HTMLDivElement>(null);
+  const goToArticlePage = (page: number) => {
+    setCurrentArticlePage(Math.min(Math.max(1, page), articleTotalPages));
+    articleListTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const featuredArticle = articles.find((a) => a.isDeepAnalysis) || articles[0];
 
   return (
@@ -684,7 +691,7 @@ export default function App() {
                 {/* Category Pills & Quick Filter Controls — one glass-panel card so both
                     rows read as a single filter bar instead of floating loosely on the
                     background art. */}
-                <div className="glass-panel flex flex-col gap-3 p-3 sm:p-4">
+                <div ref={articleListTopRef} className="glass-panel flex flex-col gap-3 p-3 sm:p-4 scroll-mt-32">
 
                     {/* Category Scrollable Bar */}
                     <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none min-w-0 w-full">
@@ -778,7 +785,7 @@ export default function App() {
                   <div className="flex items-center justify-center gap-1.5 mt-8">
                     <button
                       type="button"
-                      onClick={() => setCurrentArticlePage((p) => Math.max(1, p - 1))}
+                      onClick={() => goToArticlePage(safeArticlePage - 1)}
                       disabled={safeArticlePage === 1}
                       className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-800/70 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-white border border-slate-700 transition-colors"
                       aria-label="Trang trước"
@@ -795,7 +802,7 @@ export default function App() {
                         <button
                           key={page}
                           type="button"
-                          onClick={() => setCurrentArticlePage(page)}
+                          onClick={() => goToArticlePage(page)}
                           className={`w-9 h-9 rounded-xl text-sm font-bold border transition-colors ${
                             page === safeArticlePage
                               ? 'bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/20'
@@ -809,7 +816,7 @@ export default function App() {
 
                     <button
                       type="button"
-                      onClick={() => setCurrentArticlePage((p) => Math.min(articleTotalPages, p + 1))}
+                      onClick={() => goToArticlePage(safeArticlePage + 1)}
                       disabled={safeArticlePage === articleTotalPages}
                       className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-800/70 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-white border border-slate-700 transition-colors"
                       aria-label="Trang sau"
