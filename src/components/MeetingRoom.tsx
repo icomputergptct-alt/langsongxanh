@@ -2,10 +2,21 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Video, PlusCircle, LogIn, Copy, Check, ExternalLink, PhoneOff, AlertCircle, Info } from 'lucide-react';
 
 // Video calls run on Jitsi Meet. The public meet.jit.si cuts embedded calls off after
-// 5 minutes, so production should point VITE_JITSI_DOMAIN at a self-hosted Jitsi or JaaS.
+// 5 minutes, so on it calls open in a new tab instead; a self-hosted server set via
+// VITE_JITSI_DOMAIN is embedded in the page.
 const JITSI_DOMAIN = (import.meta.env.VITE_JITSI_DOMAIN as string | undefined) || 'meet.jit.si';
-const IS_PUBLIC_JITSI = JITSI_DOMAIN === 'meet.jit.si';
+const EMBED_CALLS = JITSI_DOMAIN !== 'meet.jit.si';
 const DISPLAY_NAME_KEY = 'meeting-display-name';
+
+// Jitsi reads config overrides from the URL fragment, values JSON-encoded.
+function jitsiRoomUrl(room: string, displayName: string): string {
+  const params = [
+    `userInfo.displayName=${encodeURIComponent(JSON.stringify(displayName.trim() || 'Khách'))}`,
+    'config.startWithAudioMuted=true',
+    'config.startWithVideoMuted=true',
+  ];
+  return `https://${JITSI_DOMAIN}/${encodeURIComponent(room)}#${params.join('&')}`;
+}
 
 declare global {
   interface Window {
@@ -106,7 +117,7 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ room, defaultDisplayNa
 
   // Mount the Jitsi call while a room is open; dispose it when leaving or switching rooms.
   useEffect(() => {
-    if (!room) return;
+    if (!room || !EMBED_CALLS) return;
     let api: { dispose: () => void } | null = null;
     let cancelled = false;
     setLoadError(null);
@@ -140,10 +151,16 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ room, defaultDisplayNa
     };
   }, [room]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Opened straight from the submit handler so browsers treat it as a user action, not a popup.
+  const enterRoom = (target: string) => {
+    rememberName();
+    if (!EMBED_CALLS) window.open(jitsiRoomUrl(target, displayName), '_blank', 'noopener');
+    onRoomChange(target);
+  };
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    rememberName();
-    onRoomChange(createRoomId(newRoomName));
+    enterRoom(createRoomId(newRoomName));
     setNewRoomName('');
   };
 
@@ -155,8 +172,7 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ room, defaultDisplayNa
       return;
     }
     setJoinError(null);
-    rememberName();
-    onRoomChange(parsed);
+    enterRoom(parsed);
     setJoinInput('');
   };
 
@@ -185,37 +201,58 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ room, defaultDisplayNa
               {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
               <span>{copied ? 'Đã sao chép link' : 'Sao chép link mời'}</span>
             </button>
-            <a
-              href={`https://${JITSI_DOMAIN}/${encodeURIComponent(room)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl transition-colors"
-            >
-              <ExternalLink className="w-4 h-4" />
-              <span>Mở trong tab mới</span>
-            </a>
+            {EMBED_CALLS && (
+              <a
+                href={jitsiRoomUrl(room, displayName)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl transition-colors"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span>Mở trong tab mới</span>
+              </a>
+            )}
             <button
               type="button"
               onClick={() => onRoomChange(null)}
               className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors"
             >
               <PhoneOff className="w-4 h-4" />
-              <span>Rời phòng</span>
+              <span>{EMBED_CALLS ? 'Rời phòng' : 'Đóng phòng'}</span>
             </button>
           </div>
         </div>
 
-        {IS_PUBLIC_JITSI && (
-          <div className="flex items-start gap-2 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
-            <Info className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>
-              Máy chủ họp miễn phí meet.jit.si chỉ cho họp nhúng trên web tối đa 5 phút. Nếu cuộc họp dài hơn, hãy bấm
-              "Mở trong tab mới" để tiếp tục không giới hạn thời gian.
-            </span>
+        {!EMBED_CALLS ? (
+          <div className="glass-panel p-6 sm:p-10 flex flex-col items-center text-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-emerald-500 flex items-center justify-center text-white shadow-lg shadow-blue-600/20">
+              <Video className="w-7 h-7" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-100">Cuộc họp mở ở tab mới</h2>
+              <p className="text-sm text-slate-400 mt-1 max-w-md">
+                Cuộc họp chạy trên meet.jit.si ở một tab riêng, không giới hạn thời gian. Nếu tab chưa tự mở (trình
+                duyệt chặn cửa sổ bật lên) hoặc bạn lỡ đóng, bấm nút bên dưới để vào lại.
+              </p>
+            </div>
+            <a
+              href={jitsiRoomUrl(room, displayName)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white text-sm font-bold px-6 py-3 rounded-xl shadow-lg shadow-blue-600/20 transition-all"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <span>Vào cuộc họp</span>
+            </a>
+            <div className="flex items-start gap-2 text-xs text-slate-400 bg-slate-900/60 border border-slate-800 rounded-xl p-3 max-w-md text-left">
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-400" />
+              <span>
+                Người vào phòng đầu tiên có thể được meet.jit.si yêu cầu đăng nhập (Google, GitHub...) để làm chủ phòng;
+                những người vào sau chỉ cần chờ chủ phòng.
+              </span>
+            </div>
           </div>
-        )}
-
-        {loadError ? (
+        ) : loadError ? (
           <div className="flex items-center gap-2 text-sm text-rose-300 bg-rose-500/10 border border-rose-500/30 rounded-xl p-4">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{loadError}</span>
