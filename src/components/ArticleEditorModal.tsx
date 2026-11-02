@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { X, Check, Newspaper } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Check, Newspaper, ImagePlus } from 'lucide-react';
 import { Article, TechCategory } from '../types';
 import { storageService } from '../services/storageService';
 
@@ -18,6 +18,116 @@ const CATEGORIES: TechCategory[] = [
   'Blockchain & Web3',
   'Phần cứng & Bán dẫn',
 ];
+
+const SKIPPED_TAGS = new Set(['SCRIPT', 'STYLE', 'META', 'TITLE', 'HEAD', 'LINK', 'NOSCRIPT']);
+const BLOCK_TAGS = new Set([
+  'P', 'DIV', 'SECTION', 'ARTICLE', 'BLOCKQUOTE', 'TABLE', 'TR', 'FIGURE', 'FIGCAPTION',
+  'HEADER', 'FOOTER', 'MAIN', 'ASIDE', 'HR',
+]);
+
+// Converts pasted HTML (from a web page, Word, Google Docs...) into the article's
+// markdown-like format. Embedded data: images are uploaded; http(s) images keep
+// their URL; anything else (e.g. Word's local file:/// images) can't be read and is skipped.
+async function htmlToArticleContent(
+  html: string,
+  uploadImage: (blob: Blob) => Promise<string>
+): Promise<{ text: string; imageUrls: string[]; skippedImages: number }> {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const blocks: string[] = [];
+  const imageUrls: string[] = [];
+  let skippedImages = 0;
+  let line = '';
+
+  const takeLine = () => {
+    const t = line.replace(/\s+/g, ' ').replace(/\*\*\s*\*\*/g, '').trim();
+    line = '';
+    return t;
+  };
+  const flush = () => {
+    const t = takeLine();
+    if (t) blocks.push(t);
+  };
+
+  const resolveImage = async (img: HTMLImageElement) => {
+    const src = img.getAttribute('src') || '';
+    try {
+      if (src.startsWith('data:image/')) {
+        const blob = await (await fetch(src)).blob();
+        return await uploadImage(blob);
+      }
+      if (/^https?:\/\//i.test(src)) return src;
+    } catch (err) {
+      console.error('Không tải được ảnh dán vào:', err);
+    }
+    return null;
+  };
+
+  const walk = async (node: Node): Promise<void> => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      line += node.textContent || '';
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const el = node as HTMLElement;
+    const tag = el.tagName;
+    if (SKIPPED_TAGS.has(tag)) return;
+
+    if (tag === 'IMG') {
+      flush();
+      const url = await resolveImage(el as HTMLImageElement);
+      if (url) {
+        const alt = (el.getAttribute('alt') || '').replace(/[\[\]\n]/g, ' ').trim();
+        blocks.push(`![${alt}](${url})`);
+        imageUrls.push(url);
+      } else {
+        skippedImages++;
+      }
+      return;
+    }
+    if (tag === 'BR') {
+      line += ' ';
+      return;
+    }
+    if (/^H[1-6]$/.test(tag)) {
+      flush();
+      for (const child of Array.from(el.childNodes)) await walk(child);
+      const t = takeLine().replace(/\*\*/g, '');
+      if (t) blocks.push(`### ${t}`);
+      return;
+    }
+    if (tag === 'STRONG' || tag === 'B') {
+      line += '**';
+      for (const child of Array.from(el.childNodes)) await walk(child);
+      line += '**';
+      return;
+    }
+    if (tag === 'UL' || tag === 'OL') {
+      flush();
+      const items: string[] = [];
+      for (const li of Array.from(el.children)) {
+        for (const child of Array.from(li.childNodes)) await walk(child);
+        const t = takeLine();
+        if (t) items.push(tag === 'OL' ? `${items.length + 1}. ${t}` : `* ${t}`);
+      }
+      if (items.length) blocks.push(items.join('\n'));
+      return;
+    }
+    if (tag === 'PRE') {
+      flush();
+      blocks.push('```\n' + (el.textContent || '').replace(/\n+$/, '') + '\n```');
+      return;
+    }
+
+    const isBlock = BLOCK_TAGS.has(tag);
+    if (isBlock) flush();
+    for (const child of Array.from(el.childNodes)) await walk(child);
+    if (isBlock) flush();
+  };
+
+  await walk(doc.body);
+  flush();
+  return { text: blocks.join('\n\n'), imageUrls, skippedImages };
+}
 
 function slugify(text: string): string {
   return text
@@ -49,6 +159,10 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
   const [keyInsights, setKeyInsights] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [imageNotice, setImageNotice] = useState<string | null>(null);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -83,9 +197,91 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
       setKeyInsights('');
     }
     setError(null);
+    setImageNotice(null);
   }, [isOpen, article]);
 
   if (!isOpen) return null;
+
+  // Inserts a block at the textarea's cursor (replacing any selection), padded with
+  // blank lines so it stays its own paragraph in the rendered article.
+  const insertAtCursor = (text: string, start: number, end: number) => {
+    setContent((prev) => {
+      const before = prev.slice(0, start).replace(/\s+$/, '');
+      const after = prev.slice(end).replace(/^\s+/, '');
+      return [before, text, after].filter(Boolean).join('\n\n');
+    });
+  };
+
+  const fillCoverIfEmpty = (urls: string[]) => {
+    if (urls.length) setCoverImage((prev) => prev || urls[0]);
+  };
+
+  const uploadImageFiles = async (files: File[], start: number, end: number) => {
+    setIsUploadingImages(true);
+    setImageNotice(null);
+    try {
+      const urls: string[] = [];
+      for (const file of files) urls.push(await storageService.uploadArticleImage(file));
+      insertAtCursor(urls.map((u) => `![](${u})`).join('\n\n'), start, end);
+      fillCoverIfEmpty(urls);
+    } catch (err) {
+      console.error('Không tải được ảnh lên:', err);
+      setImageNotice('Không tải được ảnh lên Supabase. Vui lòng thử lại.');
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
+
+  const handleContentPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const { selectionStart: start, selectionEnd: end } = e.currentTarget;
+    const html = e.clipboardData.getData('text/html');
+    const imageFiles = Array.from<File>(e.clipboardData.files).filter((f) => f.type.startsWith('image/'));
+
+    // Rich content with images (web page, Word, Google Docs): convert it, images included.
+    if (html && /<img[\s>]/i.test(html)) {
+      e.preventDefault();
+      setIsUploadingImages(true);
+      setImageNotice(null);
+      try {
+        const { text, imageUrls, skippedImages } = await htmlToArticleContent(html, storageService.uploadArticleImage);
+        if (imageUrls.length === 0 && imageFiles.length > 0) {
+          // e.g. a single image copied from Word: the HTML points at a local file, but the bytes come as a file.
+          setIsUploadingImages(false);
+          await uploadImageFiles(imageFiles, start, end);
+          return;
+        }
+        insertAtCursor(text, start, end);
+        fillCoverIfEmpty(imageUrls);
+        if (skippedImages > 0) {
+          setImageNotice(
+            `Có ${skippedImages} ảnh không đọc được từ nội dung vừa dán (thường gặp khi copy từ Word). Hãy copy riêng từng ảnh rồi dán, hoặc bấm "Chèn ảnh".`
+          );
+        }
+      } catch (err) {
+        console.error('Không xử lý được nội dung dán vào:', err);
+        setImageNotice('Không xử lý được nội dung vừa dán. Vui lòng thử lại.');
+      } finally {
+        setIsUploadingImages(false);
+      }
+      return;
+    }
+
+    // A bare image (screenshot, "Copy image").
+    if (imageFiles.length > 0) {
+      e.preventDefault();
+      await uploadImageFiles(imageFiles, start, end);
+    }
+  };
+
+  const handlePickImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from<File>(e.target.files || []).filter((f) => f.type.startsWith('image/'));
+    e.target.value = '';
+    if (files.length === 0) return;
+    const textarea = contentRef.current;
+    const start = textarea?.selectionStart ?? content.length;
+    const end = textarea?.selectionEnd ?? content.length;
+    await uploadImageFiles(files, start, end);
+  };
 
   const handleSave = async () => {
     if (!title.trim() || !summary.trim() || !content.trim() || !coverImage.trim() || !authorName.trim()) {
@@ -220,13 +416,32 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">Nội dung (hỗ trợ ### tiêu đề, ```code```, gạch đầu dòng * )</label>
+            <div className="flex items-end justify-between gap-3 mb-1">
+              <label className="block text-xs font-medium text-slate-400">
+                Nội dung (hỗ trợ ### tiêu đề, ```code```, gạch đầu dòng * ). Có thể dán (Ctrl+V) cả chữ lẫn hình ảnh.
+              </label>
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                disabled={isUploadingImages}
+                className="flex items-center gap-1.5 shrink-0 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-cyan-300 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <ImagePlus className="w-3.5 h-3.5" />
+                <span>Chèn ảnh</span>
+              </button>
+              <input ref={imageInputRef} type="file" accept="image/*" multiple hidden onChange={handlePickImages} />
+            </div>
             <textarea
+              ref={contentRef}
               rows={10}
               value={content}
               onChange={(e) => setContent(e.target.value)}
+              onPaste={handleContentPaste}
+              readOnly={isUploadingImages}
               className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl p-3 text-xs font-mono text-slate-300 focus:outline-none resize-y"
             />
+            {isUploadingImages && <p className="mt-1 text-xs text-cyan-300">Đang tải ảnh lên...</p>}
+            {imageNotice && <p className="mt-1 text-xs text-amber-300">{imageNotice}</p>}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -316,7 +531,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
           </button>
           <button
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || isUploadingImages}
             className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white text-sm font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-cyan-600/20 transition-all"
           >
             <Check className="w-4 h-4" />

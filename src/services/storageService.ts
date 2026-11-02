@@ -756,6 +756,19 @@ export const storageService = {
     return { fileUrl: data.publicUrl };
   },
 
+  // Images pasted/inserted into article content share the public exam-files bucket,
+  // kept apart under their own folder.
+  async uploadArticleImage(blob: Blob): Promise<string> {
+    const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg').replace(/[^a-z0-9]/g, '') || 'png';
+    const path = `article-images/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await supabase.storage.from('exam-files').upload(path, blob, {
+      contentType: blob.type || 'image/png',
+    });
+    if (error) throw error;
+    const { data } = supabase.storage.from('exam-files').getPublicUrl(path);
+    return data.publicUrl;
+  },
+
   async saveExamDocument(doc: ExamDocument): Promise<void> {
     const row = {
       id: doc.id,

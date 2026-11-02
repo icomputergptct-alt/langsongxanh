@@ -367,6 +367,19 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
         {/* Article Body Content (Markdown-like rendering) */}
         <div className={`space-y-6 ${fontClasses[fontSize]}`}>
           {article.content.split('\n\n').map((paragraph, index) => {
+            // Image on its own paragraph: ![alt](https://...)
+            const image = paragraph.trim().match(/^!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)$/);
+            if (image) {
+              return (
+                <img
+                  key={index}
+                  src={image[2]}
+                  alt={image[1]}
+                  loading="lazy"
+                  className={`w-full h-auto rounded-xl border my-6 ${theme.border}`}
+                />
+              );
+            }
             // Heading 3
             if (paragraph.startsWith('### ')) {
               return (
