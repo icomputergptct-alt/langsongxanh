@@ -698,10 +698,9 @@ create policy "authenticated write exam_documents" on exam_documents for insert
 -- whether one is in progress, so the header can badge live meetings. Jitsi can't
 -- tell us when a call ends, so "in progress" means: not ended by its host and
 -- someone has had the room page open recently (the page heartbeats via
--- touch_meeting). Creating a meeting and listing them require an account;
--- joining doesn't, so a signed-out guest with an invite link can look up and
--- heartbeat that one room through the RPCs below, and otherwise only gets a
--- count — room ids (= join links) aren't listed to them.
+-- touch_meeting). Creating a meeting requires an account; joining doesn't.
+-- Signed-out guests can't read the table directly, but list_active_meetings
+-- shows them every live room so anyone on the lobby can click in.
 create table if not exists meetings (
   id text primary key,
   title text,
@@ -769,3 +768,19 @@ as $$
 $$;
 
 grant execute on function public.count_active_meetings() to anon, authenticated;
+
+-- Live rooms for the lobby, open to guests too (2026-11-03).
+create or replace function public.list_active_meetings()
+returns setof meetings
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select * from meetings
+  where ended_at is null and last_active_at > now() - interval '5 minutes'
+  order by created_at desc
+  limit 50;
+$$;
+
+grant execute on function public.list_active_meetings() to anon, authenticated;

@@ -861,7 +861,13 @@ export const storageService = {
     return row ? rowToMeeting(row) : null;
   },
 
+  // Via an RPC so signed-out guests see live rooms too. Falls back to the direct
+  // table read (signed-in only) if the RPC hasn't been deployed yet.
   async getActiveMeetings(): Promise<Meeting[]> {
+    const rpc = await supabase.rpc('list_active_meetings');
+    if (!rpc.error) return ((rpc.data as any[]) || []).map(rowToMeeting);
+    if (rpc.error.code !== 'PGRST202') throw rpc.error;
+
     const cutoff = new Date(Date.now() - this.MEETING_ACTIVE_WINDOW_MS).toISOString();
     const { data, error } = await supabase
       .from('meetings')

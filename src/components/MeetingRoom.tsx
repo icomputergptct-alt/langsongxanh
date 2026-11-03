@@ -143,13 +143,16 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ room, onRoomChange, on
 
   // Lobby: list meetings in progress, refreshed while the page stays open.
   useEffect(() => {
-    if (!user || room) return;
+    if (room) return;
     let cancelled = false;
     const load = () =>
-      Promise.all([storageService.getActiveMeetings(), storageService.getMyOpenMeetings(user.id)])
+      Promise.all([
+        storageService.getActiveMeetings(),
+        user ? storageService.getMyOpenMeetings(user.id) : Promise.resolve([]),
+      ])
         .then(([active, mine]) => {
           if (cancelled) return;
-          setActiveMeetings(active.filter((m) => m.createdBy !== user.id));
+          setActiveMeetings(user ? active.filter((m) => m.createdBy !== user.id) : active);
           setMyMeetings(mine);
         })
         .catch((err) => console.error('Không tải được danh sách cuộc họp:', err));
