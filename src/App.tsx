@@ -150,6 +150,8 @@ export default function App() {
   );
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoadingArticles, setIsLoadingArticles] = useState(true);
+  const [articlesLoadError, setArticlesLoadError] = useState(false);
+  const [articlesReloadKey, setArticlesReloadKey] = useState(0);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [currentArticlePage, setCurrentArticlePage] = useState(1);
 
@@ -342,6 +344,7 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     setIsLoadingArticles(true);
+    setArticlesLoadError(false);
     storageService
       .getArticles()
       .then((data) => {
@@ -357,7 +360,10 @@ export default function App() {
           }
         }
       })
-      .catch((err) => console.error('Không tải được danh sách bài viết:', err))
+      .catch((err) => {
+        console.error('Không tải được danh sách bài viết:', err);
+        if (!cancelled) setArticlesLoadError(true);
+      })
       .finally(() => {
         if (!cancelled) setIsLoadingArticles(false);
       });
@@ -365,7 +371,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [articlesReloadKey]);
 
   // Handle browser Back/Forward navigation
   useEffect(() => {
@@ -815,7 +821,22 @@ export default function App() {
                 </div>
 
                 {/* Articles Grid */}
-                {filteredArticles.length === 0 ? (
+                {articlesLoadError ? (
+                  <div className="text-center py-16 bg-slate-900/60 border border-slate-800 rounded-3xl p-8">
+                    <h3 className="text-base font-bold text-slate-300 mb-1">
+                      Không tải được danh sách bài viết
+                    </h3>
+                    <p className="text-xs text-slate-500 mb-4">
+                      Kết nối tới máy chủ bị gián đoạn. Vui lòng thử lại.
+                    </p>
+                    <button
+                      onClick={() => setArticlesReloadKey((k) => k + 1)}
+                      className="text-xs bg-slate-800 hover:bg-slate-700 text-blue-400 font-bold px-4 py-2 rounded-xl"
+                    >
+                      Thử lại
+                    </button>
+                  </div>
+                ) : filteredArticles.length === 0 ? (
                   <div className="text-center py-16 bg-slate-900/60 border border-slate-800 rounded-3xl p-8">
                     <Search className="w-10 h-10 text-slate-600 mx-auto mb-3" />
                     <h3 className="text-base font-bold text-slate-300 mb-1">

@@ -327,10 +327,14 @@ export const storageService = {
 
   // --- Articles ---
   async getArticles(): Promise<Article[]> {
-    const { data, error } = await supabase
-      .from('articles')
-      .select('*')
-      .order('published_at', { ascending: false });
+    const query = () => supabase.from('articles').select('*').order('published_at', { ascending: false });
+    let { data, error } = await query();
+    // A stale/invalid login token makes PostgREST reject even public reads (401 PGRST301/PGRST303).
+    // Drop the broken local session and retry as a guest so articles still load.
+    if (error && /JWT/i.test(error.message)) {
+      await supabase.auth.signOut({ scope: 'local' });
+      ({ data, error } = await query());
+    }
     if (error) throw error;
 
     const likedIds = getLikedArticleIds();
