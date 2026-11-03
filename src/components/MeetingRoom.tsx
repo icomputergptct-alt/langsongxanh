@@ -97,6 +97,39 @@ export const POST_LOGIN_PATH_KEY = 'post-login-path';
 
 const HEARTBEAT_MS = 60_000;
 
+// Browsers built into chat/social apps (links shared on Zalo, Messenger...) usually
+// block camera and microphone access, so calls must be opened in Chrome/Safari.
+const IN_APP_BROWSER = /Zalo|FBAN|FBAV|FB_IAB|Messenger|Instagram|Line\/|TikTok|musical_ly/i.test(navigator.userAgent);
+const IS_ANDROID = /Android/i.test(navigator.userAgent);
+const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+// Android-only: asks the system to open this page in Chrome instead of the in-app browser.
+function chromeIntentUrl(url: string): string {
+  const u = new URL(url);
+  return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+}
+
+const InAppBrowserWarning: React.FC = () => (
+  <div className="flex items-start gap-2 text-sm text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-amber-400" />
+    <div className="space-y-2">
+      <p className="font-bold">Bạn đang mở trang trong ứng dụng (Zalo, Facebook...) — trình duyệt này không cho bật camera và micro.</p>
+      <p className="text-xs text-amber-200/80">
+        Bấm nút <b>⋮</b> hoặc <b>...</b> ở góc màn hình, chọn <b>"Mở bằng trình duyệt"</b> (Chrome hoặc Safari), rồi vào lại phòng họp.
+      </p>
+      {IS_ANDROID && (
+        <a
+          href={chromeIntentUrl(window.location.href)}
+          className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-slate-900 text-xs font-bold px-3 py-2 rounded-xl transition-colors"
+        >
+          <ExternalLink className="w-4 h-4" />
+          <span>Mở bằng Chrome</span>
+        </a>
+      )}
+    </div>
+  </div>
+);
+
 const GoogleIcon: React.FC = () => (
   <svg className="w-4 h-4" viewBox="0 0 48 48" aria-hidden="true">
     <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
@@ -413,6 +446,7 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ room, onRoomChange, on
           </div>
         </div>
         {formError && <p className="text-xs text-rose-300">{formError}</p>}
+        {IN_APP_BROWSER && <InAppBrowserWarning />}
 
         {!EMBED_CALLS ? (
           <div className="glass-panel p-6 sm:p-10 flex flex-col items-center text-center gap-4">
@@ -442,6 +476,16 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ room, onRoomChange, on
                 những người vào sau chỉ cần chờ chủ phòng.
               </span>
             </div>
+            {IS_MOBILE && (
+              <div className="flex items-start gap-2 text-xs text-slate-400 bg-slate-900/60 border border-slate-800 rounded-xl p-3 max-w-md text-left">
+                <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-400" />
+                <span>
+                  Trên điện thoại: nếu meet.jit.si gợi ý tải ứng dụng, chọn tham gia bằng trình duyệt hoặc cài ứng dụng
+                  Jitsi Meet. Camera tắt sẵn khi vào phòng — bấm biểu tượng camera để bật, và chọn <b>Cho phép</b> khi
+                  được hỏi quyền. Nếu lỡ chặn, vào cài đặt trang web của trình duyệt để cấp lại quyền camera.
+                </span>
+              </div>
+            )}
           </div>
         ) : loadError ? (
           <div className="flex items-center gap-2 text-sm text-rose-300 bg-rose-500/10 border border-rose-500/30 rounded-xl p-4">
@@ -461,6 +505,7 @@ export const MeetingRoom: React.FC<MeetingRoomProps> = ({ room, onRoomChange, on
   return (
     <div className="space-y-6">
       {pageTitle}
+      {IN_APP_BROWSER && <InAppBrowserWarning />}
 
       {myMeetings.length > 0 && (
         <div className="glass-panel p-5 sm:p-6 space-y-3">
