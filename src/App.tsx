@@ -527,10 +527,25 @@ export default function App() {
     setCurrentArticlePage(1);
   }, [searchQuery, selectedCategory, articleFilterType]);
 
-  const articleTotalPages = Math.max(1, Math.ceil(filteredArticles.length / ARTICLES_PER_PAGE));
+  // Compact tech-news cards don't line up with the big article cards, so in
+  // mixed views they get their own strip above the grid (newest first, page 1
+  // only) and the paginated grid holds regular articles. Inside the tech-news
+  // category itself every card is compact, so the grid shows them directly.
+  const TECH_NEWS_STRIP_LIMIT = 6;
+  const isTechNewsView = selectedCategory === TECH_NEWS_CATEGORY;
+  const techNewsInList = isTechNewsView
+    ? []
+    : filteredArticles
+        .filter((a) => a.category === TECH_NEWS_CATEGORY)
+        .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  const gridArticles = isTechNewsView
+    ? filteredArticles
+    : filteredArticles.filter((a) => a.category !== TECH_NEWS_CATEGORY);
+
+  const articleTotalPages = Math.max(1, Math.ceil(gridArticles.length / ARTICLES_PER_PAGE));
   // Clamp in case the list itself shrank and the page we were on no longer exists.
   const safeArticlePage = Math.min(currentArticlePage, articleTotalPages);
-  const paginatedArticles = filteredArticles.slice(
+  const paginatedArticles = gridArticles.slice(
     (safeArticlePage - 1) * ARTICLES_PER_PAGE,
     safeArticlePage * ARTICLES_PER_PAGE
   );
@@ -863,17 +878,52 @@ export default function App() {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
-                    {paginatedArticles.map((article) => (
-                      <ArticleCard
-                        key={article.id}
-                        article={article}
-                        isSavedOffline={storageService.isArticleSavedOffline(article.id)}
-                        onSelectArticle={(art) => selectArticle(art)}
-                        onToggleSaveOffline={(art, e) => handleToggleSaveOffline(art, e)}
-                        onToggleLike={(id, e) => handleToggleLike(id, e)}
-                      />
-                    ))}
+                  <div className="space-y-6">
+                    {safeArticlePage === 1 && techNewsInList.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-100">
+                            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                            Tin công nghệ mới
+                          </h3>
+                          {techNewsInList.length > TECH_NEWS_STRIP_LIMIT && (
+                            <button
+                              onClick={() => setSelectedCategory(TECH_NEWS_CATEGORY)}
+                              className="text-xs font-bold text-blue-400 hover:text-blue-300"
+                            >
+                              Xem tất cả →
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {techNewsInList.slice(0, TECH_NEWS_STRIP_LIMIT).map((article) => (
+                            <ArticleCard
+                              key={article.id}
+                              article={article}
+                              isSavedOffline={storageService.isArticleSavedOffline(article.id)}
+                              onSelectArticle={(art) => selectArticle(art)}
+                              onToggleSaveOffline={(art, e) => handleToggleSaveOffline(art, e)}
+                              onToggleLike={(id, e) => handleToggleLike(id, e)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {paginatedArticles.length > 0 && (
+                      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${isTechNewsView ? 'gap-4' : 'gap-6'}`}>
+                        {paginatedArticles.map((article) => (
+                          <ArticleCard
+                            key={article.id}
+                            article={article}
+                            isSavedOffline={storageService.isArticleSavedOffline(article.id)}
+                            onSelectArticle={(art) => selectArticle(art)}
+                            onToggleSaveOffline={(art, e) => handleToggleSaveOffline(art, e)}
+                            onToggleLike={(id, e) => handleToggleLike(id, e)}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
