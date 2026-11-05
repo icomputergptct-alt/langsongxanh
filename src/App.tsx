@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Sparkles, 
   TrendingUp, 
   Layers, 
-  Flame, 
   Search, 
   BookOpen,
   ShieldCheck,
@@ -178,8 +176,7 @@ export default function App() {
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Tất cả');
-  const [articleFilterType, setArticleFilterType] = useState<'all' | 'deep' | 'trending'>('all');
+  const [showAllTechNews, setShowAllTechNews] = useState(false);
 
   // Offline management
   const [isOffline, setIsOffline] = useState(() => storageService.isOfflineMode());
@@ -493,54 +490,31 @@ export default function App() {
     }
   };
 
-  // Filter Articles
-  const categories = [
-    'Tất cả',
-    'Trí tuệ Nhân tạo',
-    'An ninh Mạng',
-    'Điện toán Đám mây & DevOps',
-    'Kiến trúc Phần mềm',
-    'Phần cứng & Bán dẫn',
-    'Blockchain & Web3',
-    TECH_NEWS_CATEGORY,
-  ];
-
+  // Filter Articles — the home page always lists every article; only the
+  // global search bar narrows it.
   const filteredArticles = articles.filter((art) => {
-    const matchesSearch =
-      art.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      art.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      art.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const matchesCategory =
-      selectedCategory === 'Tất cả' || art.category === selectedCategory;
-
-    let matchesFilterType = true;
-    if (articleFilterType === 'deep') matchesFilterType = !!art.isDeepAnalysis;
-    if (articleFilterType === 'trending') matchesFilterType = !!art.isTrending;
-
-    return matchesSearch && matchesCategory && matchesFilterType;
+    const q = searchQuery.toLowerCase();
+    return (
+      art.title.toLowerCase().includes(q) ||
+      art.summary.toLowerCase().includes(q) ||
+      art.tags.some((t) => t.toLowerCase().includes(q))
+    );
   });
 
   // Jump back to page 1 whenever a filter narrows/widens the result set —
   // otherwise the user could land on a now-empty page past the new last page.
   useEffect(() => {
     setCurrentArticlePage(1);
-  }, [searchQuery, selectedCategory, articleFilterType]);
+  }, [searchQuery]);
 
-  // Compact tech-news cards don't line up with the big article cards, so in
-  // mixed views they get their own strip above the grid (newest first, page 1
-  // only) and the paginated grid holds regular articles. Inside the tech-news
-  // category itself every card is compact, so the grid shows them directly.
+  // Compact tech-news cards don't line up with the big article cards, so they
+  // get their own strip above the grid (newest first, page 1 only) and the
+  // paginated grid holds regular articles.
   const TECH_NEWS_STRIP_LIMIT = 6;
-  const isTechNewsView = selectedCategory === TECH_NEWS_CATEGORY;
-  const techNewsInList = isTechNewsView
-    ? []
-    : filteredArticles
-        .filter((a) => a.category === TECH_NEWS_CATEGORY)
-        .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-  const gridArticles = isTechNewsView
-    ? filteredArticles
-    : filteredArticles.filter((a) => a.category !== TECH_NEWS_CATEGORY);
+  const techNewsInList = filteredArticles
+    .filter((a) => a.category === TECH_NEWS_CATEGORY)
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  const gridArticles = filteredArticles.filter((a) => a.category !== TECH_NEWS_CATEGORY);
 
   const articleTotalPages = Math.max(1, Math.ceil(gridArticles.length / ARTICLES_PER_PAGE));
   // Clamp in case the list itself shrank and the page we were on no longer exists.
@@ -666,7 +640,7 @@ export default function App() {
               <div className="space-y-8 pb-16">
                 
                 {/* Bento Grid Showcase Section (When no active search filter) */}
-                {!searchQuery && selectedCategory === 'Tất cả' && articleFilterType === 'all' && (
+                {!searchQuery && (
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6">
                     
                     {/* BENTO 1: Hero Featured Deep Analysis (8 cols) */}
@@ -768,12 +742,8 @@ export default function App() {
                       <div className="pt-4 border-t border-slate-800/80 text-center">
                         <button
                           onClick={() => {
-                            if (techNewsArticles.length > 0) {
-                              setSelectedCategory(TECH_NEWS_CATEGORY);
-                              articleListTopRef.current?.scrollIntoView({ behavior: 'smooth' });
-                            } else {
-                              setArticleFilterType('trending');
-                            }
+                            setShowAllTechNews(true);
+                            articleListTopRef.current?.scrollIntoView({ behavior: 'smooth' });
                           }}
                           className="text-slate-400 hover:text-blue-400 text-xs font-bold uppercase tracking-wider transition-colors"
                         >
@@ -785,61 +755,8 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Category Pills & Quick Filter Controls — one glass-panel card so both
-                    rows read as a single filter bar instead of floating loosely on the
-                    background art. */}
-                <div ref={articleListTopRef} className="glass-panel flex flex-col gap-3 p-3 sm:p-4 scroll-mt-32">
-
-                    {/* Category Scrollable Bar */}
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none min-w-0 w-full">
-                      {categories.map((cat) => (
-                        <button
-                          key={cat}
-                          onClick={() => setSelectedCategory(cat)}
-                          className={`text-xs font-semibold px-4 py-2 rounded-xl whitespace-nowrap shrink-0 transition-all ${
-                            selectedCategory === cat
-                              ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20'
-                              : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
-                          }`}
-                        >
-                          {cat}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Filter Type Segmented Control */}
-                    <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs shrink-0 self-start">
-                      <button
-                        onClick={() => setArticleFilterType('all')}
-                        className={`px-3.5 py-1.5 rounded-lg transition-colors ${
-                          articleFilterType === 'all' ? 'bg-slate-800 text-blue-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        Tất cả bài
-                      </button>
-
-                      <button
-                        onClick={() => setArticleFilterType('deep')}
-                        className={`px-3.5 py-1.5 rounded-lg flex items-center gap-1 transition-colors ${
-                          articleFilterType === 'deep' ? 'bg-slate-800 text-indigo-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        <Sparkles className="w-3 h-3" />
-                        <span>Phân tích sâu</span>
-                      </button>
-
-                      <button
-                        onClick={() => setArticleFilterType('trending')}
-                        className={`px-3.5 py-1.5 rounded-lg flex items-center gap-1 transition-colors ${
-                          articleFilterType === 'trending' ? 'bg-slate-800 text-rose-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        <Flame className="w-3 h-3" />
-                        <span>Thịnh hành</span>
-                      </button>
-                    </div>
-
-                </div>
+                {/* Scroll anchor for pagination and "Xem tất cả tin tức" */}
+                <div ref={articleListTopRef} className="scroll-mt-32" />
 
                 {/* Articles Grid */}
                 {articlesLoadError ? (
@@ -869,8 +786,6 @@ export default function App() {
                     <button
                       onClick={() => {
                         setSearchQuery('');
-                        setSelectedCategory('Tất cả');
-                        setArticleFilterType('all');
                       }}
                       className="text-xs bg-slate-800 hover:bg-slate-700 text-blue-400 font-bold px-4 py-2 rounded-xl"
                     >
@@ -888,15 +803,15 @@ export default function App() {
                           </h3>
                           {techNewsInList.length > TECH_NEWS_STRIP_LIMIT && (
                             <button
-                              onClick={() => setSelectedCategory(TECH_NEWS_CATEGORY)}
+                              onClick={() => setShowAllTechNews((v) => !v)}
                               className="text-xs font-bold text-blue-400 hover:text-blue-300"
                             >
-                              Xem tất cả →
+                              {showAllTechNews ? 'Thu gọn ↑' : `Xem tất cả (${techNewsInList.length}) →`}
                             </button>
                           )}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {techNewsInList.slice(0, TECH_NEWS_STRIP_LIMIT).map((article) => (
+                          {(showAllTechNews ? techNewsInList : techNewsInList.slice(0, TECH_NEWS_STRIP_LIMIT)).map((article) => (
                             <ArticleCard
                               key={article.id}
                               article={article}
@@ -911,7 +826,7 @@ export default function App() {
                     )}
 
                     {paginatedArticles.length > 0 && (
-                      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${isTechNewsView ? 'gap-4' : 'gap-6'}`}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {paginatedArticles.map((article) => (
                           <ArticleCard
                             key={article.id}
