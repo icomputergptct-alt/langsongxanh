@@ -37,6 +37,7 @@ import { MeetingRoom, parseRoomInput, POST_LOGIN_PATH_KEY } from './components/M
 import { Article, ExamDocument, QuizExam, SoftwareUtility, TECH_NEWS_CATEGORY } from './types';
 import { storageService } from './services/storageService';
 import { useAuth } from './contexts/AuthContext';
+import { formatRelativeTime } from './utils/relativeTime';
 import { getPageNumbers } from './utils/pagination';
 import { SOFTWARE_UTILITIES } from './data/initialData';
 import { setPageMeta, resetPageMeta } from './utils/seoMeta';
@@ -125,19 +126,6 @@ const buildExamDocMeta = (doc: ExamDocument): { title: string; description: stri
 
 // Articles per page in the news feed grid.
 const ARTICLES_PER_PAGE = 9;
-
-// "10 phút trước" / "2 giờ trước" / "3 ngày trước", or a date once older than a week.
-function formatRelativeTime(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return 'Vừa xong';
-  if (minutes < 60) return `${minutes} phút trước`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} giờ trước`;
-  const days = Math.floor(hours / 24);
-  if (days <= 7) return `${days} ngày trước`;
-  return new Date(iso).toLocaleDateString('vi-VN');
-}
 
 export default function App() {
   const { user, profile, isAdmin, signOut } = useAuth();
@@ -863,7 +851,7 @@ export default function App() {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
                     {paginatedArticles.map((article) => (
                       <ArticleCard
                         key={article.id}

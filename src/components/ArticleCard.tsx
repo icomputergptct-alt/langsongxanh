@@ -8,7 +8,8 @@ import {
   TrendingUp, 
   ArrowUpRight
 } from 'lucide-react';
-import { Article } from '../types';
+import { Article, TECH_NEWS_CATEGORY } from '../types';
+import { formatRelativeTime } from '../utils/relativeTime';
 
 interface ArticleCardProps {
   article: Article;
@@ -25,11 +26,62 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   onToggleSaveOffline,
   onToggleLike,
 }) => {
+  // Short tech-news items get a compact horizontal card instead of the big
+  // cover-image card used for full articles.
+  if (article.category === TECH_NEWS_CATEGORY) {
+    return (
+      <article
+        id={`article-card-${article.id}`}
+        onClick={() => onSelectArticle(article)}
+        className="group relative bg-white hover:bg-slate-50 border border-emerald-400/60 hover:border-emerald-400 rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 shadow-md shadow-black/10 hover:shadow-lg hover:shadow-emerald-500/20 flex gap-3 p-3"
+      >
+        <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-xl overflow-hidden bg-slate-100">
+          <img
+            src={article.coverImage}
+            alt={article.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
+          />
+        </div>
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex items-center gap-1.5 mb-1 text-[10px]">
+            <span className="font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700">
+              Tin mới
+            </span>
+            <span className="text-blue-600 font-medium truncate">{formatRelativeTime(article.publishedAt)}</span>
+          </div>
+          <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
+            {article.title}
+          </h3>
+          <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">{article.summary}</p>
+          <div className="mt-auto pt-1.5 flex items-center justify-end gap-3 text-[11px] text-slate-500">
+            <button
+              onClick={(e) => onToggleLike(article.id, e)}
+              className={`flex items-center gap-1 hover:text-blue-600 transition-colors ${
+                article.isLikedByUser ? 'text-blue-600 font-bold' : 'text-slate-500'
+              }`}
+            >
+              <ThumbsUp className="w-3 h-3" />
+              <span>{article.likes}</span>
+            </button>
+            <button
+              onClick={(e) => onToggleSaveOffline(article, e)}
+              title={isSavedOffline ? 'Đã lưu đọc ngoại tuyến (Click để xóa)' : 'Lưu vào kho ngoại tuyến'}
+              className={`hover:text-blue-600 transition-colors ${isSavedOffline ? 'text-blue-600' : 'text-slate-500'}`}
+            >
+              {isSavedOffline ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article
       id={`article-card-${article.id}`}
       onClick={() => onSelectArticle(article)}
-      className="group relative bg-white hover:bg-slate-50 border border-amber-400/60 hover:border-amber-400 rounded-3xl overflow-hidden cursor-pointer transition-all duration-300 shadow-md shadow-black/10 hover:shadow-xl hover:shadow-amber-500/30 flex flex-col"
+      className="group relative bg-white hover:bg-slate-50 border border-amber-400/60 hover:border-amber-400 rounded-3xl overflow-hidden cursor-pointer transition-all duration-300 shadow-md shadow-black/10 hover:shadow-xl hover:shadow-amber-500/30 flex flex-col self-stretch"
     >
       {/* Cover Image & Badges */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
