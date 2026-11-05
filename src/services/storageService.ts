@@ -291,6 +291,19 @@ async function resolveActor(): Promise<{
   };
 }
 
+// A stale/invalid login token makes PostgREST reject even public reads
+// (401 PGRST301/PGRST303). Drop the broken local session and retry once as a
+// guest so public lists (articles, exam rooms) still load instead of silently
+// coming back empty.
+async function withJwtRetry<R extends { error: { message: string } | null }>(run: () => PromiseLike<R>): Promise<R> {
+  const result = await run();
+  if (result.error && /JWT/i.test(result.error.message)) {
+    await supabase.auth.signOut({ scope: 'local' });
+    return await run();
+  }
+  return result;
+}
+
 export const storageService = {
   // --- Activity Log ("Nhật Ký Hoạt Động" admin tab) ---
   // Fire-and-forget from call sites (never throws) — a logging failure should
@@ -327,14 +340,9 @@ export const storageService = {
 
   // --- Articles ---
   async getArticles(): Promise<Article[]> {
-    const query = () => supabase.from('articles').select('*').order('published_at', { ascending: false });
-    let { data, error } = await query();
-    // A stale/invalid login token makes PostgREST reject even public reads (401 PGRST301/PGRST303).
-    // Drop the broken local session and retry as a guest so articles still load.
-    if (error && /JWT/i.test(error.message)) {
-      await supabase.auth.signOut({ scope: 'local' });
-      ({ data, error } = await query());
-    }
+    const { data, error } = await withJwtRetry(() =>
+      supabase.from('articles').select('*').order('published_at', { ascending: false })
+    );
     if (error) throw error;
 
     const likedIds = getLikedArticleIds();
@@ -540,12 +548,14 @@ export const storageService = {
   // creator/admin, exposing only a safe hasPassword boolean to everyone else.
   // See supabase/auth.sql for the view + the RLS column revoke that backs it.
   async getExams(): Promise<QuizExam[]> {
-    const { data, error } = await supabase
-      .from('quiz_exams_public')
-      .select('*')
-      .eq('is_archived', false)
-      .eq('is_draft', false)
-      .order('created_at', { ascending: false });
+    const { data, error } = await withJwtRetry(() =>
+      supabase
+        .from('quiz_exams_public')
+        .select('*')
+        .eq('is_archived', false)
+        .eq('is_draft', false)
+        .order('created_at', { ascending: false })
+    );
     if (error) throw error;
     return (data || []).map(rowToExam);
   },
@@ -566,12 +576,14 @@ export const storageService = {
   // lazily — called whenever someone opens the Quiz Room, almost always by a
   // student rather than the room's own owner/admin.
   async archiveExpiredExams(): Promise<void> {
-    const { data: candidates, error } = await supabase
-      .from('quiz_exams_public')
-      .select('id')
-      .eq('is_archived', false)
-      .not('deadline_at', 'is', null)
-      .lt('deadline_at', new Date().toISOString());
+    const { data: candidates, error } = await withJwtRetry(() =>
+      supabase
+        .from('quiz_exams_public')
+        .select('id')
+        .eq('is_archived', false)
+        .not('deadline_at', 'is', null)
+        .lt('deadline_at', new Date().toISOString())
+    );
     if (error || !candidates || candidates.length === 0) return;
 
     for (const { id: examId } of candidates) {
@@ -607,7 +619,9 @@ export const storageService = {
   },
 
   async getExamById(examId: string): Promise<QuizExam | undefined> {
-    const { data, error } = await supabase.from('quiz_exams_public').select('*').eq('id', examId).maybeSingle();
+    const { data, error } = await withJwtRetry(() =>
+      supabase.from('quiz_exams_public').select('*').eq('id', examId).maybeSingle()
+    );
     if (error || !data) return undefined;
     return rowToExam(data);
   },

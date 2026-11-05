@@ -109,6 +109,8 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
 }) => {
   const [exams, setExams] = useState<QuizExam[]>([]);
   const [isLoadingExams, setIsLoadingExams] = useState(true);
+  const [examsLoadError, setExamsLoadError] = useState(false);
+  const [examsReloadKey, setExamsReloadKey] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedExam, setSelectedExam] = useState<QuizExam | null>(null);
   const [examState, setExamState] = useState<'lobby' | 'testing' | 'result'>('lobby');
@@ -142,6 +144,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
   // whenever anyone opens the Quiz Room — rather than at the exact deadline.
   useEffect(() => {
     setIsLoadingExams(true);
+    setExamsLoadError(false);
     storageService
       .archiveExpiredExams()
       .catch((err) => console.error('Không lưu trữ được đề thi hết hạn:', err))
@@ -149,10 +152,13 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
         storageService
           .getExams()
           .then(setExams)
-          .catch((err) => console.error('Không tải được đề thi:', err))
+          .catch((err) => {
+            console.error('Không tải được đề thi:', err);
+            setExamsLoadError(true);
+          })
           .finally(() => setIsLoadingExams(false));
       });
-  }, [examsRefreshKey]);
+  }, [examsRefreshKey, examsReloadKey]);
 
   // Countdown timer during test
   useEffect(() => {
@@ -477,6 +483,26 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
               </div>
             ))}
           </div>
+        ) : examsLoadError ? (
+          <div className="text-center py-16 bg-slate-900/60 border border-slate-800 rounded-3xl p-8">
+            <h3 className="text-base font-bold text-slate-300 mb-1">Không tải được danh sách phòng thi</h3>
+            <p className="text-xs text-slate-500 mb-4">Kết nối tới máy chủ bị gián đoạn. Vui lòng thử lại.</p>
+            <button
+              onClick={() => setExamsReloadKey((k) => k + 1)}
+              className="text-xs bg-slate-800 hover:bg-slate-700 text-blue-400 font-bold px-4 py-2 rounded-xl"
+            >
+              Thử lại
+            </button>
+          </div>
+        ) : filteredExams.length === 0 ? (
+          <div className="text-center py-16 bg-slate-900/60 border border-slate-800 rounded-3xl p-8">
+            <h3 className="text-base font-bold text-slate-300 mb-1">
+              {exams.length === 0 ? 'Chưa có phòng thi nào đang mở' : 'Không tìm thấy phòng thi phù hợp'}
+            </h3>
+            <p className="text-xs text-slate-500">
+              {exams.length === 0 ? 'Các phòng thi mới sẽ xuất hiện tại đây khi giáo viên phát hành.' : 'Thử từ khóa tìm kiếm khác.'}
+            </p>
+          </div>
         ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {paginatedExams.map((exam) => {
@@ -577,7 +603,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
         )}
 
         {/* Pagination — only shown once there's more than one page's worth of rooms */}
-        {!isLoadingExams && totalPages > 1 && (
+        {!isLoadingExams && !examsLoadError && totalPages > 1 && (
           <div className="flex items-center justify-center gap-1.5 mt-8">
             <button
               type="button"
