@@ -6,6 +6,7 @@ import { storageService } from '../services/storageService';
 interface ArticleEditorModalProps {
   isOpen: boolean;
   article: Article | null; // null = creating a new article
+  defaultCategory?: TechCategory; // category preselected when creating a new article
   onClose: () => void;
   onSaved: (article: Article) => void;
 }
@@ -17,6 +18,7 @@ const CATEGORIES: TechCategory[] = [
   'Kiến trúc Phần mềm',
   'Blockchain & Web3',
   'Phần cứng & Bán dẫn',
+  'Tin công nghệ mới',
 ];
 
 const SKIPPED_TAGS = new Set(['SCRIPT', 'STYLE', 'META', 'TITLE', 'HEAD', 'LINK', 'NOSCRIPT']);
@@ -140,7 +142,7 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, article, onClose, onSaved }) => {
+export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, article, defaultCategory, onClose, onSaved }) => {
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [summary, setSummary] = useState('');
@@ -186,7 +188,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
       setSlug('');
       setSummary('');
       setContent('');
-      setCategory('Trí tuệ Nhân tạo');
+      setCategory(defaultCategory || 'Trí tuệ Nhân tạo');
       setTags('');
       setCoverImage('');
       setReadTimeMinutes(5);
@@ -198,7 +200,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
     }
     setError(null);
     setImageNotice(null);
-  }, [isOpen, article]);
+  }, [isOpen, article, defaultCategory]);
 
   if (!isOpen) return null;
 

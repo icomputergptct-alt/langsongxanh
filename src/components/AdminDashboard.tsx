@@ -30,7 +30,7 @@ import {
   UserCircle,
   GraduationCap
 } from 'lucide-react';
-import { ActivityLog, Article, ContactMessage, ExamAttempt, ExamDocument, QuizExam } from '../types';
+import { ActivityLog, Article, ContactMessage, ExamAttempt, ExamDocument, QuizExam, TECH_NEWS_CATEGORY, TechCategory } from '../types';
 import { storageService } from '../services/storageService';
 import { ArticleEditorModal } from './ArticleEditorModal';
 import { AttemptsPreviewModal } from './AttemptsPreviewModal';
@@ -43,13 +43,14 @@ interface AdminDashboardProps {
   isAdmin: boolean;
   userId?: string;
   userEmail?: string;
+  onArticlesChanged?: () => void; // lets the home page refetch its article list
 }
 
 // News management is restricted to this one account regardless of the broader
 // is_admin flag — other admins can still see everything else on this dashboard.
 const NEWS_MANAGER_EMAIL = 'icomputer.gpt.ct@gmail.com';
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz, isAdmin, userId, userEmail }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz, isAdmin, userId, userEmail, onArticlesChanged }) => {
   const canManageNews = isAdmin && userEmail === NEWS_MANAGER_EMAIL;
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [exams, setExams] = useState<QuizExam[]>([]);
@@ -62,6 +63,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
   const [activeSubTab, setActiveSubTab] = useState<'attempts' | 'exams' | 'analytics' | 'news' | 'contact' | 'activity'>('analytics');
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [isArticleEditorOpen, setIsArticleEditorOpen] = useState(false);
+  const [newArticleCategory, setNewArticleCategory] = useState<TechCategory | undefined>(undefined);
+  const [articleListFilter, setArticleListFilter] = useState<'all' | 'techNews'>('all');
   const [viewingExamAttempts, setViewingExamAttempts] = useState<QuizExam | null>(null);
   const [showAttemptsPreview, setShowAttemptsPreview] = useState(false);
   const [activityActorFilter, setActivityActorFilter] = useState<'all' | 'guest' | 'teacher' | 'admin'>('all');
@@ -103,10 +106,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
     }
   };
 
-  const handleOpenNewArticle = () => {
+  const handleOpenNewArticle = (category?: TechCategory) => {
     setEditingArticle(null);
+    setNewArticleCategory(category);
     setIsArticleEditorOpen(true);
   };
+
+  const techNewsCount = articles.filter((a) => a.category === TECH_NEWS_CATEGORY).length;
+  const visibleArticles =
+    articleListFilter === 'techNews' ? articles.filter((a) => a.category === TECH_NEWS_CATEGORY) : articles;
 
   const handleEditArticle = (article: Article) => {
     setEditingArticle(article);
@@ -120,6 +128,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
       await storageService.deleteArticle(articleId);
       storageService.logActivity('Xóa bài viết', { detail: article?.title || articleId }).catch(() => {});
       setArticles(await storageService.getArticles());
+      onArticlesChanged?.();
     } catch (err) {
       console.error('Không xóa được bài viết:', err);
       alert('Không thể xóa bài viết. Vui lòng thử lại.');
@@ -131,6 +140,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
       .logActivity(editingArticle ? 'Cập nhật bài viết' : 'Đăng bài viết mới', { detail: savedArticle.title })
       .catch(() => {});
     setArticles(await storageService.getArticles());
+    onArticlesChanged?.();
   };
 
   // Scope exams/attempts to the logged-in teacher's own exams; site admins (isAdmin) see everything
@@ -753,18 +763,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
       {activeSubTab === 'news' && (
         canManageNews ? (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400">
-                Hiển thị {articles.length} bài viết
-              </span>
-              <button
-                onClick={handleOpenNewArticle}
-                className="flex items-center gap-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition-colors"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>Thêm Bài Viết Mới</span>
-              </button>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs">
+                <button
+                  onClick={() => setArticleListFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg transition-colors ${
+                    articleListFilter === 'all' ? 'bg-slate-800 text-blue-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Tất cả bài viết ({articles.length})
+                </button>
+                <button
+                  onClick={() => setArticleListFilter('techNews')}
+                  className={`px-3 py-1.5 rounded-lg transition-colors ${
+                    articleListFilter === 'techNews' ? 'bg-slate-800 text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Tin công nghệ mới ({techNewsCount})
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => handleOpenNewArticle(TECH_NEWS_CATEGORY)}
+                  title="Đăng tin ngắn hiển thị trong ô Tin tức công nghệ mới ở trang chủ"
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition-colors"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Thêm Tin Công Nghệ Mới</span>
+                </button>
+                <button
+                  onClick={() => handleOpenNewArticle()}
+                  className="flex items-center gap-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition-colors"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Thêm Bài Viết Mới</span>
+                </button>
+              </div>
             </div>
+            {articleListFilter === 'techNews' && (
+              <p className="text-[11px] text-slate-500">
+                3 tin mới nhất trong nhóm này sẽ tự hiển thị ở ô "Tin tức công nghệ mới" trên trang chủ.
+              </p>
+            )}
 
             <div className="glass-panel rounded-2xl overflow-hidden">
               <div className="overflow-x-auto">
@@ -780,14 +820,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/80">
-                    {articles.length === 0 ? (
+                    {visibleArticles.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="text-center py-8 text-slate-500">
-                          Chưa có bài viết nào. Bấm "Thêm Bài Viết Mới" để bắt đầu.
+                          {articleListFilter === 'techNews'
+                            ? 'Chưa có tin công nghệ mới nào. Bấm "Thêm Tin Công Nghệ Mới" để bắt đầu.'
+                            : 'Chưa có bài viết nào. Bấm "Thêm Bài Viết Mới" để bắt đầu.'}
                         </td>
                       </tr>
                     ) : (
-                      articles.map((article) => (
+                      visibleArticles.map((article) => (
                         <tr key={article.id} className="hover:bg-slate-800/50 transition-colors">
                           <td className="py-3 px-4 max-w-xs">
                             <div className="flex items-center gap-2.5">
@@ -799,7 +841,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
                               <span className="font-medium text-slate-200 line-clamp-2">{article.title}</span>
                             </div>
                           </td>
-                          <td className="py-3 px-4 text-slate-400">{article.category}</td>
+                          <td className="py-3 px-4">
+                            {article.category === TECH_NEWS_CATEGORY ? (
+                              <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                {article.category}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">{article.category}</span>
+                            )}
+                          </td>
                           <td className="py-3 px-4 text-center text-slate-300">{article.views}</td>
                           <td className="py-3 px-4 text-center text-slate-300">{article.likes}</td>
                           <td className="py-3 px-4 text-slate-400">
@@ -1044,6 +1094,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
       <ArticleEditorModal
         isOpen={isArticleEditorOpen}
         article={editingArticle}
+        defaultCategory={newArticleCategory}
         onClose={() => setIsArticleEditorOpen(false)}
         onSaved={handleArticleSaved}
       />

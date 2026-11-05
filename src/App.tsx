@@ -34,7 +34,7 @@ import { DocumentUploadModal } from './components/DocumentUploadModal';
 import { SearchResults } from './components/SearchResults';
 import { ContactPage } from './components/ContactPage';
 import { MeetingRoom, parseRoomInput, POST_LOGIN_PATH_KEY } from './components/MeetingRoom';
-import { Article, ExamDocument, QuizExam, SoftwareUtility } from './types';
+import { Article, ExamDocument, QuizExam, SoftwareUtility, TECH_NEWS_CATEGORY } from './types';
 import { storageService } from './services/storageService';
 import { useAuth } from './contexts/AuthContext';
 import { getPageNumbers } from './utils/pagination';
@@ -125,6 +125,19 @@ const buildExamDocMeta = (doc: ExamDocument): { title: string; description: stri
 
 // Articles per page in the news feed grid.
 const ARTICLES_PER_PAGE = 9;
+
+// "10 phút trước" / "2 giờ trước" / "3 ngày trước", or a date once older than a week.
+function formatRelativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return 'Vừa xong';
+  if (minutes < 60) return `${minutes} phút trước`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  const days = Math.floor(hours / 24);
+  if (days <= 7) return `${days} ngày trước`;
+  return new Date(iso).toLocaleDateString('vi-VN');
+}
 
 export default function App() {
   const { user, profile, isAdmin, signOut } = useAuth();
@@ -501,6 +514,7 @@ export default function App() {
     'Kiến trúc Phần mềm',
     'Phần cứng & Bán dẫn',
     'Blockchain & Web3',
+    TECH_NEWS_CATEGORY,
   ];
 
   const filteredArticles = articles.filter((art) => {
@@ -541,6 +555,13 @@ export default function App() {
   };
 
   const featuredArticle = articles.find((a) => a.isDeepAnalysis) || articles[0];
+
+  // Home page "Tin tức công nghệ mới" card: the 3 newest articles in the
+  // tech-news category, falling back to the 3 newest articles overall so the
+  // card is never empty before any tech news has been posted.
+  const byNewest = (a: Article, b: Article) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+  const techNewsArticles = articles.filter((a) => a.category === TECH_NEWS_CATEGORY);
+  const latestNewsItems = (techNewsArticles.length > 0 ? techNewsArticles : articles).slice().sort(byNewest).slice(0, 3);
 
   return (
     <div className="min-h-screen text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white relative">
@@ -710,50 +731,35 @@ export default function App() {
                         </h3>
 
                         <div className="space-y-3.5">
-                          <div 
-                            onClick={() => {
-                              const art = articles.find((a) => a.id === 'art-gaafet-2nm') || articles[1];
-                              if (art) selectArticle(art);
-                            }}
-                            className="border-b border-slate-800 pb-3 cursor-pointer group/news"
-                          >
-                            <p className="text-xs text-blue-400 font-medium mb-1">10 phút trước</p>
-                            <h4 className="text-xs sm:text-sm font-semibold text-slate-200 group-hover/news:text-blue-400 transition-colors line-clamp-2">
-                              TSMC & Intel tăng tốc thương mại hóa bán dẫn GAAFET 2nm
-                            </h4>
-                          </div>
-
-                          <div 
-                            onClick={() => {
-                              const art = articles.find((a) => a.id === 'art-post-quantum-cryptography') || articles[0];
-                              if (art) selectArticle(art);
-                            }}
-                            className="border-b border-slate-800 pb-3 cursor-pointer group/news"
-                          >
-                            <p className="text-xs text-blue-400 font-medium mb-1">2 giờ trước</p>
-                            <h4 className="text-xs sm:text-sm font-semibold text-slate-200 group-hover/news:text-blue-400 transition-colors line-clamp-2">
-                              NIST chuẩn hóa bộ thuật toán mật mã Hậu lượng tử ML-KEM
-                            </h4>
-                          </div>
-
-                          <div 
-                            onClick={() => {
-                              const art = articles.find((a) => a.id === 'art-multi-agent-ai-system') || articles[2];
-                              if (art) selectArticle(art);
-                            }}
-                            className="pb-1 cursor-pointer group/news"
-                          >
-                            <p className="text-xs text-blue-400 font-medium mb-1">5 giờ trước</p>
-                            <h4 className="text-xs sm:text-sm font-semibold text-slate-200 group-hover/news:text-blue-400 transition-colors line-clamp-2">
-                              Kiến trúc Multi-Agent Systems & Graph RAG định hình lại AI 2026
-                            </h4>
-                          </div>
+                          {latestNewsItems.length === 0 ? (
+                            <p className="text-xs text-slate-500">Chưa có tin tức nào.</p>
+                          ) : (
+                            latestNewsItems.map((art, idx) => (
+                              <div
+                                key={art.id}
+                                onClick={() => selectArticle(art)}
+                                className={`${idx < latestNewsItems.length - 1 ? 'border-b border-slate-800 pb-3' : 'pb-1'} cursor-pointer group/news`}
+                              >
+                                <p className="text-xs text-blue-400 font-medium mb-1">{formatRelativeTime(art.publishedAt)}</p>
+                                <h4 className="text-xs sm:text-sm font-semibold text-slate-200 group-hover/news:text-blue-400 transition-colors line-clamp-2">
+                                  {art.title}
+                                </h4>
+                              </div>
+                            ))
+                          )}
                         </div>
                       </div>
 
                       <div className="pt-4 border-t border-slate-800/80 text-center">
                         <button
-                          onClick={() => setArticleFilterType('trending')}
+                          onClick={() => {
+                            if (techNewsArticles.length > 0) {
+                              setSelectedCategory(TECH_NEWS_CATEGORY);
+                              articleListTopRef.current?.scrollIntoView({ behavior: 'smooth' });
+                            } else {
+                              setArticleFilterType('trending');
+                            }
+                          }}
                           className="text-slate-400 hover:text-blue-400 text-xs font-bold uppercase tracking-wider transition-colors"
                         >
                           Xem tất cả tin tức →
@@ -969,6 +975,7 @@ export default function App() {
             isAdmin={isAdmin}
             userId={user?.id}
             userEmail={user?.email}
+            onArticlesChanged={() => setArticlesReloadKey((k) => k + 1)}
           />
         )}
 

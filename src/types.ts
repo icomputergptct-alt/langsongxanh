@@ -7,7 +7,11 @@ export type TechCategory =
   | 'Điện toán Đám mây & DevOps'
   | 'Kiến trúc Phần mềm'
   | 'Blockchain & Web3'
-  | 'Phần cứng & Bán dẫn';
+  | 'Phần cứng & Bán dẫn'
+  | 'Tin công nghệ mới';
+
+// Short news items shown in the home page's "Tin tức công nghệ mới" card.
+export const TECH_NEWS_CATEGORY: TechCategory = 'Tin công nghệ mới';
 
 export interface Comment {
   id: string;
