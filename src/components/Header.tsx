@@ -64,7 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-2.5 cursor-pointer select-none group"
           >
             <img
-              src="/logo2.png"
+              src="/logo-lhs-192.png"
               alt="Long Hoà Số"
               className="w-8 h-8 rounded-lg shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform"
             />

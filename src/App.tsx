@@ -1058,7 +1058,7 @@ export default function App() {
       <footer className="border-t border-slate-900 bg-slate-950/80 backdrop-blur text-slate-500 text-xs py-8 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <img src="/logo2.png" alt="Long Hoà Số" className="w-6 h-6 rounded-lg" />
+            <img src="/logo-lhs-192.png" alt="Long Hoà Số" className="w-6 h-6 rounded-lg" />
             <span className="font-semibold text-slate-300">Long Hoà Số</span>
             <span className="text-slate-600">| Nền tảng kết nối Tri thức Công nghệ Số</span>
           </div>
