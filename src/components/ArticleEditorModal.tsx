@@ -27,6 +27,47 @@ const BLOCK_TAGS = new Set([
   'HEADER', 'FOOTER', 'MAIN', 'ASIDE', 'HR',
 ]);
 
+// News sites lazy-load images: `src` holds a tiny placeholder (often a
+// data:image/gif 1x1) and the real photo URL sits in a data-* attribute or
+// srcset until the image scrolls into view. Prefer those real URLs.
+const LAZY_SRC_ATTRS = ['data-src', 'data-original', 'data-lazy-src', 'data-lazy', 'data-url', 'data-full-src'];
+const LAZY_SRCSET_ATTRS = ['data-srcset', 'data-lazy-srcset', 'srcset'];
+const PLACEHOLDER_MAX_BYTES = 200;
+
+function toAbsoluteUrl(url: string): string {
+  const u = url.trim();
+  return u.startsWith('//') ? `https:${u}` : u;
+}
+
+// Largest candidate of a srcset ("a.jpg 320w, b.jpg 1024w" -> b.jpg).
+function pickFromSrcset(srcset: string): string {
+  let best = '';
+  let bestScore = -1;
+  for (const part of srcset.split(',')) {
+    const [url, descriptor = ''] = part.trim().split(/\s+/);
+    if (!url) continue;
+    const score = parseFloat(descriptor) || 0;
+    if (score >= bestScore) {
+      best = url;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+function pickImageSource(img: HTMLImageElement): string {
+  const isRemote = (u: string) => /^(https?:)?\/\//i.test(u);
+  for (const attr of LAZY_SRC_ATTRS) {
+    const v = toAbsoluteUrl(img.getAttribute(attr) || '');
+    if (isRemote(v)) return v;
+  }
+  for (const attr of LAZY_SRCSET_ATTRS) {
+    const v = toAbsoluteUrl(pickFromSrcset(img.getAttribute(attr) || ''));
+    if (isRemote(v)) return v;
+  }
+  return toAbsoluteUrl(img.getAttribute('src') || '');
+}
+
 // Converts pasted HTML (from a web page, Word, Google Docs...) into the article's
 // markdown-like format. Embedded data: images are uploaded; http(s) images keep
 // their URL; anything else (e.g. Word's local file:/// images) can't be read and is skipped.
@@ -51,10 +92,13 @@ async function htmlToArticleContent(
   };
 
   const resolveImage = async (img: HTMLImageElement) => {
-    const src = img.getAttribute('src') || '';
+    const src = pickImageSource(img);
     try {
       if (src.startsWith('data:image/')) {
         const blob = await (await fetch(src)).blob();
+        // A few-dozen-byte data: image is a lazy-load placeholder (usually a
+        // transparent 1x1 GIF), not real content — don't upload it as a photo.
+        if (blob.size < PLACEHOLDER_MAX_BYTES) return null;
         return await uploadImage(blob);
       }
       if (/^https?:\/\//i.test(src)) return src;
