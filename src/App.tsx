@@ -726,12 +726,24 @@ export default function App() {
                               <div
                                 key={art.id}
                                 onClick={() => selectArticle(art)}
-                                className={`${idx < latestNewsItems.length - 1 ? 'border-b border-slate-800 pb-3' : 'pb-1'} cursor-pointer group/news`}
+                                className={`${idx < latestNewsItems.length - 1 ? 'border-b border-slate-800 pb-3' : 'pb-1'} cursor-pointer group/news flex items-start gap-3`}
                               >
-                                <p className="text-xs text-blue-400 font-medium mb-1">{formatRelativeTime(art.publishedAt)}</p>
-                                <h4 className="text-xs sm:text-sm font-semibold text-slate-200 group-hover/news:text-blue-400 transition-colors line-clamp-2">
-                                  {art.title}
-                                </h4>
+                                <div className="w-16 h-16 shrink-0 rounded-xl overflow-hidden bg-slate-800 border border-slate-700/60">
+                                  {art.coverImage && (
+                                    <img
+                                      src={art.coverImage}
+                                      alt={art.title}
+                                      loading="lazy"
+                                      className="w-full h-full object-cover group-hover/news:scale-105 transition-transform duration-500"
+                                    />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs text-blue-400 font-medium mb-1">{formatRelativeTime(art.publishedAt)}</p>
+                                  <h4 className="text-xs sm:text-sm font-semibold text-slate-200 group-hover/news:text-blue-400 transition-colors line-clamp-2">
+                                    {art.title}
+                                  </h4>
+                                </div>
                               </div>
                             ))
                           )}
