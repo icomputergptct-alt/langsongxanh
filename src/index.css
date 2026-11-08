@@ -57,9 +57,10 @@
   50% { opacity: 1; }
 }
 
-/* Tech-news marquee — the track holds the cards twice, so sliding it from
-   -50% to 0 loops seamlessly, moving left → right. Pauses on hover/focus. */
+/* Tech-news slider (see TechNewsSlider.tsx) — steps one card at a time,
+   left → right. --tech-item-w is one card's width including its gap. */
 .tech-marquee {
+  --tech-item-w: 85vw;
   overflow: hidden;
   -webkit-mask-image: linear-gradient(to right, transparent, #000 4%, #000 96%, transparent);
   mask-image: linear-gradient(to right, transparent, #000 4%, #000 96%, transparent);
@@ -67,15 +68,15 @@
 .tech-marquee-track {
   display: flex;
   width: max-content;
-  animation: tech-marquee-ltr linear infinite;
 }
-.tech-marquee:hover .tech-marquee-track,
-.tech-marquee:focus-within .tech-marquee-track {
-  animation-play-state: paused;
+.tech-marquee-item {
+  width: var(--tech-item-w);
+  flex-shrink: 0;
+  padding-right: 1rem;
+  box-sizing: border-box;
 }
-@keyframes tech-marquee-ltr {
-  from { transform: translateX(-50%); }
-  to { transform: translateX(0); }
+@media (min-width: 640px) {
+  .tech-marquee { --tech-item-w: 396px; }
 }
 
 /* Basic readable styling for mammoth-rendered .docx content in the exam library viewer

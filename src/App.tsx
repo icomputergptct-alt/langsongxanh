@@ -19,6 +19,7 @@ import {
 import { Header } from './components/Header';
 import { DragonFireflies } from './components/DragonFireflies';
 import { ArticleCard } from './components/ArticleCard';
+import TechNewsSlider from './components/TechNewsSlider';
 import { ArticleDetail } from './components/ArticleDetail';
 import { ExamLibrary, ExamDocumentViewerModal } from './components/ExamLibrary';
 import { QuizRoom } from './components/QuizRoom';
@@ -824,35 +825,19 @@ export default function App() {
                             ))}
                           </div>
                         ) : (
-                          (() => {
-                            const stripItems = techNewsInList.slice(0, TECH_NEWS_STRIP_LIMIT);
-                            return (
-                              <div className="tech-marquee">
-                                <div
-                                  className="tech-marquee-track"
-                                  style={{ animationDuration: `${Math.max(stripItems.length, 3) * 8}s` }}
-                                >
-                                  {[0, 1].map((copy) =>
-                                    stripItems.map((article) => (
-                                      <div
-                                        key={`${copy}-${article.id}`}
-                                        className="w-[85vw] sm:w-[380px] shrink-0 pr-4"
-                                        aria-hidden={copy === 1 ? true : undefined}
-                                      >
-                                        <ArticleCard
-                                          article={article}
-                                          isSavedOffline={storageService.isArticleSavedOffline(article.id)}
-                                          onSelectArticle={(art) => selectArticle(art)}
-                                          onToggleSaveOffline={(art, e) => handleToggleSaveOffline(art, e)}
-                                          onToggleLike={(id, e) => handleToggleLike(id, e)}
-                                        />
-                                      </div>
-                                    ))
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })()
+                          <TechNewsSlider<Article>
+                            items={techNewsInList.slice(0, TECH_NEWS_STRIP_LIMIT)}
+                            getKey={(article) => article.id}
+                            renderItem={(article) => (
+                              <ArticleCard
+                                article={article}
+                                isSavedOffline={storageService.isArticleSavedOffline(article.id)}
+                                onSelectArticle={(art) => selectArticle(art)}
+                                onToggleSaveOffline={(art, e) => handleToggleSaveOffline(art, e)}
+                                onToggleLike={(id, e) => handleToggleLike(id, e)}
+                              />
+                            )}
+                          />
                         )}
                       </div>
                     )}
