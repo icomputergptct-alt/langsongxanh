@@ -57,6 +57,31 @@
   50% { opacity: 1; }
 }
 
+/* Tech-news marquee — the track holds the cards twice, so sliding it from
+   -50% to 0 loops seamlessly, moving left → right. Pauses on hover/focus. */
+.tech-marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 4%, #000 96%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 4%, #000 96%, transparent);
+}
+.tech-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: tech-marquee-ltr linear infinite;
+}
+.tech-marquee:hover .tech-marquee-track,
+.tech-marquee:focus-within .tech-marquee-track {
+  animation-play-state: paused;
+}
+@keyframes tech-marquee-ltr {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tech-marquee { overflow-x: auto; }
+  .tech-marquee-track { animation: none; }
+}
+
 /* Basic readable styling for mammoth-rendered .docx content in the exam library viewer
    (no @tailwindcss/typography plugin installed, so style the raw tags directly). */
 .docx-preview h1, .docx-preview h2, .docx-preview h3 {

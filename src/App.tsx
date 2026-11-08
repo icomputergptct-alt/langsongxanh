@@ -810,18 +810,50 @@ export default function App() {
                             </button>
                           )}
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {(showAllTechNews ? techNewsInList : techNewsInList.slice(0, TECH_NEWS_STRIP_LIMIT)).map((article) => (
-                            <ArticleCard
-                              key={article.id}
-                              article={article}
-                              isSavedOffline={storageService.isArticleSavedOffline(article.id)}
-                              onSelectArticle={(art) => selectArticle(art)}
-                              onToggleSaveOffline={(art, e) => handleToggleSaveOffline(art, e)}
-                              onToggleLike={(id, e) => handleToggleLike(id, e)}
-                            />
-                          ))}
-                        </div>
+                        {showAllTechNews ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {techNewsInList.map((article) => (
+                              <ArticleCard
+                                key={article.id}
+                                article={article}
+                                isSavedOffline={storageService.isArticleSavedOffline(article.id)}
+                                onSelectArticle={(art) => selectArticle(art)}
+                                onToggleSaveOffline={(art, e) => handleToggleSaveOffline(art, e)}
+                                onToggleLike={(id, e) => handleToggleLike(id, e)}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          (() => {
+                            const stripItems = techNewsInList.slice(0, TECH_NEWS_STRIP_LIMIT);
+                            return (
+                              <div className="tech-marquee">
+                                <div
+                                  className="tech-marquee-track"
+                                  style={{ animationDuration: `${Math.max(stripItems.length, 3) * 8}s` }}
+                                >
+                                  {[0, 1].map((copy) =>
+                                    stripItems.map((article) => (
+                                      <div
+                                        key={`${copy}-${article.id}`}
+                                        className="w-[85vw] sm:w-[380px] shrink-0 pr-4"
+                                        aria-hidden={copy === 1 ? true : undefined}
+                                      >
+                                        <ArticleCard
+                                          article={article}
+                                          isSavedOffline={storageService.isArticleSavedOffline(article.id)}
+                                          onSelectArticle={(art) => selectArticle(art)}
+                                          onToggleSaveOffline={(art, e) => handleToggleSaveOffline(art, e)}
+                                          onToggleLike={(id, e) => handleToggleLike(id, e)}
+                                        />
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()
+                        )}
                       </div>
                     )}
 
