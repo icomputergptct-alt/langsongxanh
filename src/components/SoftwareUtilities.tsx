@@ -866,8 +866,8 @@ interface SystemConfig {
   const [eqnDiscriminant, setEqnDiscriminant] = useState<number | null>(null);
 
   // Report the active tool (and, if it's the calculator in EQN mode, which
-  // degree) up so the parent can give it its own shareable URL (/cong-cu/{slug}
-  // or /cong-cu/giai-phuong-trinh-bac-2|3) and SEO meta tags — otherwise this is
+  // degree) up so the parent can give it its own shareable URL (/software-utilities/{slug}
+  // or /software-utilities/giai-phuong-trinh-bac-2|3) and SEO meta tags — otherwise this is
   // all just a client-side state toggle that Google has no way to index separately.
   useEffect(() => {
     onToolChange?.(activeTool, activeTool.id === 'util-sci-calculator' ? eqnDegree : null);

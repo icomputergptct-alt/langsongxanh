@@ -1,5 +1,5 @@
 // Client-side <title>/meta updates for SPA routes that don't have their own
-// server-rendered HTML (e.g. /cong-cu/{slug} tool pages). Captures the
+// server-rendered HTML (e.g. /software-utilities/{slug} tool pages). Captures the
 // original tags from index.html on load so they can be restored when the
 // user navigates back to a route with no dedicated meta of its own.
 

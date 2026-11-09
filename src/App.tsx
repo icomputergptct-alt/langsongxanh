@@ -61,12 +61,24 @@ const EQN_SUBPAGE_META: Record<2 | 3, { title: string; description: string }> = 
   }
 };
 
-// Deep-link helper: match a /cong-cu/{slug} pathname to its utility tool
-// (and, for the two EQN sub-pages, which equation degree to auto-open).
+// Utilities tab lives under /software-utilities; tools are /software-utilities/{slug}.
+// /cong-cu/{slug} is the old prefix — still matched so existing links and search
+// results keep working, then rewritten to the new path.
+const UTILITIES_BASE = '/software-utilities';
+const LEGACY_UTILITIES_PREFIX = '/cong-cu/';
+const isUtilitiesLandingPath = (pathname: string) => /^\/software-utilities\/?$/.test(pathname);
+const isUtilitiesPath = (pathname: string) =>
+  isUtilitiesLandingPath(pathname) ||
+  pathname.startsWith(`${UTILITIES_BASE}/`) ||
+  pathname.startsWith(LEGACY_UTILITIES_PREFIX);
+
+// Deep-link helper: match a /software-utilities/{slug} (or legacy /cong-cu/{slug})
+// pathname to its utility tool (and, for the two EQN sub-pages, which equation
+// degree to auto-open).
 const matchRouteFromPath = (
   pathname: string
 ): { tool: SoftwareUtility; eqnDegree: 2 | 3 | null } | null => {
-  const match = pathname.match(/^\/cong-cu\/([^/]+)\/?$/);
+  const match = pathname.match(/^\/(?:software-utilities|cong-cu)\/([^/]+)\/?$/);
   if (!match) return null;
   const slug = decodeURIComponent(match[1]);
 
@@ -132,6 +144,7 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'meeting' | 'contact'>(() => {
     if (matchRouteFromPath(window.location.pathname)) return 'utilities';
+    if (isUtilitiesLandingPath(window.location.pathname)) return 'utilities';
     if (matchExamDocId(window.location.pathname)) return 'offline';
     if (matchMeetingPath(window.location.pathname)) return 'meeting';
     return 'news';
@@ -139,7 +152,7 @@ export default function App() {
   const [meetingRoom, setMeetingRoom] = useState<string | null>(
     () => matchMeetingPath(window.location.pathname)?.room ?? null
   );
-  // Which tool (and, for the EQN sub-pages, which equation degree) /cong-cu/{slug}
+  // Which tool (and, for the EQN sub-pages, which equation degree) /software-utilities/{slug}
   // should deep-link to. Both feed into SoftwareUtilities' `key` too, so browser
   // back/forward (which can't call its internal setters directly) forces a
   // remount onto the right tool/mode instead of no-op-ing.
@@ -271,7 +284,7 @@ export default function App() {
     };
   }, []);
 
-  // Sync the active utility tool to the URL (/cong-cu/{slug}) + document meta,
+  // Sync the active utility tool to the URL (/software-utilities/{slug}) + document meta,
   // so each tool (Scientific Calculator, URL Scanner, ...) is a distinct,
   // shareable, indexable page instead of hidden behind a client-only tab state.
   // When the calculator's EQN mode is active, this points at its own dedicated
@@ -281,26 +294,42 @@ export default function App() {
     let title: string;
     let description: string;
 
-    if (eqnDegree) {
+    const currentPath = window.location.pathname;
+    // Opening the tab without picking a tool shows the default one, but the
+    // address bar stays on the plain /software-utilities landing URL.
+    const isLanding =
+      !eqnDegree && tool.id === SOFTWARE_UTILITIES[0].id && !matchRouteFromPath(currentPath);
+
+    if (isLanding) {
+      path = UTILITIES_BASE;
+      title = 'Tiện Ích Phần Mềm - Long Hoà Số';
+      description =
+        'Kho phần mềm tiện ích và công cụ kỹ thuật trực tuyến miễn phí: máy tính khoa học, giải phương trình, tạo mật khẩu, định dạng mã, tính subnet và nhiều hơn nữa.';
+    } else if (eqnDegree) {
       const meta = EQN_SUBPAGE_META[eqnDegree];
-      path = `/cong-cu/${eqnDegree === 2 ? 'giai-phuong-trinh-bac-2' : 'giai-phuong-trinh-bac-3'}`;
+      path = `${UTILITIES_BASE}/${eqnDegree === 2 ? 'giai-phuong-trinh-bac-2' : 'giai-phuong-trinh-bac-3'}`;
       title = meta.title;
       description = meta.description;
     } else {
-      path = `/cong-cu/${tool.slug}`;
+      path = `${UTILITIES_BASE}/${tool.slug}`;
       title = `${tool.name} - Long Hoà Số`;
       description = tool.shortDesc;
     }
 
-    if (window.location.pathname !== path) {
-      window.history.pushState({}, '', path);
+    if (currentPath !== path) {
+      // Old /cong-cu/ links get rewritten in place so Back doesn't bounce to them.
+      if (currentPath.startsWith(LEGACY_UTILITIES_PREFIX)) {
+        window.history.replaceState({}, '', path);
+      } else {
+        window.history.pushState({}, '', path);
+      }
     }
     setPageMeta(title, description, path);
   };
 
   // Leaving the Utilities tab for another tab: drop the tool URL/meta back to "/".
   useEffect(() => {
-    if (activeTab !== 'utilities' && window.location.pathname.startsWith('/cong-cu/')) {
+    if (activeTab !== 'utilities' && isUtilitiesPath(window.location.pathname)) {
       window.history.pushState({}, '', '/');
       resetPageMeta();
     }
@@ -396,6 +425,12 @@ export default function App() {
         setSearchViewingDoc(null);
         setInitialToolId(route.tool.id);
         setInitialEqnDegree(route.eqnDegree);
+        setActiveTab('utilities');
+      } else if (isUtilitiesLandingPath(window.location.pathname)) {
+        setSelectedArticle(null);
+        setSearchViewingDoc(null);
+        setInitialToolId(undefined);
+        setInitialEqnDegree(null);
         setActiveTab('utilities');
       } else if (docId) {
         setSelectedArticle(null);
