@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { ChevronDown, Download, PackageOpen, Search, X } from 'lucide-react';
 
-interface SoftwareItem {
+export interface SoftwareItem {
   name: string;
   domain: string; // used for the icon
+  /** Overrides the Google favicon lookup: a direct image URL, or '' to show the name's first letter. */
+  icon?: string;
   desc: string;
   license: 'Mã nguồn mở' | 'Miễn phí' | 'Miễn phí cá nhân' | 'Dùng thử';
   url: string; // official download page
@@ -24,15 +26,15 @@ const SOFTWARE_GROUPS: SoftwareGroup[] = [
         desc: 'Bộ công cụ 3D toàn diện: dựng mô hình, điêu khắc, diễn hoạt, render và dựng phim.' },
       { name: 'Paint.NET', domain: 'getpaint.net', license: 'Miễn phí', url: 'https://www.getpaint.net/download.html',
         desc: 'Chỉnh sửa ảnh nhẹ, dễ dùng trên Windows: hỗ trợ layer, hiệu ứng và nhiều plugin mở rộng.' },
-      { name: 'GIMP', domain: 'gimp.org', license: 'Mã nguồn mở', url: 'https://www.gimp.org/downloads/',
+      { name: 'GIMP', domain: 'gimp.org', icon: 'https://icons.duckduckgo.com/ip3/gimp.org.ico', license: 'Mã nguồn mở', url: 'https://www.gimp.org/downloads/',
         desc: 'Phần mềm chỉnh sửa ảnh chuyên nghiệp, thay thế miễn phí cho Photoshop: retouch, ghép ảnh, vẽ.' },
       { name: 'IrfanView', domain: 'irfanview.com', license: 'Miễn phí', url: 'https://www.irfanview.com/64bit.htm',
         desc: 'Xem ảnh siêu nhanh, đổi định dạng và đổi tên / thay kích thước hàng loạt.' },
       { name: 'XnView MP', domain: 'xnview.com', license: 'Miễn phí', url: 'https://www.xnview.com/en/xnviewmp/#downloads',
         desc: 'Quản lý và xem hơn 500 định dạng ảnh, chuyển đổi hàng loạt, đọc dữ liệu EXIF.' },
-      { name: 'Inkscape', domain: 'inkscape.org', license: 'Mã nguồn mở', url: 'https://inkscape.org/release/',
+      { name: 'Inkscape', domain: 'media.inkscape.org', license: 'Mã nguồn mở', url: 'https://inkscape.org/release/',
         desc: 'Thiết kế đồ hoạ vector (SVG): logo, biểu tượng, sơ đồ và ấn phẩm in ấn.' },
-      { name: 'FastStone Image Viewer', domain: 'faststone.org', license: 'Miễn phí', url: 'https://www.faststone.org/FSViewerDownload.htm',
+      { name: 'FastStone Image Viewer', domain: 'faststone.org', icon: 'https://icons.duckduckgo.com/ip3/faststone.org.ico', license: 'Miễn phí', url: 'https://www.faststone.org/FSViewerDownload.htm',
         desc: 'Xem, chỉnh sửa cơ bản và trình chiếu ảnh; so sánh ảnh và xử lý hàng loạt.' },
       { name: 'Greenshot', domain: 'getgreenshot.org', license: 'Mã nguồn mở', url: 'https://getgreenshot.org/downloads/',
         desc: 'Chụp màn hình nhanh, chú thích, đánh dấu và che thông tin nhạy cảm trên ảnh chụp.' },
@@ -130,7 +132,7 @@ const SOFTWARE_GROUPS: SoftwareGroup[] = [
     items: [
       { name: 'iTunes', domain: 'apple.com', license: 'Miễn phí', url: 'https://www.apple.com/itunes/',
         desc: 'Quản lý nhạc, video và sao lưu / đồng bộ iPhone, iPad với máy tính Windows.' },
-      { name: 'VLC Media Player', domain: 'videolan.org', license: 'Mã nguồn mở', url: 'https://www.videolan.org/vlc/',
+      { name: 'VLC Media Player', domain: 'www.videolan.org', license: 'Mã nguồn mở', url: 'https://www.videolan.org/vlc/',
         desc: 'Phát gần như mọi định dạng âm thanh, video và luồng trực tuyến mà không cần cài thêm codec.' },
       { name: 'AIMP', domain: 'aimp.ru', license: 'Miễn phí', url: 'https://www.aimp.ru/?do=download',
         desc: 'Trình nghe nhạc nhẹ, chất lượng âm thanh cao, có bộ chỉnh âm (EQ) và nghe radio online.' },
@@ -142,11 +144,11 @@ const SOFTWARE_GROUPS: SoftwareGroup[] = [
         desc: 'Quản lý thư viện nhạc lớn, tự động gắn thẻ, tải ảnh bìa và đồng bộ với thiết bị.' },
       { name: 'Audacity', domain: 'audacityteam.org', license: 'Mã nguồn mở', url: 'https://www.audacityteam.org/download/',
         desc: 'Thu âm và chỉnh sửa âm thanh: cắt ghép, khử ồn, thêm hiệu ứng, xuất MP3 / WAV.' },
-      { name: 'K-Lite Codec Pack', domain: 'codecguide.com', license: 'Miễn phí', url: 'https://codecguide.com/download_kl.htm',
+      { name: 'K-Lite Codec Pack', domain: 'codecguide.com', icon: 'https://icons.duckduckgo.com/ip3/codecguide.com.ico', license: 'Miễn phí', url: 'https://codecguide.com/download_kl.htm',
         desc: 'Bộ codec giúp Windows phát được hầu hết định dạng video / âm thanh, kèm Media Player Classic.' },
       { name: 'Spotify', domain: 'spotify.com', license: 'Miễn phí', url: 'https://www.spotify.com/download/',
         desc: 'Nghe nhạc và podcast trực tuyến với kho hàng chục triệu bài hát (bản miễn phí có quảng cáo).' },
-      { name: 'CCCP', domain: 'cccp-project.net', license: 'Miễn phí', url: 'https://www.cccp-project.net/',
+      { name: 'CCCP', domain: 'cccp-project.net', icon: '', license: 'Miễn phí', url: 'https://www.cccp-project.net/',
         desc: 'Combined Community Codec Pack: bộ codec gọn nhẹ, tối ưu để xem anime và video có phụ đề.' },
       { name: 'MediaMonkey', domain: 'mediamonkey.com', license: 'Miễn phí', url: 'https://www.mediamonkey.com/download/',
         desc: 'Quản lý bộ sưu tập nhạc và video lớn, chuyển đổi định dạng, ghi đĩa và đồng bộ thiết bị.' },
@@ -201,11 +203,11 @@ const SOFTWARE_GROUPS: SoftwareGroup[] = [
         desc: 'Giao thức và ứng dụng VPN hiện đại: nhanh, gọn nhẹ và bảo mật cao.' },
       { name: 'TeraCopy', domain: 'codesector.com', license: 'Miễn phí cá nhân', url: 'https://www.codesector.com/teracopy',
         desc: 'Sao chép / di chuyển tệp nhanh hơn, có tạm dừng, bỏ qua lỗi và kiểm tra tính toàn vẹn.' },
-      { name: 'CDBurnerXP', domain: 'cdburnerxp.se', license: 'Miễn phí', url: 'https://cdburnerxp.se/en/download',
+      { name: 'CDBurnerXP', domain: 'cdburnerxp.se', icon: '', license: 'Miễn phí', url: 'https://cdburnerxp.se/en/download',
         desc: 'Ghi đĩa dữ liệu, đĩa nhạc và tệp ISO lên CD, DVD, Blu-ray.' },
       { name: 'Revo Uninstaller', domain: 'revouninstaller.com', license: 'Miễn phí', url: 'https://www.revouninstaller.com/revo-uninstaller-free-download/',
         desc: 'Gỡ cài đặt phần mềm triệt để, dọn sạch tệp và khoá registry còn sót lại.' },
-      { name: 'Launchy', domain: 'launchy.net', license: 'Mã nguồn mở', url: 'https://www.launchy.net/download.php',
+      { name: 'Launchy', domain: 'launchy.net', icon: '', license: 'Mã nguồn mở', url: 'https://www.launchy.net/download.php',
         desc: 'Mở nhanh ứng dụng, tệp và thư mục chỉ bằng vài phím gõ.' },
       { name: 'WinDirStat', domain: 'windirstat.net', license: 'Mã nguồn mở', url: 'https://windirstat.net/download.html',
         desc: 'Hiển thị trực quan dung lượng ổ đĩa để tìm và dọn các tệp, thư mục chiếm nhiều chỗ.' },
@@ -257,7 +259,7 @@ const SOFTWARE_GROUPS: SoftwareGroup[] = [
         desc: 'Trình soạn thảo mã nguồn cực nhanh, đa con trỏ, tìm kiếm mạnh và nhiều gói mở rộng.' },
       { name: 'WinSCP', domain: 'winscp.net', license: 'Mã nguồn mở', url: 'https://winscp.net/eng/download.php',
         desc: 'Truyền tệp an toàn giữa Windows và máy chủ qua SFTP, SCP, FTP; đồng bộ thư mục.' },
-      { name: 'PuTTY', domain: 'putty.org', license: 'Mã nguồn mở', url: 'https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html',
+      { name: 'PuTTY', domain: 'putty.org', icon: '', license: 'Mã nguồn mở', url: 'https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html',
         desc: 'Kết nối SSH / Telnet tới máy chủ và thiết bị mạng, quản lý khoá SSH.' },
       { name: 'WinMerge', domain: 'winmerge.org', license: 'Mã nguồn mở', url: 'https://winmerge.org/downloads/',
         desc: 'So sánh và hợp nhất khác biệt giữa hai tệp hoặc thư mục, tô sáng từng dòng thay đổi.' },
@@ -278,7 +280,7 @@ const SOFTWARE_GROUPS: SoftwareGroup[] = [
         desc: 'Khám phá Trái Đất qua ảnh vệ tinh và 3D, đo khoảng cách, xem ảnh lịch sử của một địa điểm.' },
       { name: 'Steam', domain: 'steampowered.com', license: 'Miễn phí', url: 'https://store.steampowered.com/about/',
         desc: 'Nền tảng mua, tải và chơi game PC lớn nhất, kèm cộng đồng và kho game miễn phí.' },
-      { name: 'Epic Games Launcher', domain: 'epicgames.com', license: 'Miễn phí', url: 'https://store.epicgames.com/download',
+      { name: 'Epic Games Launcher', domain: 'epicgames.com', icon: '', license: 'Miễn phí', url: 'https://store.epicgames.com/download',
         desc: 'Cửa hàng game của Epic, tặng game miễn phí hằng tuần; dùng để cài Unreal Engine.' },
       { name: 'KeePass 2', domain: 'keepass.info', license: 'Mã nguồn mở', url: 'https://keepass.info/download.html',
         desc: 'Quản lý mật khẩu ngoại tuyến, lưu trong tệp cơ sở dữ liệu được mã hoá AES.' },
@@ -302,17 +304,20 @@ const SOFTWARE_GROUPS: SoftwareGroup[] = [
   },
 ];
 
+const iconSrc = (item: SoftwareItem, size: number) =>
+  item.icon !== undefined ? item.icon : `https://www.google.com/s2/favicons?domain=${item.domain}&sz=${size}`;
+
 const TOTAL = SOFTWARE_GROUPS.reduce((n, g) => n + g.items.length, 0);
 
 const SoftwareIcon: React.FC<{ item: SoftwareItem }> = ({ item }) => {
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState(item.icon === '');
   return (
     <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
       {failed ? (
         <span className="text-lg font-extrabold text-blue-600">{item.name.charAt(0)}</span>
       ) : (
         <img
-          src={`https://www.google.com/s2/favicons?domain=${item.domain}&sz=64`}
+          src={iconSrc(item, 64)}
           alt=""
           className="w-7 h-7 object-contain"
           loading="lazy"
@@ -474,3 +479,64 @@ export const DownloadableSoftware: React.FC = () => {
     </section>
   );
 };
+
+// Popular picks shown in the slider on the news page.
+const FEATURED_SOFTWARE_NAMES = [
+  'Google Chrome',
+  '7-Zip',
+  'VLC Media Player',
+  'LibreOffice',
+  'Foxit PDF Reader',
+  'Zoom',
+  'AnyDesk',
+  'Malwarebytes',
+  'Visual Studio Code',
+];
+
+const ALL_SOFTWARE = SOFTWARE_GROUPS.flatMap((g) => g.items);
+export const FEATURED_SOFTWARE: SoftwareItem[] = FEATURED_SOFTWARE_NAMES
+  .map((name) => ALL_SOFTWARE.find((it) => it.name === name))
+  .filter((it): it is SoftwareItem => !!it);
+
+/** Compact white card matching the news-strip cards; the whole card links to the download page. */
+const FeaturedSoftwareCard: React.FC<{ item: SoftwareItem }> = ({ item }) => {
+  const [failed, setFailed] = useState(item.icon === '');
+  return (
+    <a
+      href={item.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group bg-white hover:bg-slate-50 border border-blue-400/60 hover:border-blue-400 rounded-2xl shadow-md shadow-black/10 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300 flex gap-3 p-3 h-full"
+    >
+      <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-xl bg-slate-100 flex items-center justify-center">
+        {failed ? (
+          <span className="text-3xl font-extrabold text-blue-600">{item.name.charAt(0)}</span>
+        ) : (
+          <img
+            src={iconSrc(item, 128)}
+            alt=""
+            width={48}
+            height={48}
+            className="w-12 h-12 object-contain group-hover:scale-110 transition-transform duration-300"
+            loading="lazy"
+            onError={() => setFailed(true)}
+          />
+        )}
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col">
+        <div className="flex items-center gap-1.5 mb-1 text-[10px]">
+          <span className="font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-700">Phần mềm</span>
+          <span className="text-emerald-700 font-semibold">{item.license}</span>
+        </div>
+        <h4 className="text-sm sm:text-base font-bold text-slate-900 leading-snug truncate">{item.name}</h4>
+        <p className="text-xs text-slate-500 leading-snug line-clamp-2 mt-0.5">{item.desc}</p>
+        <span className="mt-auto self-end inline-flex items-center gap-1 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-emerald-500 group-hover:from-blue-500 group-hover:to-emerald-400 px-3 py-1 rounded-lg">
+          <Download className="w-3.5 h-3.5" />
+          Tải về
+        </span>
+      </div>
+    </a>
+  );
+};
+
+export const renderFeaturedSoftwareCard = (item: SoftwareItem) => <FeaturedSoftwareCard item={item} />;

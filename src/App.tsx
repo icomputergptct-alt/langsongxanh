@@ -20,6 +20,7 @@ import { Header } from './components/Header';
 import { DragonFireflies } from './components/DragonFireflies';
 import { ArticleCard } from './components/ArticleCard';
 import TechNewsSlider from './components/TechNewsSlider';
+import { FEATURED_SOFTWARE, renderFeaturedSoftwareCard, type SoftwareItem } from './components/DownloadableSoftware';
 import { ArticleDetail } from './components/ArticleDetail';
 import { ExamLibrary, ExamDocumentViewerModal } from './components/ExamLibrary';
 import { QuizRoom } from './components/QuizRoom';
@@ -908,6 +909,33 @@ export default function App() {
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
+                  </div>
+                )}
+
+                {/* Featured downloadable software, styled like the news strips */}
+                {FEATURED_SOFTWARE.length > 0 && (
+                  <div className="mt-10">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="flex items-center gap-2 text-sm font-bold text-slate-100">
+                        <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></span>
+                        Phần mềm tiện ích nổi bật
+                      </h3>
+                      <button
+                        onClick={() => {
+                          setActiveTab('utilities');
+                          selectArticle(null);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="text-xs font-bold text-blue-400 hover:text-blue-300"
+                      >
+                        Xem tất cả phần mềm →
+                      </button>
+                    </div>
+                    <TechNewsSlider<SoftwareItem>
+                      items={FEATURED_SOFTWARE}
+                      getKey={(item) => item.name}
+                      renderItem={renderFeaturedSoftwareCard}
+                    />
                   </div>
                 )}
 
