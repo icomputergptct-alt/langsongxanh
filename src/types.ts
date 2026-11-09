@@ -4,6 +4,7 @@ export type TechCategory =
   | 'Tất cả'
   | 'Trí tuệ Nhân tạo'
   | 'Tin tức thời sự'
+  | 'Tin tức thời sự thế giới'
   | 'An ninh Mạng'
   | 'Điện toán Đám mây & DevOps'
   | 'Kiến trúc Phần mềm'
