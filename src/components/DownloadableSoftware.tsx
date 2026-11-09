@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Download, PackageOpen } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { ChevronDown, Download, PackageOpen, Search, X } from 'lucide-react';
 
 interface SoftwareItem {
   name: string;
@@ -323,53 +323,137 @@ const SoftwareIcon: React.FC<{ item: SoftwareItem }> = ({ item }) => {
   );
 };
 
-export const DownloadableSoftware: React.FC = () => (
-  <section id="downloadable-software" className="glass-panel rounded-2xl p-6 sm:p-8 mb-8">
-    <div className="flex items-center gap-2.5 mb-2">
-      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
-        <PackageOpen className="w-5 h-5" />
-      </div>
-      <h2 className="text-xl sm:text-2xl font-extrabold text-slate-100">Phần mềm tiện ích ({TOTAL})</h2>
-    </div>
-    <p className="text-xs sm:text-sm text-slate-400 mb-6 max-w-3xl leading-relaxed">
-      Tuyển chọn phần mềm phổ biến, an toàn cho học tập và công việc hằng ngày. Nút tải về dẫn thẳng đến trang chính thức của nhà phát triển.
-    </p>
+/** Lowercase and strip Vietnamese diacritics so "giai nen" matches "Giải nén". */
+const normalize = (text: string) =>
+  text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
 
-    <div className="space-y-6">
-      {SOFTWARE_GROUPS.map((group) => (
-        <div key={group.title}>
-          <h3 className="text-base font-bold uppercase tracking-wider text-cyan-400 mb-3">
-            {group.title} <span className="text-slate-500">({group.items.length})</span>
-          </h3>
-          <div className="border border-white/10 rounded-xl overflow-hidden divide-y divide-white/10">
-            {group.items.map((item) => (
-              <div
-                key={item.name}
-                className="grid grid-cols-[auto_1fr_auto] sm:grid-cols-[auto_13rem_1fr_auto] items-center gap-x-3 sm:gap-x-4 px-3 py-2.5 bg-white/[0.03] hover:bg-white/10 transition-colors"
-              >
-                <SoftwareIcon item={item} />
-                <h4 className="text-base sm:text-lg font-bold text-slate-100 sm:text-center">{item.name}</h4>
-                <p className="hidden sm:block text-sm sm:text-[15px] text-slate-300 leading-relaxed sm:border-l sm:border-white/10 sm:pl-4">
-                  {item.desc}
-                </p>
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`Tải ${item.name} (${item.license})`}
-                  className="inline-flex items-center gap-1.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
-                >
-                  <Download className="w-4 h-4" />
-                  Tải về
-                </a>
-                <p className="sm:hidden col-start-2 col-span-2 text-sm text-slate-300 leading-snug -mt-0.5">
-                  {item.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  </section>
+const SoftwareRow: React.FC<{ item: SoftwareItem }> = ({ item }) => (
+  <div className="grid grid-cols-[auto_1fr_auto] sm:grid-cols-[auto_13rem_1fr_auto] items-center gap-x-3 sm:gap-x-4 px-3 py-2.5 bg-white/[0.03] hover:bg-white/10 transition-colors">
+    <SoftwareIcon item={item} />
+    <h4 className="text-base sm:text-lg font-bold text-slate-100 sm:text-center">{item.name}</h4>
+    <p className="hidden sm:block text-sm sm:text-[15px] text-slate-300 leading-relaxed sm:border-l sm:border-white/10 sm:pl-4">
+      {item.desc}
+    </p>
+    <a
+      href={item.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={`Tải ${item.name} (${item.license})`}
+      className="inline-flex items-center gap-1.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+    >
+      <Download className="w-4 h-4" />
+      Tải về
+    </a>
+    <p className="sm:hidden col-start-2 col-span-2 text-sm text-slate-300 leading-snug -mt-0.5">{item.desc}</p>
+  </div>
 );
+
+export const DownloadableSoftware: React.FC = () => {
+  const [query, setQuery] = useState('');
+  // Only the first group starts open so the 100+ rows don't flood the page.
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set([SOFTWARE_GROUPS[0].title]));
+
+  const q = normalize(query.trim());
+  const searching = q.length > 0;
+
+  const visibleGroups = useMemo(() => {
+    if (!q) return SOFTWARE_GROUPS;
+    return SOFTWARE_GROUPS.map((g) => ({
+      ...g,
+      items: g.items.filter((it) => normalize(`${it.name} ${it.desc} ${g.title}`).includes(q)),
+    })).filter((g) => g.items.length > 0);
+  }, [q]);
+
+  const matchCount = visibleGroups.reduce((n, g) => n + g.items.length, 0);
+  const allOpen = openGroups.size === SOFTWARE_GROUPS.length;
+
+  const toggleGroup = (title: string) =>
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(title)) next.delete(title);
+      else next.add(title);
+      return next;
+    });
+
+  return (
+    <section id="downloadable-software" className="glass-panel rounded-2xl p-6 sm:p-8 mb-8">
+      <div className="flex items-center gap-2.5 mb-2">
+        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+          <PackageOpen className="w-5 h-5" />
+        </div>
+        <h2 className="text-xl sm:text-2xl font-extrabold text-slate-100">Phần mềm tiện ích ({TOTAL})</h2>
+      </div>
+      <p className="text-xs sm:text-sm text-slate-400 mb-5 max-w-3xl leading-relaxed">
+        Tuyển chọn phần mềm phổ biến, an toàn cho học tập và công việc hằng ngày. Nút tải về dẫn thẳng đến trang chính thức của nhà phát triển.
+      </p>
+
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Tìm phần mềm theo tên hoặc chức năng (vd: nén, PDF, VPN)…"
+            className="w-full bg-slate-900/70 border border-white/10 focus:border-emerald-500/60 focus:outline-none rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-100 placeholder:text-slate-500"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-100"
+              aria-label="Xoá tìm kiếm"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        {!searching && (
+          <button
+            type="button"
+            onClick={() => setOpenGroups(allOpen ? new Set() : new Set(SOFTWARE_GROUPS.map((g) => g.title)))}
+            className="text-sm font-bold text-blue-400 hover:text-blue-300 whitespace-nowrap"
+          >
+            {allOpen ? 'Thu gọn tất cả' : 'Mở tất cả'}
+          </button>
+        )}
+      </div>
+
+      {searching && (
+        <p className="text-sm text-slate-400 mb-4">
+          {matchCount > 0 ? `Tìm thấy ${matchCount} phần mềm` : 'Không tìm thấy phần mềm phù hợp.'}
+        </p>
+      )}
+
+      <div className="space-y-3">
+        {visibleGroups.map((group) => {
+          const isOpen = searching || openGroups.has(group.title);
+          return (
+            <div key={group.title} className="border border-white/10 rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => !searching && toggleGroup(group.title)}
+                aria-expanded={isOpen}
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-white/5 hover:bg-white/10 transition-colors text-left"
+              >
+                <span className="text-base font-bold uppercase tracking-wider text-cyan-400">
+                  {group.title} <span className="text-slate-500">({group.items.length})</span>
+                </span>
+                {!searching && (
+                  <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                )}
+              </button>
+              {isOpen && (
+                <div className="divide-y divide-white/10 border-t border-white/10">
+                  {group.items.map((item) => (
+                    <SoftwareRow key={item.name} item={item} />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
