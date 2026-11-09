@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Wrench,
   Code2,
   Terminal,
   ShieldCheck,
@@ -1109,21 +1108,6 @@ interface SystemConfig {
 
   return (
     <div id="software-utilities-view" className="max-w-6xl mx-auto pb-16">
-      
-      {/* Top Banner */}
-      <div className="glass-panel rounded-2xl p-6 sm:p-8 mb-8">
-        <div className="flex items-center gap-2.5 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 flex items-center justify-center">
-            <Wrench className="w-5 h-5" />
-          </div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-100">
-            Trang Tiện Ích Phần Mềm & Cẩm Nang Kỹ Thuật Số
-          </h2>
-        </div>
-        <p className="text-xs sm:text-sm text-slate-400 max-w-3xl leading-relaxed">
-          Kho tiện ích kỹ thuật trực tuyến dành cho kỹ sư phần mềm, DevOps và chuyên gia an toàn thông tin. Mỗi công cụ đều tích hợp <strong>hộp cát thực thi trực tiếp (Live Sandbox)</strong> cùng <strong>hướng dẫn sử dụng chi tiết từng bước</strong> và đoạn mã mẫu chuẩn.
-        </p>
-      </div>
 
       <DownloadableSoftware />
 
