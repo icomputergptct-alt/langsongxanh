@@ -3,6 +3,7 @@ export type NavTab = 'news' | 'offline' | 'quiz-rooms' | 'quiz-creator' | 'dashb
 export type TechCategory = 
   | 'Tất cả'
   | 'Trí tuệ Nhân tạo'
+  | 'Tin tức thời sự'
   | 'An ninh Mạng'
   | 'Điện toán Đám mây & DevOps'
   | 'Kiến trúc Phần mềm'

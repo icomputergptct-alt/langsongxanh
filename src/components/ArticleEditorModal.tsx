@@ -13,6 +13,7 @@ interface ArticleEditorModalProps {
 
 const CATEGORIES: TechCategory[] = [
   'Trí tuệ Nhân tạo',
+  'Tin tức thời sự',
   'An ninh Mạng',
   'Phần cứng & Bán dẫn',
   'Tin công nghệ mới',
