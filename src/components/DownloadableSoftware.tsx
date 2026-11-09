@@ -353,16 +353,20 @@ export const DownloadableSoftware: React.FC = () => {
   // Only the first group starts open so the 100+ rows don't flood the page.
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set([SOFTWARE_GROUPS[0].title]));
 
+  const [groupFilter, setGroupFilter] = useState(''); // '' = all groups
+
   const q = normalize(query.trim());
-  const searching = q.length > 0;
+  // Any active filter (text or group) shows matching groups fully expanded.
+  const searching = q.length > 0 || groupFilter !== '';
 
   const visibleGroups = useMemo(() => {
-    if (!q) return SOFTWARE_GROUPS;
-    return SOFTWARE_GROUPS.map((g) => ({
+    const groups = groupFilter ? SOFTWARE_GROUPS.filter((g) => g.title === groupFilter) : SOFTWARE_GROUPS;
+    if (!q) return groups;
+    return groups.map((g) => ({
       ...g,
       items: g.items.filter((it) => normalize(`${it.name} ${it.desc} ${g.title}`).includes(q)),
     })).filter((g) => g.items.length > 0);
-  }, [q]);
+  }, [q, groupFilter]);
 
   const matchCount = visibleGroups.reduce((n, g) => n + g.items.length, 0);
   const allOpen = openGroups.size === SOFTWARE_GROUPS.length;
@@ -408,6 +412,19 @@ export const DownloadableSoftware: React.FC = () => {
             </button>
           )}
         </div>
+        <select
+          value={groupFilter}
+          onChange={(e) => setGroupFilter(e.target.value)}
+          aria-label="Lọc theo nhóm phần mềm"
+          className="sm:w-64 bg-slate-900/70 border border-white/10 focus:border-emerald-500/60 focus:outline-none rounded-xl px-3 py-2.5 text-sm text-slate-100 cursor-pointer"
+        >
+          <option value="" className="bg-slate-900">Tất cả nhóm ({TOTAL})</option>
+          {SOFTWARE_GROUPS.map((g) => (
+            <option key={g.title} value={g.title} className="bg-slate-900">
+              {g.title} ({g.items.length})
+            </option>
+          ))}
+        </select>
         {!searching && (
           <button
             type="button"
