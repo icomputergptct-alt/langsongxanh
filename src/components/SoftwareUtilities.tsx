@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { SoftwareUtility, UrlSecurityScanResult } from '../types';
 import { SOFTWARE_UTILITIES } from '../data/initialData';
+import { DownloadableSoftware } from './DownloadableSoftware';
 
 const COMMON_PASSWORDS = new Set([
   '123456', '123456789', '12345678', '12345', '1234567', 'password', '111111', '123123',
@@ -2051,6 +2052,8 @@ interface SystemConfig {
         </div>
 
       </div>
+
+      <DownloadableSoftware />
 
     </div>
   );
