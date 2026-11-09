@@ -350,8 +350,8 @@ const SoftwareRow: React.FC<{ item: SoftwareItem }> = ({ item }) => (
 
 export const DownloadableSoftware: React.FC = () => {
   const [query, setQuery] = useState('');
-  // Only the first group starts open so the 100+ rows don't flood the page.
-  const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set([SOFTWARE_GROUPS[0].title]));
+  // Every group starts expanded; users can collapse the ones they do not need.
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set(SOFTWARE_GROUPS.map((g) => g.title)));
 
   const [groupFilter, setGroupFilter] = useState(''); // '' = all groups
 
