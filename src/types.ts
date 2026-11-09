@@ -8,10 +8,18 @@ export type TechCategory =
   | 'Kiến trúc Phần mềm'
   | 'Blockchain & Web3'
   | 'Phần cứng & Bán dẫn'
-  | 'Tin công nghệ mới';
+  | 'Tin công nghệ mới'
+  | 'Tin tức địa phương';
 
 // Short news items shown in the home page's "Tin tức công nghệ mới" card.
 export const TECH_NEWS_CATEGORY: TechCategory = 'Tin công nghệ mới';
+
+// Local news items, shown as their own strip on the news page.
+export const LOCAL_NEWS_CATEGORY: TechCategory = 'Tin tức địa phương';
+
+// Short news categories that use the compact card and a strip instead of the article grid.
+export const isCompactNewsCategory = (category: string) =>
+  category === TECH_NEWS_CATEGORY || category === LOCAL_NEWS_CATEGORY;
 
 export interface Comment {
   id: string;

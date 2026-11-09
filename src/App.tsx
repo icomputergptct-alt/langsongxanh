@@ -33,7 +33,7 @@ import { DocumentUploadModal } from './components/DocumentUploadModal';
 import { SearchResults } from './components/SearchResults';
 import { ContactPage } from './components/ContactPage';
 import { MeetingRoom, parseRoomInput, POST_LOGIN_PATH_KEY } from './components/MeetingRoom';
-import { Article, ExamDocument, QuizExam, SoftwareUtility, TECH_NEWS_CATEGORY } from './types';
+import { Article, ExamDocument, QuizExam, SoftwareUtility, TECH_NEWS_CATEGORY, LOCAL_NEWS_CATEGORY, isCompactNewsCategory } from './types';
 import { storageService } from './services/storageService';
 import { useAuth } from './contexts/AuthContext';
 import { formatRelativeTime } from './utils/relativeTime';
@@ -178,6 +178,7 @@ export default function App() {
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [showAllTechNews, setShowAllTechNews] = useState(false);
+  const [showAllLocalNews, setShowAllLocalNews] = useState(false);
 
   // Offline management
   const [isOffline, setIsOffline] = useState(() => storageService.isOfflineMode());
@@ -515,7 +516,52 @@ export default function App() {
   const techNewsInList = filteredArticles
     .filter((a) => a.category === TECH_NEWS_CATEGORY)
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-  const gridArticles = filteredArticles.filter((a) => a.category !== TECH_NEWS_CATEGORY);
+  const localNewsInList = filteredArticles
+    .filter((a) => a.category === LOCAL_NEWS_CATEGORY)
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  const gridArticles = filteredArticles.filter((a) => !isCompactNewsCategory(a.category));
+
+  // A titled strip of compact news cards: an auto-sliding row, or the full grid once "Xem tất cả" is on.
+  const renderNewsStrip = (title: string, dotClass: string, items: Article[], showAll: boolean, toggleShowAll: () => void) => {
+    if (items.length === 0) return null;
+    const renderCard = (article: Article) => (
+      <ArticleCard
+        article={article}
+        isSavedOffline={storageService.isArticleSavedOffline(article.id)}
+        onSelectArticle={(art) => selectArticle(art)}
+        onToggleSaveOffline={(art, e) => handleToggleSaveOffline(art, e)}
+        onToggleLike={(id, e) => handleToggleLike(id, e)}
+      />
+    );
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-100">
+            <span className={`w-2 h-2 ${dotClass} rounded-full animate-pulse`}></span>
+            {title}
+          </h3>
+          {items.length > TECH_NEWS_STRIP_LIMIT && (
+            <button onClick={toggleShowAll} className="text-xs font-bold text-blue-400 hover:text-blue-300">
+              {showAll ? 'Thu gọn ↑' : `Xem tất cả (${items.length}) →`}
+            </button>
+          )}
+        </div>
+        {showAll ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {items.map((article) => (
+              <React.Fragment key={article.id}>{renderCard(article)}</React.Fragment>
+            ))}
+          </div>
+        ) : (
+          <TechNewsSlider<Article>
+            items={items.slice(0, TECH_NEWS_STRIP_LIMIT)}
+            getKey={(article) => article.id}
+            renderItem={renderCard}
+          />
+        )}
+      </div>
+    );
+  };
 
   const articleTotalPages = Math.max(1, Math.ceil(gridArticles.length / ARTICLES_PER_PAGE));
   // Clamp in case the list itself shrank and the page we were on no longer exists.
@@ -795,52 +841,10 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {safeArticlePage === 1 && techNewsInList.length > 0 && (
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-100">
-                            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                            Tin công nghệ mới
-                          </h3>
-                          {techNewsInList.length > TECH_NEWS_STRIP_LIMIT && (
-                            <button
-                              onClick={() => setShowAllTechNews((v) => !v)}
-                              className="text-xs font-bold text-blue-400 hover:text-blue-300"
-                            >
-                              {showAllTechNews ? 'Thu gọn ↑' : `Xem tất cả (${techNewsInList.length}) →`}
-                            </button>
-                          )}
-                        </div>
-                        {showAllTechNews ? (
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {techNewsInList.map((article) => (
-                              <ArticleCard
-                                key={article.id}
-                                article={article}
-                                isSavedOffline={storageService.isArticleSavedOffline(article.id)}
-                                onSelectArticle={(art) => selectArticle(art)}
-                                onToggleSaveOffline={(art, e) => handleToggleSaveOffline(art, e)}
-                                onToggleLike={(id, e) => handleToggleLike(id, e)}
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          <TechNewsSlider<Article>
-                            items={techNewsInList.slice(0, TECH_NEWS_STRIP_LIMIT)}
-                            getKey={(article) => article.id}
-                            renderItem={(article) => (
-                              <ArticleCard
-                                article={article}
-                                isSavedOffline={storageService.isArticleSavedOffline(article.id)}
-                                onSelectArticle={(art) => selectArticle(art)}
-                                onToggleSaveOffline={(art, e) => handleToggleSaveOffline(art, e)}
-                                onToggleLike={(id, e) => handleToggleLike(id, e)}
-                              />
-                            )}
-                          />
-                        )}
-                      </div>
-                    )}
+                    {safeArticlePage === 1 &&
+                      renderNewsStrip('Tin công nghệ mới', 'bg-red-500', techNewsInList, showAllTechNews, () => setShowAllTechNews((v) => !v))}
+                    {safeArticlePage === 1 &&
+                      renderNewsStrip('Tin tức địa phương', 'bg-amber-400', localNewsInList, showAllLocalNews, () => setShowAllLocalNews((v) => !v))}
 
                     {paginatedArticles.length > 0 && (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

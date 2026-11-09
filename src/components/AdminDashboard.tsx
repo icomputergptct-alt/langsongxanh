@@ -30,7 +30,7 @@ import {
   UserCircle,
   GraduationCap
 } from 'lucide-react';
-import { ActivityLog, Article, ContactMessage, ExamAttempt, ExamDocument, QuizExam, TECH_NEWS_CATEGORY, TechCategory } from '../types';
+import { ActivityLog, Article, ContactMessage, ExamAttempt, ExamDocument, QuizExam, TECH_NEWS_CATEGORY, LOCAL_NEWS_CATEGORY, TechCategory } from '../types';
 import { storageService } from '../services/storageService';
 import { ArticleEditorModal } from './ArticleEditorModal';
 import { AttemptsPreviewModal } from './AttemptsPreviewModal';
@@ -64,7 +64,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [isArticleEditorOpen, setIsArticleEditorOpen] = useState(false);
   const [newArticleCategory, setNewArticleCategory] = useState<TechCategory | undefined>(undefined);
-  const [articleListFilter, setArticleListFilter] = useState<'all' | 'techNews'>('all');
+  const [articleListFilter, setArticleListFilter] = useState<'all' | 'techNews' | 'localNews'>('all');
   const [viewingExamAttempts, setViewingExamAttempts] = useState<QuizExam | null>(null);
   const [showAttemptsPreview, setShowAttemptsPreview] = useState(false);
   const [activityActorFilter, setActivityActorFilter] = useState<'all' | 'guest' | 'teacher' | 'admin'>('all');
@@ -113,8 +113,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
   };
 
   const techNewsCount = articles.filter((a) => a.category === TECH_NEWS_CATEGORY).length;
+  const localNewsCount = articles.filter((a) => a.category === LOCAL_NEWS_CATEGORY).length;
   const visibleArticles =
-    articleListFilter === 'techNews' ? articles.filter((a) => a.category === TECH_NEWS_CATEGORY) : articles;
+    articleListFilter === 'techNews'
+      ? articles.filter((a) => a.category === TECH_NEWS_CATEGORY)
+      : articleListFilter === 'localNews'
+        ? articles.filter((a) => a.category === LOCAL_NEWS_CATEGORY)
+        : articles;
 
   const handleEditArticle = (article: Article) => {
     setEditingArticle(article);
@@ -781,6 +786,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
                 >
                   Tin công nghệ mới ({techNewsCount})
                 </button>
+                <button
+                  onClick={() => setArticleListFilter('localNews')}
+                  className={`px-3 py-1.5 rounded-lg transition-colors ${
+                    articleListFilter === 'localNews' ? 'bg-slate-800 text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Tin tức địa phương ({localNewsCount})
+                </button>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -790,6 +803,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
                 >
                   <PlusCircle className="w-4 h-4" />
                   <span>Thêm Tin Công Nghệ Mới</span>
+                </button>
+                <button
+                  onClick={() => handleOpenNewArticle(LOCAL_NEWS_CATEGORY)}
+                  title="Đăng tin hiển thị trong mục Tin tức địa phương ở trang Tin tức"
+                  className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition-colors"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Thêm Tin Địa Phương</span>
                 </button>
                 <button
                   onClick={() => handleOpenNewArticle()}
@@ -825,7 +846,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
                         <td colSpan={6} className="text-center py-8 text-slate-500">
                           {articleListFilter === 'techNews'
                             ? 'Chưa có tin công nghệ mới nào. Bấm "Thêm Tin Công Nghệ Mới" để bắt đầu.'
-                            : 'Chưa có bài viết nào. Bấm "Thêm Bài Viết Mới" để bắt đầu.'}
+                            : articleListFilter === 'localNews'
+                              ? 'Chưa có tin địa phương nào. Bấm "Thêm Tin Địa Phương" để bắt đầu.'
+                              : 'Chưa có bài viết nào. Bấm "Thêm Bài Viết Mới" để bắt đầu.'}
                         </td>
                       </tr>
                     ) : (
@@ -844,6 +867,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
                           <td className="py-3 px-4">
                             {article.category === TECH_NEWS_CATEGORY ? (
                               <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                {article.category}
+                              </span>
+                            ) : article.category === LOCAL_NEWS_CATEGORY ? (
+                              <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
                                 {article.category}
                               </span>
                             ) : (

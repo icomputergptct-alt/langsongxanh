@@ -19,6 +19,7 @@ const CATEGORIES: TechCategory[] = [
   'Blockchain & Web3',
   'Phần cứng & Bán dẫn',
   'Tin công nghệ mới',
+  'Tin tức địa phương',
 ];
 
 const SKIPPED_TAGS = new Set(['SCRIPT', 'STYLE', 'META', 'TITLE', 'HEAD', 'LINK', 'NOSCRIPT']);

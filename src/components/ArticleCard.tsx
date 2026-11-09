@@ -8,7 +8,7 @@ import {
   TrendingUp, 
   ArrowUpRight
 } from 'lucide-react';
-import { Article, TECH_NEWS_CATEGORY } from '../types';
+import { Article, LOCAL_NEWS_CATEGORY, isCompactNewsCategory } from '../types';
 import { formatRelativeTime } from '../utils/relativeTime';
 
 interface ArticleCardProps {
@@ -28,7 +28,8 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
 }) => {
   // Short tech-news items get a compact horizontal card instead of the big
   // cover-image card used for full articles.
-  if (article.category === TECH_NEWS_CATEGORY) {
+  if (isCompactNewsCategory(article.category)) {
+    const isLocal = article.category === LOCAL_NEWS_CATEGORY;
     return (
       <article
         id={`article-card-${article.id}`}
@@ -45,8 +46,8 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-center gap-1.5 mb-1 text-[10px]">
-            <span className="font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700">
-              Tin mới
+            <span className={`font-bold uppercase px-1.5 py-0.5 rounded ${isLocal ? 'bg-amber-500/15 text-amber-700' : 'bg-emerald-500/15 text-emerald-700'}`}>
+              {isLocal ? 'Địa phương' : 'Tin mới'}
             </span>
             <span className="text-blue-600 font-medium truncate">{formatRelativeTime(article.publishedAt)}</span>
           </div>
