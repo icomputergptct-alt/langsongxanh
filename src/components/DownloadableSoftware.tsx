@@ -106,18 +106,18 @@ export const DownloadableSoftware: React.FC = () => (
     <div className="space-y-6">
       {SOFTWARE_GROUPS.map((group) => (
         <div key={group.title}>
-          <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 mb-3">
+          <h3 className="text-base font-bold uppercase tracking-wider text-cyan-400 mb-3">
             {group.title} <span className="text-slate-500">({group.items.length})</span>
           </h3>
           <div className="border border-white/10 rounded-xl overflow-hidden divide-y divide-white/10">
             {group.items.map((item) => (
               <div
                 key={item.name}
-                className="grid grid-cols-[auto_1fr_auto] sm:grid-cols-[auto_11rem_1fr_auto] items-center gap-x-3 sm:gap-x-4 px-3 py-2 bg-white/[0.03] hover:bg-white/10 transition-colors"
+                className="grid grid-cols-[auto_1fr_auto] sm:grid-cols-[auto_13rem_1fr_auto] items-center gap-x-3 sm:gap-x-4 px-3 py-2.5 bg-white/[0.03] hover:bg-white/10 transition-colors"
               >
                 <SoftwareIcon item={item} />
-                <h4 className="text-sm font-bold text-slate-100 sm:text-center">{item.name}</h4>
-                <p className="hidden sm:block text-xs text-slate-400 leading-relaxed sm:border-l sm:border-white/10 sm:pl-4">
+                <h4 className="text-base sm:text-lg font-bold text-slate-100 sm:text-center">{item.name}</h4>
+                <p className="hidden sm:block text-sm sm:text-[15px] text-slate-300 leading-relaxed sm:border-l sm:border-white/10 sm:pl-4">
                   {item.desc}
                 </p>
                 <a
@@ -125,12 +125,12 @@ export const DownloadableSoftware: React.FC = () => (
                   target="_blank"
                   rel="noopener noreferrer"
                   title={`Tải ${item.name} (${item.license})`}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                  className="inline-flex items-center gap-1.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
                 >
-                  <Download className="w-3.5 h-3.5" />
+                  <Download className="w-4 h-4" />
                   Tải về
                 </a>
-                <p className="sm:hidden col-start-2 col-span-2 text-[11px] text-slate-400 leading-snug -mt-0.5">
+                <p className="sm:hidden col-start-2 col-span-2 text-sm text-slate-300 leading-snug -mt-0.5">
                   {item.desc}
                 </p>
               </div>
