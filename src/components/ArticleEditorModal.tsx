@@ -259,6 +259,20 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
     });
   };
 
+  // Every image embedded in the content (![alt](url)), in order, without duplicates.
+  const contentImages = Array.from(new Set(Array.from(content.matchAll(/!\[[^\]]*\]\(([^)\s]+)\)/g), (m) => m[1])));
+
+  const removeContentImage = (url: string) => {
+    const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    setContent((prev) =>
+      prev
+        .replace(new RegExp(`!\\[[^\\]]*\\]\\(${escaped}\\)`, 'g'), '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+    );
+    if (coverImage === url) setCoverImage(contentImages.find((u) => u !== url) || '');
+  };
+
   const fillCoverIfEmpty = (urls: string[]) => {
     if (urls.length) setCoverImage((prev) => prev || urls[0]);
   };
@@ -489,6 +503,53 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
             />
             {isUploadingImages && <p className="mt-1 text-xs text-cyan-300">Đang tải ảnh lên...</p>}
             {imageNotice && <p className="mt-1 text-xs text-amber-300">{imageNotice}</p>}
+
+            {contentImages.length >= 2 && (
+              <div className="mt-3">
+                <p className="text-xs font-medium text-slate-400 mb-2">
+                  Danh sách hình ảnh trong bài ({contentImages.length}) — bấm vào ảnh để đặt làm ảnh bìa
+                </p>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                  {contentImages.map((url, idx) => {
+                    const isCover = url === coverImage;
+                    return (
+                      <div
+                        key={url}
+                        className={`relative group aspect-square rounded-lg overflow-hidden border-2 bg-slate-950 ${
+                          isCover ? 'border-emerald-400' : 'border-slate-800 hover:border-cyan-500'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setCoverImage(url)}
+                          title="Đặt làm ảnh bìa"
+                          className="w-full h-full"
+                        >
+                          <img src={url} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-cover" loading="lazy" />
+                        </button>
+                        <span className="absolute top-1 left-1 text-[10px] font-bold bg-black/70 text-white px-1.5 rounded">
+                          {idx + 1}
+                        </span>
+                        {isCover && (
+                          <span className="absolute bottom-1 left-1 flex items-center gap-0.5 text-[10px] font-bold bg-emerald-500 text-white px-1.5 py-0.5 rounded">
+                            <Check className="w-3 h-3" /> Ảnh bìa
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeContentImage(url)}
+                          disabled={isUploadingImages}
+                          title="Xoá ảnh khỏi bài viết"
+                          className="absolute top-1 right-1 p-1 rounded-md bg-black/70 hover:bg-red-600 text-white opacity-80 group-hover:opacity-100 transition"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
