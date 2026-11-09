@@ -75,14 +75,14 @@ const TOTAL = SOFTWARE_GROUPS.reduce((n, g) => n + g.items.length, 0);
 const SoftwareIcon: React.FC<{ item: SoftwareItem }> = ({ item }) => {
   const [failed, setFailed] = useState(false);
   return (
-    <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+    <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
       {failed ? (
         <span className="text-lg font-extrabold text-blue-600">{item.name.charAt(0)}</span>
       ) : (
         <img
           src={`https://www.google.com/s2/favicons?domain=${item.domain}&sz=64`}
           alt=""
-          className="w-8 h-8 object-contain"
+          className="w-7 h-7 object-contain"
           loading="lazy"
           onError={() => setFailed(true)}
         />
@@ -103,37 +103,36 @@ export const DownloadableSoftware: React.FC = () => (
       Tuyển chọn phần mềm miễn phí, an toàn cho công việc hằng ngày. Nút tải về dẫn thẳng đến trang chính thức của nhà phát triển.
     </p>
 
-    <div className="space-y-8">
+    <div className="space-y-6">
       {SOFTWARE_GROUPS.map((group) => (
         <div key={group.title}>
           <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 mb-3">
             {group.title} <span className="text-slate-500">({group.items.length})</span>
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="border border-white/10 rounded-xl overflow-hidden divide-y divide-white/10">
             {group.items.map((item) => (
               <div
                 key={item.name}
-                className="flex flex-col bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-500/40 rounded-xl p-4 transition-colors"
+                className="grid grid-cols-[auto_1fr_auto] sm:grid-cols-[auto_11rem_1fr_auto] items-center gap-x-3 sm:gap-x-4 px-3 py-2 bg-white/[0.03] hover:bg-white/10 transition-colors"
               >
-                <div className="flex items-center gap-3 mb-3">
-                  <SoftwareIcon item={item} />
-                  <div className="min-w-0">
-                    <h4 className="text-sm font-bold text-slate-100 truncate">{item.name}</h4>
-                    <span className="text-[10px] font-semibold text-emerald-300 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
-                      {item.license}
-                    </span>
-                  </div>
-                </div>
-                <p className="text-xs text-slate-400 leading-relaxed mb-4 flex-1">{item.desc}</p>
+                <SoftwareIcon item={item} />
+                <h4 className="text-sm font-bold text-slate-100 sm:text-center">{item.name}</h4>
+                <p className="hidden sm:block text-xs text-slate-400 leading-relaxed sm:border-l sm:border-white/10 sm:pl-4">
+                  {item.desc}
+                </p>
                 <a
                   href={item.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 w-full text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 px-4 py-2.5 rounded-lg transition-colors"
+                  title={`Tải ${item.name} (${item.license})`}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
                 >
-                  <Download className="w-4 h-4" />
+                  <Download className="w-3.5 h-3.5" />
                   Tải về
                 </a>
+                <p className="sm:hidden col-start-2 col-span-2 text-[11px] text-slate-400 leading-snug -mt-0.5">
+                  {item.desc}
+                </p>
               </div>
             ))}
           </div>
