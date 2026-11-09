@@ -673,8 +673,8 @@ export default function App() {
         {activeTab === 'news' && (
           <>
             {isLoadingArticles ? (
-              <div className="text-center py-24 text-slate-400 text-sm">
-                Đang tải bài viết từ Supabase...
+              <div className="flex justify-center py-24" role="status" aria-label="Đang tải">
+                <div className="w-10 h-10 rounded-full border-4 border-slate-200 border-t-blue-600 border-r-emerald-500 animate-spin" />
               </div>
             ) : selectedArticle ? (
               /* Article Deep Detail View */
