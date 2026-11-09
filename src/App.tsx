@@ -513,6 +513,8 @@ export default function App() {
   // get their own strip above the grid (newest first, page 1 only) and the
   // paginated grid holds regular articles.
   const TECH_NEWS_STRIP_LIMIT = 6;
+  // Temporarily hidden on the news page; set back to true to show the tech-news strip again.
+  const SHOW_TECH_NEWS_STRIP = false;
   const techNewsInList = filteredArticles
     .filter((a) => a.category === TECH_NEWS_CATEGORY)
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
@@ -841,7 +843,7 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {safeArticlePage === 1 &&
+                    {SHOW_TECH_NEWS_STRIP && safeArticlePage === 1 &&
                       renderNewsStrip('Tin công nghệ mới', 'bg-red-500', techNewsInList, showAllTechNews, () => setShowAllTechNews((v) => !v))}
                     {safeArticlePage === 1 &&
                       renderNewsStrip('Tin tức địa phương', 'bg-amber-400', localNewsInList, showAllLocalNews, () => setShowAllLocalNews((v) => !v))}
