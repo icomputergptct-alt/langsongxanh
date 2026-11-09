@@ -14,9 +14,6 @@ interface ArticleEditorModalProps {
 const CATEGORIES: TechCategory[] = [
   'Trí tuệ Nhân tạo',
   'An ninh Mạng',
-  'Điện toán Đám mây & DevOps',
-  'Kiến trúc Phần mềm',
-  'Blockchain & Web3',
   'Phần cứng & Bán dẫn',
   'Tin công nghệ mới',
   'Tin tức địa phương',
@@ -457,7 +454,8 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
                 onChange={(e) => setCategory(e.target.value as TechCategory)}
                 className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none"
               >
-                {CATEGORIES.map((c) => (
+                {/* An older article may still carry a category that's no longer offered. */}
+                {(CATEGORIES.includes(category) ? CATEGORIES : [category, ...CATEGORIES]).map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
