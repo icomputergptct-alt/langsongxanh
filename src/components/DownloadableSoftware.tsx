@@ -92,7 +92,7 @@ const SoftwareIcon: React.FC<{ item: SoftwareItem }> = ({ item }) => {
 };
 
 export const DownloadableSoftware: React.FC = () => (
-  <section id="downloadable-software" className="glass-panel rounded-2xl p-6 sm:p-8 mt-8">
+  <section id="downloadable-software" className="glass-panel rounded-2xl p-6 sm:p-8 mb-8">
     <div className="flex items-center gap-2.5 mb-2">
       <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
         <PackageOpen className="w-5 h-5" />
