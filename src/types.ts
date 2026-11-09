@@ -14,6 +14,13 @@ export type TechCategory =
 // Short news items shown in the home page's "Tin tức công nghệ mới" card.
 export const TECH_NEWS_CATEGORY: TechCategory = 'Tin công nghệ mới';
 
+// Default avatar: a cartoon character wearing a Vietnamese nón lá (public/avatar-non-la.svg).
+export const DEFAULT_AVATAR = '/avatar-non-la.svg';
+// Stock photo used as the default before; rows saved with it still carry this URL.
+const LEGACY_DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde';
+export const resolveAvatar = (url?: string | null) =>
+  !url || url.startsWith(LEGACY_DEFAULT_AVATAR) ? DEFAULT_AVATAR : url;
+
 // Local news items, shown as their own strip on the news page.
 export const LOCAL_NEWS_CATEGORY: TechCategory = 'Tin tức địa phương';
 

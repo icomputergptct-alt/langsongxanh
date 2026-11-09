@@ -9,7 +9,7 @@ import {
   CheckCircle2, 
   ShieldCheck
 } from 'lucide-react';
-import { Comment } from '../types';
+import { Comment, DEFAULT_AVATAR } from '../types';
 import { storageService } from '../services/storageService';
 
 interface CommentSectionProps {
@@ -221,7 +221,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ articleId, artic
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2.5">
                   <img
-                    src={comment.authorAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
+                    src={comment.authorAvatar || DEFAULT_AVATAR}
                     alt={comment.authorName}
                     className="w-8 h-8 rounded-full object-cover border border-slate-700"
                   />

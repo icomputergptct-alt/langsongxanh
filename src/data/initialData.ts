@@ -1,4 +1,4 @@
-import { Article, QuizExam, SoftwareUtility, ExamAttempt, Comment } from '../types';
+import { Article, QuizExam, SoftwareUtility, ExamAttempt, Comment, DEFAULT_AVATAR } from '../types';
 
 export const INITIAL_ARTICLES: Article[] = [
   {
@@ -253,7 +253,7 @@ export const INITIAL_COMMENTS: Comment[] = [
     id: 'cmt-1',
     articleId: 'art-1',
     authorName: 'Hoàng Quốc Bảo',
-    authorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    authorAvatar: DEFAULT_AVATAR,
     authorRole: 'Kỹ sư AI cấp cao',
     authorBadge: 'Chuyên gia AI',
     content: 'Bài phân tích rất thực tế! Team mình hiện đang áp dụng mô hình Planner-Executor kết hợp LangGraph, việc chia nhỏ trách nhiệm giữa các Agent thực sự đã giảm thiểu đáng kể tình trạng hallucination khi truy vấn dữ liệu tài chính nội bộ.',
@@ -277,7 +277,7 @@ export const INITIAL_COMMENTS: Comment[] = [
         id: 'cmt-1-2',
         articleId: 'art-1',
         authorName: 'Hoàng Quốc Bảo',
-        authorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        authorAvatar: DEFAULT_AVATAR,
         authorRole: 'Kỹ sư AI cấp cao',
         content: 'Có ạ, bên mình dùng một Validator Agent chạy kiểm tra Explain Plan và kiểm tra permission token trước khi query thực tế, hoạt động rất mượt.',
         createdAt: '2026-08-19T10:45:00Z',
@@ -567,7 +567,7 @@ export const INITIAL_ATTEMPTS: ExamAttempt[] = [
     examTitle: 'Đánh Giá Năng Lực Kiến Trúc Sư AI & Kỹ Thuật LLM Chuyên Sâu 2026',
     userId: 'user-default',
     userName: 'Đặng Tuấn Anh',
-    userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    userAvatar: DEFAULT_AVATAR,
     userRole: 'Kỹ sư Phần mềm',
     score: 5,
     maxScore: 5,

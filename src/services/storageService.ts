@@ -1,4 +1,4 @@
-﻿import { ActivityLog, Article, Comment, ContactMessage, ExamAttempt, ExamDocument, Meeting, OfflineArticle, QuizExam, ReviewedQuestion } from '../types';
+﻿import { ActivityLog, Article, Comment, ContactMessage, ExamAttempt, ExamDocument, Meeting, OfflineArticle, QuizExam, ReviewedQuestion, DEFAULT_AVATAR, resolveAvatar } from '../types';
 import { supabase } from './supabaseClient';
 import { generateExamPdfBlob } from './examPdf';
 
@@ -76,7 +76,7 @@ function rowToArticle(row: any, isLiked: boolean, isBookmarked: boolean): Articl
     author: {
       name: row.author_name,
       role: row.author_role,
-      avatar: row.author_avatar,
+      avatar: resolveAvatar(row.author_avatar),
       verified: row.author_verified,
     },
     publishedAt: row.published_at,
@@ -460,7 +460,7 @@ export const storageService = {
         id: row.id,
         articleId: row.article_id,
         authorName: row.author_name,
-        authorAvatar: row.author_avatar,
+        authorAvatar: resolveAvatar(row.author_avatar),
         authorRole: row.author_role,
         authorBadge: row.author_badge || undefined,
         content: row.content,
@@ -497,7 +497,7 @@ export const storageService = {
       article_id: articleId,
       parent_id: parentId || null,
       author_name: authorName.trim() || 'Kỹ sư Ẩn danh',
-      author_avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+      author_avatar: DEFAULT_AVATAR,
       author_role: authorRole.trim() || 'Thành viên TechHub',
       content: content.trim(),
       created_at: new Date().toISOString(),
@@ -511,7 +511,7 @@ export const storageService = {
       id: row.id,
       articleId,
       authorName: row.author_name,
-      authorAvatar: row.author_avatar,
+      authorAvatar: resolveAvatar(row.author_avatar),
       authorRole: row.author_role,
       content: row.content,
       createdAt: row.created_at,

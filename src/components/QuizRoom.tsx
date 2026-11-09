@@ -21,7 +21,7 @@ import {
   Target
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { QuizExam, ExamAttempt, QuizQuestion, ReviewedQuestion } from '../types';
+import { QuizExam, ExamAttempt, QuizQuestion, ReviewedQuestion, DEFAULT_AVATAR } from '../types';
 import { storageService } from '../services/storageService';
 import { getPageNumbers } from '../utils/pagination';
 import { Fireflies } from './Fireflies';
@@ -297,7 +297,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
         examId: selectedExam.id,
         userId: 'user-current',
         userName,
-        userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        userAvatar: DEFAULT_AVATAR,
         userRole: 'Kỹ sư Phần mềm',
         startedAt: startTime,
         completedAt,
@@ -314,7 +314,7 @@ export const QuizRoom: React.FC<QuizRoomProps> = ({
         examTitle: selectedExam.title,
         userId: 'user-current',
         userName,
-        userAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        userAvatar: DEFAULT_AVATAR,
         userRole: 'Kỹ sư Phần mềm',
         score: graded.score,
         maxScore: graded.maxScore,

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Check, Newspaper, ImagePlus } from 'lucide-react';
-import { Article, TechCategory } from '../types';
+import { Article, TechCategory, DEFAULT_AVATAR } from '../types';
 import { storageService } from '../services/storageService';
 
 interface ArticleEditorModalProps {
@@ -199,7 +199,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
   const [authorName, setAuthorName] = useState('');
   const [authorRole, setAuthorRole] = useState('');
   const [authorAvatar, setAuthorAvatar] = useState(
-    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
+    DEFAULT_AVATAR
   );
   const [isDeepAnalysis, setIsDeepAnalysis] = useState(false);
   const [isTrending, setIsTrending] = useState(false);
