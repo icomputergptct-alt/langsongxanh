@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import DOMPurify from 'dompurify';
 import {
   Printer,
   ArrowLeft, 
@@ -193,6 +194,12 @@ ${clone.outerHTML}
     },
   };
   const theme = THEME[readerTheme];
+  // Article text supports **bold**; everything else that looks like HTML goes
+  // through DOMPurify so a post can never run scripts/event handlers in readers' browsers.
+  const renderInline = (text: string) =>
+    DOMPurify.sanitize(
+      text.replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.strong} font-semibold">$1</strong>`)
+    );
   const themeClasses = {
     light: THEME.light.card,
     dark: THEME.dark.card,
@@ -504,7 +511,7 @@ ${clone.outerHTML}
               return (
                 <ul key={index} className={`space-y-2 pl-6 list-disc marker:text-cyan-500 ${theme.text}`}>
                   {items.map((it, i) => (
-                    <li key={i} dangerouslySetInnerHTML={{ __html: it.replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.strong} font-semibold">$1</strong>`) }} />
+                    <li key={i} dangerouslySetInnerHTML={{ __html: renderInline(it) }} />
                   ))}
                 </ul>
               );
@@ -515,7 +522,7 @@ ${clone.outerHTML}
               return (
                 <ol key={index} className={`space-y-2 pl-6 list-decimal marker:text-cyan-500 ${theme.text}`}>
                   {items.map((it, i) => (
-                    <li key={i} dangerouslySetInnerHTML={{ __html: it.replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.strong} font-semibold">$1</strong>`) }} />
+                    <li key={i} dangerouslySetInnerHTML={{ __html: renderInline(it) }} />
                   ))}
                 </ol>
               );
@@ -526,7 +533,7 @@ ${clone.outerHTML}
               <p
                 key={index}
                 className={`leading-relaxed ${theme.text}`}
-                dangerouslySetInnerHTML={{ __html: paragraph.replace(/\*\*(.*?)\*\*/g, `<strong class="${theme.strong} font-semibold">$1</strong>`) }}
+                dangerouslySetInnerHTML={{ __html: renderInline(paragraph) }}
               />
             );
           })}

@@ -784,3 +784,53 @@ as $$
 $$;
 
 grant execute on function public.list_active_meetings() to anon, authenticated;
+
+-- ============================================================================
+-- Security fix: profile privilege escalation (2026-11-09)
+-- Run this once in the Supabase Dashboard: SQL Editor -> New query -> paste -> Run.
+--
+-- "users update own profile" allowed updating EVERY column of your own row,
+-- including is_admin and email. Since the article policies trusted those two
+-- columns, any signed-up user could set is_admin = true and
+-- email = 'icomputer.gpt.ct@gmail.com' on their own profile and then post,
+-- edit or delete articles (and read everything else gated on is_admin).
+-- ============================================================================
+
+-- 1) Users may only change their own display fields — never is_admin / email.
+revoke update on public.profiles from anon, authenticated;
+grant update (full_name, school_name, phone) on public.profiles to authenticated;
+
+-- 2) The news-manager check uses the signed-in account's real email from the
+--    auth token (not editable by the user) instead of profiles.email.
+drop policy if exists "news manager write articles" on articles;
+create policy "news manager write articles" on articles for insert
+  with check (
+    (auth.jwt() ->> 'email') = 'icomputer.gpt.ct@gmail.com'
+    and exists (select 1 from profiles where id = auth.uid() and is_admin)
+  );
+drop policy if exists "news manager update articles" on articles;
+create policy "news manager update articles" on articles for update
+  using (
+    (auth.jwt() ->> 'email') = 'icomputer.gpt.ct@gmail.com'
+    and exists (select 1 from profiles where id = auth.uid() and is_admin)
+  )
+  with check (
+    (auth.jwt() ->> 'email') = 'icomputer.gpt.ct@gmail.com'
+    and exists (select 1 from profiles where id = auth.uid() and is_admin)
+  );
+drop policy if exists "news manager delete articles" on articles;
+create policy "news manager delete articles" on articles for delete
+  using (
+    (auth.jwt() ->> 'email') = 'icomputer.gpt.ct@gmail.com'
+    and exists (select 1 from profiles where id = auth.uid() and is_admin)
+  );
+
+-- 3) Audit (run separately and read the result): every admin account, and
+--    any profile whose stored email no longer matches its real login email —
+--    a sign the hole above was used. Fix anything unexpected with e.g.
+--      update profiles set is_admin = false where id = '<uuid>';
+--      update profiles p set email = u.email from auth.users u where u.id = p.id;
+-- select p.id, p.email as profile_email, u.email as login_email, p.is_admin, p.created_at
+-- from profiles p join auth.users u on u.id = p.id
+-- where p.is_admin or p.email is distinct from u.email
+-- order by p.created_at;
