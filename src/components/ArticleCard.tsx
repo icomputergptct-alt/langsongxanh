@@ -163,6 +163,8 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             <img
               src={article.author.avatar}
               alt={article.author.name}
+              width={24}
+              height={24}
               className="w-6 h-6 rounded-full object-cover border border-slate-200"
             />
             <span className="text-slate-700 font-medium truncate max-w-[120px]">

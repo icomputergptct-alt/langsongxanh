@@ -112,12 +112,18 @@ ${clone.outerHTML}
 </body></html>`);
     doc.close();
 
+    // Wait for images and the copied stylesheets — printing before the CSS
+    // arrives gives an unstyled page with full-width images.
     const images = Array.from(doc.images);
-    Promise.all(
-      images.map((img) =>
+    const sheets = Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'));
+    Promise.all([
+      ...images.map((img) =>
         img.complete ? null : new Promise((resolve) => { img.onload = img.onerror = resolve; })
-      )
-    ).then(() => {
+      ),
+      ...sheets.map((link) =>
+        link.sheet ? null : new Promise((resolve) => { link.onload = link.onerror = resolve; setTimeout(resolve, 3000); })
+      ),
+    ]).then(() => {
       win.focus();
       win.print();
       setTimeout(() => iframe.remove(), 1000);
@@ -335,6 +341,9 @@ ${clone.outerHTML}
             <img
               src={article.author.avatar}
               alt={article.author.name}
+              width={40}
+              height={40}
+              style={{ width: 40, height: 40 }}
               className="w-10 h-10 rounded-full object-cover border border-slate-700"
             />
             <div>
