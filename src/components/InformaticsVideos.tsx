@@ -340,6 +340,14 @@ const loadYouTubeApi = (): Promise<void> => {
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
+const formatTime = (s: number) => {
+  const t = Math.max(0, Math.floor(s));
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const sec = String(t % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
+};
+
 // Titles for the playlist sidebar, looked up once per video id via oEmbed.
 const titleCache = new Map<string, Promise<string | null>>();
 const lookupTitle = (id: string) => {
@@ -368,6 +376,38 @@ const YouTubePlayer: React.FC<{
   const [playlist, setPlaylist] = useState<string[]>([]);
   const [playlistIndex, setPlaylistIndex] = useState(-1);
   const [titles, setTitles] = useState<Record<string, string>>({});
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  // YouTube picks the stream quality from the player's on-screen size, so an ~800px
+  // frame only ever gets 480p. The iframe is laid out at a Full HD size (in device
+  // pixels) and scaled down to fit, which makes YouTube choose 1080p when the video
+  // has it — and it still steps down by itself on a slow connection.
+  const frameRef = useRef<HTMLDivElement>(null);
+  const baseW = Math.round(1920 / (window.devicePixelRatio || 1));
+  const baseH = Math.round((baseW * 9) / 16);
+  const [scale, setScale] = useState(0.4);
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+    const update = () => setScale(Math.min(el.clientWidth / baseW, el.clientHeight / baseH) || 0.4);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [baseW, baseH]);
+
+  // Our own seek bar: poll the position while the player is up.
+  useEffect(() => {
+    if (!ready) return;
+    const timer = setInterval(() => {
+      const p = playerRef.current;
+      if (!p?.getCurrentTime) return;
+      setCurrentTime(p.getCurrentTime() || 0);
+      setDuration(p.getDuration() || 0);
+    }, 500);
+    return () => clearInterval(timer);
+  }, [ready]);
 
   useEffect(() => {
     let destroyed = false;
@@ -398,8 +438,12 @@ const YouTubePlayer: React.FC<{
           autoplay: 1,
           rel: 0,
           playsinline: 1,
-          controls: 1,
-          fs: 1,
+          // YouTube's own controls would be shrunk along with the scaled-down frame;
+          // the bar below replaces them.
+          controls: 0,
+          fs: 0,
+          iv_load_policy: 3,
+          disablekb: 1,
           origin: window.location.origin,
           ...(playlistId ? { listType: 'playlist', list: playlistId } : {}),
         },
@@ -528,6 +572,11 @@ const YouTubePlayer: React.FC<{
     setPlaylistIndex(index);
   };
 
+  const seek = (seconds: number) => {
+    setCurrentTime(seconds);
+    player()?.seekTo(seconds, true);
+  };
+
   const toggleFullscreen = () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else wrapperRef.current?.requestFullscreen?.();
@@ -541,10 +590,41 @@ const YouTubePlayer: React.FC<{
       ref={wrapperRef}
       className={`flex flex-col bg-black overflow-hidden ${isFullscreen ? 'w-full h-full' : 'rounded-xl border border-slate-800'}`}
     >
-      <div className={isFullscreen ? 'flex-1 min-h-0' : theater ? 'aspect-video max-h-[calc(100vh-9rem)]' : 'aspect-video'}>
-        <div ref={mountRef} className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full" />
+      <div
+        ref={frameRef}
+        className={`relative overflow-hidden ${
+          isFullscreen ? 'flex-1 min-h-0' : theater ? 'aspect-video max-h-[calc(100vh-9rem)]' : 'aspect-video'
+        }`}
+      >
+        <div
+          ref={mountRef}
+          className="absolute left-1/2 top-1/2 [&>iframe]:w-full [&>iframe]:h-full"
+          style={{ width: baseW, height: baseH, transform: `translate(-50%, -50%) scale(${scale})` }}
+        />
+        {/* Click to play/pause, double-click for fullscreen (YouTube's own UI is hidden). */}
+        <div
+          className="absolute inset-0 cursor-pointer"
+          onClick={togglePlay}
+          onDoubleClick={toggleFullscreen}
+          aria-hidden="true"
+        />
       </div>
-      <div className="flex flex-wrap items-center gap-1 sm:gap-2 px-2 py-1.5 bg-slate-900/95 border-t border-slate-800">
+      <div className="flex items-center gap-2 px-3 pt-2 bg-slate-900/95 border-t border-slate-800">
+        <span className="text-[11px] tabular-nums text-slate-300 w-12 text-right">{formatTime(currentTime)}</span>
+        <input
+          type="range"
+          min={0}
+          max={duration || 0}
+          step={1}
+          value={Math.min(currentTime, duration || 0)}
+          onChange={(e) => seek(Number(e.target.value))}
+          disabled={!ready || !duration}
+          aria-label="Tua video"
+          className="flex-1 accent-red-500"
+        />
+        <span className="text-[11px] tabular-nums text-slate-400 w-12">{formatTime(duration)}</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-1 sm:gap-2 px-2 pb-1.5 pt-0.5 bg-slate-900/95">
         {hasList && (
           <button type="button" onClick={() => playAt(playlistIndex - 1)} disabled={!ready || playlistIndex <= 0} className={btn} title="Video trước">
             <SkipBack className="w-5 h-5" />
