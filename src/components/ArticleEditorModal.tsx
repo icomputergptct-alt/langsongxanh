@@ -260,6 +260,8 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
 
   // Every image embedded in the content (![alt](url)), in order, without duplicates.
   const contentImages = Array.from(new Set(Array.from(content.matchAll(/!\[[^\]]*\]\(([^)\s]+)\)/g), (m) => m[1])));
+  // The chosen cover is shown on its own, so it's left out of the picker list.
+  const galleryImages = contentImages.filter((u) => u !== coverImage);
 
   const removeContentImage = (url: string) => {
     const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -504,20 +506,17 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
             {isUploadingImages && <p className="mt-1 text-xs text-cyan-300">Đang tải ảnh lên...</p>}
             {imageNotice && <p className="mt-1 text-xs text-amber-300">{imageNotice}</p>}
 
-            {contentImages.length >= 2 && (
+            {galleryImages.length > 0 && (
               <div className="mt-3">
                 <p className="text-xs font-medium text-slate-400 mb-2">
-                  Danh sách hình ảnh trong bài ({contentImages.length}) — bấm vào ảnh để đặt làm ảnh bìa
+                  Danh sách hình ảnh trong bài ({galleryImages.length}) — bấm vào ảnh để đặt làm ảnh bìa
                 </p>
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {contentImages.map((url, idx) => {
-                    const isCover = url === coverImage;
+                  {galleryImages.map((url, idx) => {
                     return (
                       <div
                         key={url}
-                        className={`relative group aspect-square rounded-lg overflow-hidden border-2 bg-slate-950 ${
-                          isCover ? 'border-emerald-400' : 'border-slate-800 hover:border-cyan-500'
-                        }`}
+                        className="relative group aspect-square rounded-lg overflow-hidden border-2 bg-slate-950 border-slate-800 hover:border-cyan-500"
                       >
                         <button
                           type="button"
@@ -530,11 +529,6 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
                         <span className="absolute top-1 left-1 text-[10px] font-bold bg-black/70 text-white px-1.5 rounded">
                           {idx + 1}
                         </span>
-                        {isCover && (
-                          <span className="absolute bottom-1 left-1 flex items-center gap-0.5 text-[10px] font-bold bg-emerald-500 text-white px-1.5 py-0.5 rounded">
-                            <Check className="w-3 h-3" /> Ảnh bìa
-                          </span>
-                        )}
                         <button
                           type="button"
                           onClick={() => removeContentImage(url)}

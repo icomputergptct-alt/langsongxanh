@@ -465,6 +465,8 @@ ${clone.outerHTML}
             // Image on its own paragraph: ![alt](https://...)
             const image = paragraph.trim().match(/^!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)$/);
             if (image) {
+              // The cover is already shown above the article, don't repeat it in the body.
+              if (image[2] === article.coverImage) return null;
               return (
                 <img
                   key={index}
