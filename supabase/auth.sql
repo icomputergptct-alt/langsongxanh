@@ -834,3 +834,38 @@ create policy "news manager delete articles" on articles for delete
 -- from profiles p join auth.users u on u.id = p.id
 -- where p.is_admin or p.email is distinct from u.email
 -- order by p.created_at;
+
+-- ============================================================================
+-- "Tin Học" video library (2026-11-10).
+-- Run this once in the Supabase Dashboard: SQL Editor -> New query -> paste -> Run.
+-- Anyone can watch; only admin accounts (profiles.is_admin) can add/edit/delete.
+-- ============================================================================
+create table if not exists videos (
+  id text primary key,
+  title text not null,
+  url text not null,
+  youtube_id text,
+  thumbnail_url text,
+  description text,
+  category text not null default 'Khác',
+  created_at timestamptz not null default now(),
+  created_by uuid references auth.users(id) on delete set null
+);
+
+alter table videos enable row level security;
+
+drop policy if exists "public read videos" on videos;
+create policy "public read videos" on videos for select using (true);
+
+drop policy if exists "admin write videos" on videos;
+create policy "admin write videos" on videos for insert
+  with check (exists (select 1 from profiles where id = auth.uid() and is_admin));
+
+drop policy if exists "admin update videos" on videos;
+create policy "admin update videos" on videos for update
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin))
+  with check (exists (select 1 from profiles where id = auth.uid() and is_admin));
+
+drop policy if exists "admin delete videos" on videos;
+create policy "admin delete videos" on videos for delete
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin));

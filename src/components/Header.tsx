@@ -16,12 +16,13 @@ import {
   ShieldCheck,
   UploadCloud,
   Phone,
-  Video
+  Video,
+  Monitor
 } from 'lucide-react';
 
 interface HeaderProps {
-  activeTab: 'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'meeting' | 'contact';
-  setActiveTab: (tab: 'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'meeting' | 'contact') => void;
+  activeTab: 'news' | 'informatics' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'meeting' | 'contact';
+  setActiveTab: (tab: 'news' | 'informatics' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'meeting' | 'contact') => void;
   isOffline: boolean;
   savedOfflineCount: number;
   activeMeetingCount: number;
@@ -191,6 +192,19 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <BookOpen className="w-4 h-4" />
             <span>Bài Viết</span>
+          </button>
+
+          <button
+            id="tab-informatics-btn"
+            onClick={() => setActiveTab('informatics')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+              activeTab === 'informatics'
+                ? 'bg-blue-600/30 backdrop-blur-md border border-blue-400/40 text-white shadow-md shadow-blue-600/20'
+                : 'border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <Monitor className="w-4 h-4" />
+            <span>Tin Học</span>
           </button>
 
           <button

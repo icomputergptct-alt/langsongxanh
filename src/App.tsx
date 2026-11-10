@@ -33,6 +33,7 @@ import { VisitorStats } from './components/VisitorStats';
 import { DocumentUploadModal } from './components/DocumentUploadModal';
 import { SearchResults } from './components/SearchResults';
 import { ContactPage } from './components/ContactPage';
+import { InformaticsVideos } from './components/InformaticsVideos';
 import { MeetingRoom, parseRoomInput, POST_LOGIN_PATH_KEY } from './components/MeetingRoom';
 import { Article, ExamDocument, QuizExam, SoftwareUtility, TECH_NEWS_CATEGORY, LOCAL_NEWS_CATEGORY, isCompactNewsCategory } from './types';
 import { storageService } from './services/storageService';
@@ -93,8 +94,9 @@ const matchRouteFromPath = (
 };
 
 // Header menus that are a single page get their own address too.
-type SimpleTab = 'quiz' | 'offline' | 'admin' | 'contact';
+type SimpleTab = 'informatics' | 'quiz' | 'offline' | 'admin' | 'contact';
 const TAB_PATHS: Record<SimpleTab, string> = {
+  informatics: '/tin-hoc',
   quiz: '/phong-thi-trac-nghiem',
   offline: '/kho-de-thi',
   admin: '/quan-tri',
@@ -156,7 +158,7 @@ const ARTICLES_PER_PAGE = 9;
 export default function App() {
   const { user, profile, isAdmin, signOut, isLoading: isAuthLoading } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'meeting' | 'contact'>(() => {
+  const [activeTab, setActiveTab] = useState<'news' | 'informatics' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'meeting' | 'contact'>(() => {
     if (matchRouteFromPath(window.location.pathname)) return 'utilities';
     if (isUtilitiesLandingPath(window.location.pathname)) return 'utilities';
     if (matchExamDocId(window.location.pathname)) return 'offline';
@@ -356,6 +358,7 @@ export default function App() {
   // (per tool) in handleToolChange, and an open exam document keeps its own title.
   useEffect(() => {
     const TAB_TITLES: Partial<Record<typeof activeTab, string>> = {
+      informatics: 'Tin Học',
       quiz: 'Phòng Thi Trắc Nghiệm',
       offline: 'Kho đề thi kiểm tra',
       admin: 'Quản Trị & Tiến Độ',
@@ -402,7 +405,7 @@ export default function App() {
     }
   }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Give the single-page menus (Phòng Thi, Kho đề thi, Quản Trị, Liên Hệ) their own URL,
+  // Give the single-page menus (Tin Học, Phòng Thi, Kho đề thi, Quản Trị, Liên Hệ) their own URL,
   // and go back to "/" when switching from one of them to Bài Viết.
   useEffect(() => {
     const path = window.location.pathname;
@@ -1110,6 +1113,8 @@ export default function App() {
         {activeTab === 'contact' && (
           <ContactPage />
         )}
+
+        {activeTab === 'informatics' && <InformaticsVideos isAdmin={isAdmin} />}
         </>
         )}
 

@@ -135,6 +135,27 @@ export interface QuizExam {
 
 // A real uploaded .docx/.pdf exam file browsable in "Kho đề thi kiểm tra" — distinct from
 // QuizExam, which is an interactive multiple-choice test room.
+// "Tin Học" video library: YouTube videos (or any video link) curated by admins.
+export const VIDEO_CATEGORIES = [
+  'Tin học cơ bản',
+  'Tin học văn phòng',
+  'Lập trình',
+  'Mạng & Internet',
+  'Thủ thuật máy tính',
+  'Khác',
+] as const;
+
+export interface VideoItem {
+  id: string;
+  title: string;
+  url: string;
+  youtubeId: string | null;
+  thumbnailUrl: string | null;
+  description: string;
+  category: string;
+  createdAt: string;
+}
+
 export interface ExamDocument {
   id: string;
   title: string;

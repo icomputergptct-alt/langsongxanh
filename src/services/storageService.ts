@@ -1,4 +1,4 @@
-﻿import { ActivityLog, Article, Comment, ContactMessage, ExamAttempt, ExamDocument, Meeting, OfflineArticle, QuizExam, ReviewedQuestion, DEFAULT_AVATAR, resolveAvatar } from '../types';
+﻿import { ActivityLog, Article, Comment, ContactMessage, ExamAttempt, ExamDocument, Meeting, OfflineArticle, QuizExam, ReviewedQuestion, VideoItem, DEFAULT_AVATAR, resolveAvatar } from '../types';
 import { supabase } from './supabaseClient';
 import { generateExamPdfBlob } from './examPdf';
 
@@ -304,6 +304,20 @@ async function withJwtRetry<R extends { error: { message: string } | null }>(run
   return result;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToVideo(row: any): VideoItem {
+  return {
+    id: row.id,
+    title: row.title,
+    url: row.url,
+    youtubeId: row.youtube_id ?? null,
+    thumbnailUrl: row.thumbnail_url ?? null,
+    description: row.description ?? '',
+    category: row.category ?? 'Khác',
+    createdAt: row.created_at,
+  };
+}
+
 export const storageService = {
   // --- Activity Log ("Nhật Ký Hoạt Động" admin tab) ---
   // Fire-and-forget from call sites (never throws) — a logging failure should
@@ -392,6 +406,45 @@ export const storageService = {
   async updateArticle(article: Article): Promise<void> {
     const { error } = await supabase.from('articles').update(articleToRow(article)).eq('id', article.id);
     if (error) throw error;
+  },
+
+  // --- "Tin Học" videos (read: everyone, write: admins via RLS) ---
+  async getVideos(): Promise<VideoItem[]> {
+    const { data, error } = await withJwtRetry(() =>
+      supabase.from('videos').select('*').order('created_at', { ascending: false })
+    );
+    if (error) throw error;
+    return (data || []).map(rowToVideo);
+  },
+
+  async saveVideo(video: Omit<VideoItem, 'id' | 'createdAt'> & { id?: string }): Promise<void> {
+    const row = {
+      title: video.title,
+      url: video.url,
+      youtube_id: video.youtubeId,
+      thumbnail_url: video.thumbnailUrl,
+      description: video.description || null,
+      category: video.category,
+    };
+    if (video.id) {
+      const { error } = await supabase.from('videos').update(row).eq('id', video.id);
+      if (error) throw error;
+    } else {
+      const { data: auth } = await supabase.auth.getUser();
+      const { error } = await supabase.from('videos').insert({
+        ...row,
+        id: `vid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        created_by: auth.user?.id ?? null,
+      });
+      if (error) throw error;
+    }
+    void this.logActivity(video.id ? 'Sửa video Tin Học' : 'Thêm video Tin Học', { detail: video.title });
+  },
+
+  async deleteVideo(video: VideoItem): Promise<void> {
+    const { error } = await supabase.from('videos').delete().eq('id', video.id);
+    if (error) throw error;
+    void this.logActivity('Xoá video Tin Học', { detail: video.title });
   },
 
   async deleteArticle(articleId: string): Promise<void> {
