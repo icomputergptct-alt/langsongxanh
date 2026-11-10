@@ -371,6 +371,7 @@ const YouTubePlayer: React.FC<{
   const [volume, setVolume] = useState(100);
   const [muted, setMuted] = useState(false);
   const [captionsOn, setCaptionsOn] = useState(false);
+  const wantCaptionsRef = useRef(false);
   const [speed, setSpeed] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [playlist, setPlaylist] = useState<string[]>([]);
@@ -438,6 +439,7 @@ const YouTubePlayer: React.FC<{
           autoplay: 1,
           rel: 0,
           playsinline: 1,
+          cc_load_policy: 0,
           // YouTube's own controls would be shrunk along with the scaled-down frame;
           // the bar below replaces them.
           controls: 0,
@@ -465,9 +467,14 @@ const YouTubePlayer: React.FC<{
             if (playlistId) syncPlaylist();
           },
           // The captions module loads once a caption track is shown.
+          // Captions start off: YouTube turns them on by itself for some videos (and again
+          // for each video in a playlist), so switch them back off unless the viewer chose them.
           onApiChange: () => {
-            const opts: string[] = playerRef.current?.getOptions?.() || [];
-            if (opts.includes('captions')) setCaptionsOn(true);
+            const p = playerRef.current;
+            const opts: string[] = p?.getOptions?.() || [];
+            if (!opts.includes('captions')) return;
+            if (wantCaptionsRef.current) setCaptionsOn(true);
+            else p.unloadModule('captions');
           },
         },
       });
@@ -555,6 +562,7 @@ const YouTubePlayer: React.FC<{
   const toggleCaptions = () => {
     const p = player();
     if (!p) return;
+    wantCaptionsRef.current = !captionsOn;
     if (captionsOn) p.unloadModule('captions');
     else p.loadModule('captions');
     setCaptionsOn(!captionsOn);
