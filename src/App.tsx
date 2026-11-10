@@ -92,6 +92,20 @@ const matchRouteFromPath = (
   return tool ? { tool, eqnDegree: null } : null;
 };
 
+// Header menus that are a single page get their own address too.
+type SimpleTab = 'quiz' | 'offline' | 'admin' | 'contact';
+const TAB_PATHS: Record<SimpleTab, string> = {
+  quiz: '/phong-thi-trac-nghiem',
+  offline: '/kho-de-thi',
+  admin: '/quan-tri',
+  contact: '/lien-he',
+};
+const matchTabPath = (pathname: string): SimpleTab | null => {
+  const clean = pathname.replace(/\/+$/, '') || '/';
+  return (Object.keys(TAB_PATHS) as SimpleTab[]).find((tab) => TAB_PATHS[tab] === clean) ?? null;
+};
+const tabPath = (tab: string): string => TAB_PATHS[tab as SimpleTab] ?? '/';
+
 // Deep-link helper: /de-thi/{id} → the exam_documents row id ("Kho Đề Thi" library).
 const matchExamDocId = (pathname: string): string | null => {
   const match = pathname.match(/^\/de-thi\/([^/]+)\/?$/);
@@ -140,14 +154,14 @@ const buildExamDocMeta = (doc: ExamDocument): { title: string; description: stri
 const ARTICLES_PER_PAGE = 9;
 
 export default function App() {
-  const { user, profile, isAdmin, signOut } = useAuth();
+  const { user, profile, isAdmin, signOut, isLoading: isAuthLoading } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'news' | 'offline' | 'quiz' | 'admin' | 'utilities' | 'meeting' | 'contact'>(() => {
     if (matchRouteFromPath(window.location.pathname)) return 'utilities';
     if (isUtilitiesLandingPath(window.location.pathname)) return 'utilities';
     if (matchExamDocId(window.location.pathname)) return 'offline';
     if (matchMeetingPath(window.location.pathname)) return 'meeting';
-    return 'news';
+    return matchTabPath(window.location.pathname) ?? 'news';
   });
   const [meetingRoom, setMeetingRoom] = useState<string | null>(
     () => matchMeetingPath(window.location.pathname)?.room ?? null
@@ -171,10 +185,10 @@ export default function App() {
 
   // "Quản Trị & Tiến Độ" requires login; bounce back if the session ends while it's open.
   useEffect(() => {
-    if (!user && activeTab === 'admin') {
+    if (!isAuthLoading && !user && activeTab === 'admin') {
       setActiveTab('news');
     }
-  }, [user, activeTab]);
+  }, [user, isAuthLoading, activeTab]);
 
   // Supabase clears the OAuth token from the URL fragment via `location.hash = ''`,
   // which leaves a trailing bare "#" in the address bar. Strip it once it appears.
@@ -240,9 +254,12 @@ export default function App() {
   // Sync the selected article to the URL (/bai-viet/{slug}) so links are shareable & bookmarkable
   const selectArticle = (article: Article | null) => {
     setSelectedArticle(article);
-    const path = article ? `/bai-viet/${article.slug}` : '/';
-    if (window.location.pathname !== path) {
-      window.history.pushState({}, '', path);
+    if (article) {
+      const path = `/bai-viet/${article.slug}`;
+      if (window.location.pathname !== path) window.history.pushState({}, '', path);
+    } else if (window.location.pathname.startsWith('/bai-viet/')) {
+      // Back to the list; other pages' URLs are left to the tab sync below.
+      window.history.pushState({}, '', '/');
     }
   };
 
@@ -252,7 +269,7 @@ export default function App() {
   // ever appearing inside a modal at "/".
   const selectExamDoc = (doc: ExamDocument | null) => {
     setSearchViewingDoc(doc);
-    const path = doc ? `/de-thi/${doc.id}` : '/';
+    const path = doc ? `/de-thi/${doc.id}` : tabPath(activeTab);
     if (window.location.pathname !== path) {
       window.history.pushState({}, '', path);
     }
@@ -330,7 +347,7 @@ export default function App() {
   // Leaving the Utilities tab for another tab: drop the tool URL/meta back to "/".
   useEffect(() => {
     if (activeTab !== 'utilities' && isUtilitiesPath(window.location.pathname)) {
-      window.history.pushState({}, '', '/');
+      window.history.pushState({}, '', tabPath(activeTab));
       resetPageMeta();
     }
   }, [activeTab]);
@@ -381,9 +398,22 @@ export default function App() {
       }
     } else if (window.location.pathname.startsWith('/phong-hop')) {
       setMeetingRoom(null);
-      window.history.pushState({}, '', '/');
+      window.history.pushState({}, '', tabPath(activeTab));
     }
   }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Give the single-page menus (Phòng Thi, Kho đề thi, Quản Trị, Liên Hệ) their own URL,
+  // and go back to "/" when switching from one of them to Bài Viết.
+  useEffect(() => {
+    const path = window.location.pathname;
+    const target = TAB_PATHS[activeTab as SimpleTab];
+    if (target) {
+      const alreadyThere = matchTabPath(path) === activeTab || (activeTab === 'offline' && matchExamDocId(path));
+      if (!alreadyThere) window.history.pushState({}, '', target);
+    } else if (activeTab === 'news' && matchTabPath(path)) {
+      window.history.pushState({}, '', '/');
+    }
+  }, [activeTab]);
 
   // Load articles from Supabase on mount
   useEffect(() => {
@@ -447,6 +477,11 @@ export default function App() {
         setInitialToolId(undefined);
         setInitialEqnDegree(null);
         setActiveTab('utilities');
+      } else if (matchTabPath(window.location.pathname)) {
+        setSelectedArticle(null);
+        setSearchViewingDoc(null);
+        resetPageMeta();
+        setActiveTab(matchTabPath(window.location.pathname)!);
       } else if (docId) {
         setSelectedArticle(null);
         setActiveTab('offline');
@@ -464,7 +499,7 @@ export default function App() {
         setSelectedArticle(null);
         setSearchViewingDoc(null);
         resetPageMeta();
-        setActiveTab((prev) => (prev === 'utilities' || prev === 'meeting' ? 'news' : prev));
+        setActiveTab('news');
       }
     };
     window.addEventListener('popstate', handlePopState);

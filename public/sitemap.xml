@@ -6,6 +6,21 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://www.longhoaso.com/phong-thi-trac-nghiem</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.longhoaso.com/kho-de-thi</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.longhoaso.com/lien-he</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.longhoaso.com/software-utilities/scientific-calculator</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
