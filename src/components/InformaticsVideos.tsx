@@ -1,5 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Monitor, PlayCircle, Plus, Pencil, Trash2, X, Search, ExternalLink, Loader2, Film } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Monitor, PlayCircle, Plus, Pencil, Trash2, X, Search, ExternalLink, Loader2, Film,
+  Play, Pause, Volume2, VolumeX, Captions, Maximize, Minimize,
+} from 'lucide-react';
 import { VideoItem, VIDEO_CATEGORIES } from '../types';
 import { storageService } from '../services/storageService';
 
@@ -285,6 +288,210 @@ export const InformaticsVideos: React.FC<Props> = ({ isAdmin }) => {
   );
 };
 
+// YouTube's current embed UI only offers a small mute toggle (no volume slider) and
+// tucks CC/fullscreen into the corners, so we drive the player through the official
+// IFrame API and show our own control bar under it.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type YTPlayer = any;
+let ytApiPromise: Promise<void> | null = null;
+const loadYouTubeApi = (): Promise<void> => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const w = window as any;
+  if (w.YT?.Player) return Promise.resolve();
+  if (!ytApiPromise) {
+    ytApiPromise = new Promise((resolve) => {
+      const prev = w.onYouTubeIframeAPIReady;
+      w.onYouTubeIframeAPIReady = () => {
+        prev?.();
+        resolve();
+      };
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+    });
+  }
+  return ytApiPromise;
+};
+
+const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+const YouTubePlayer: React.FC<{ videoId: string }> = ({ videoId }) => {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const mountRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<YTPlayer>(null);
+  const [ready, setReady] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [volume, setVolume] = useState(100);
+  const [muted, setMuted] = useState(false);
+  const [captionsOn, setCaptionsOn] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    let destroyed = false;
+    loadYouTubeApi().then(() => {
+      if (destroyed || !mountRef.current) return;
+      // The API replaces the mount node with its iframe; give it a child to replace
+      // so React's own node stays put.
+      const target = document.createElement('div');
+      mountRef.current.appendChild(target);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const YT = (window as any).YT;
+      playerRef.current = new YT.Player(target, {
+        videoId,
+        host: 'https://www.youtube-nocookie.com',
+        width: '100%',
+        height: '100%',
+        playerVars: { autoplay: 1, rel: 0, playsinline: 1, controls: 1, fs: 1, origin: window.location.origin },
+        events: {
+          onReady: (e: { target: YTPlayer }) => {
+            if (destroyed) return;
+            setReady(true);
+            setVolume(e.target.getVolume());
+            setMuted(e.target.isMuted());
+          },
+          onStateChange: (e: { data: number }) => setIsPlaying(e.data === 1 || e.data === 3),
+          // The captions module loads once a caption track is shown.
+          onApiChange: () => {
+            const opts: string[] = playerRef.current?.getOptions?.() || [];
+            if (opts.includes('captions')) setCaptionsOn(true);
+          },
+        },
+      });
+    });
+    return () => {
+      destroyed = true;
+      playerRef.current?.destroy?.();
+      playerRef.current = null;
+    };
+  }, [videoId]);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(document.fullscreenElement === wrapperRef.current);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const player = () => (ready ? playerRef.current : null);
+
+  const togglePlay = () => {
+    const p = player();
+    if (!p) return;
+    if (isPlaying) p.pauseVideo();
+    else p.playVideo();
+  };
+
+  const changeVolume = (v: number) => {
+    const p = player();
+    if (!p) return;
+    setVolume(v);
+    p.setVolume(v);
+    if (v > 0 && muted) {
+      p.unMute();
+      setMuted(false);
+    } else if (v === 0) {
+      p.mute();
+      setMuted(true);
+    }
+  };
+
+  const toggleMute = () => {
+    const p = player();
+    if (!p) return;
+    if (muted) {
+      p.unMute();
+      setMuted(false);
+      if (volume === 0) changeVolume(50);
+    } else {
+      p.mute();
+      setMuted(true);
+    }
+  };
+
+  const toggleCaptions = () => {
+    const p = player();
+    if (!p) return;
+    if (captionsOn) p.unloadModule('captions');
+    else p.loadModule('captions');
+    setCaptionsOn(!captionsOn);
+  };
+
+  const changeSpeed = (v: number) => {
+    setSpeed(v);
+    player()?.setPlaybackRate(v);
+  };
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else wrapperRef.current?.requestFullscreen?.();
+  };
+
+  const btn = 'p-2 rounded-lg text-slate-200 hover:bg-slate-700/70 disabled:opacity-40 transition';
+
+  return (
+    <div
+      ref={wrapperRef}
+      className={`flex flex-col bg-black overflow-hidden ${isFullscreen ? 'w-full h-full' : 'rounded-xl border border-slate-800'}`}
+    >
+      <div className={isFullscreen ? 'flex-1 min-h-0' : 'aspect-video'}>
+        <div ref={mountRef} className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full" />
+      </div>
+      <div className="flex flex-wrap items-center gap-1 sm:gap-2 px-2 py-1.5 bg-slate-900/95 border-t border-slate-800">
+        <button type="button" onClick={togglePlay} disabled={!ready} className={btn} title={isPlaying ? 'Tạm dừng' : 'Phát'}>
+          {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+        </button>
+        <button type="button" onClick={toggleMute} disabled={!ready} className={btn} title={muted ? 'Bật tiếng' : 'Tắt tiếng'}>
+          {muted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={muted ? 0 : volume}
+          onChange={(e) => changeVolume(Number(e.target.value))}
+          disabled={!ready}
+          title="Âm lượng"
+          aria-label="Âm lượng"
+          className="w-24 sm:w-32 accent-cyan-400"
+        />
+        <span className="text-[11px] text-slate-400 w-8">{muted ? 0 : volume}%</span>
+        <div className="flex-1" />
+        <button
+          type="button"
+          onClick={toggleCaptions}
+          disabled={!ready}
+          className={`${btn} flex items-center gap-1 text-xs font-semibold ${captionsOn ? 'text-cyan-300' : ''}`}
+          title={captionsOn ? 'Tắt phụ đề' : 'Bật phụ đề'}
+        >
+          <Captions className="w-5 h-5" />
+          <span className="hidden sm:inline">{captionsOn ? 'Tắt phụ đề' : 'Bật phụ đề'}</span>
+        </button>
+        <select
+          value={speed}
+          onChange={(e) => changeSpeed(Number(e.target.value))}
+          disabled={!ready}
+          title="Tốc độ phát"
+          className="bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 px-1.5 py-1 focus:outline-none"
+        >
+          {SPEEDS.map((v) => (
+            <option key={v} value={v}>
+              {v === 1 ? 'Tốc độ 1x' : `${v}x`}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          className={btn}
+          title={isFullscreen ? 'Thoát toàn màn hình' : 'Toàn màn hình'}
+        >
+          {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const VideoPlayerModal: React.FC<{ video: VideoItem; onClose: () => void }> = ({ video, onClose }) => {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -301,19 +508,13 @@ const VideoPlayerModal: React.FC<{ video: VideoItem; onClose: () => void }> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="aspect-video rounded-xl overflow-hidden bg-black border border-slate-800">
-          {video.youtubeId ? (
-            <iframe
-              src={`https://www.youtube-nocookie.com/embed/${video.youtubeId}?autoplay=1&rel=0`}
-              title={video.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="w-full h-full"
-            />
-          ) : (
+        {video.youtubeId ? (
+          <YouTubePlayer videoId={video.youtubeId} />
+        ) : (
+          <div className="aspect-video rounded-xl overflow-hidden bg-black border border-slate-800">
             <video src={video.url} controls autoPlay className="w-full h-full" />
-          )}
-        </div>
+          </div>
+        )}
         {video.description && <p className="mt-3 text-sm text-slate-300 whitespace-pre-line">{video.description}</p>}
         <a
           href={video.url}
