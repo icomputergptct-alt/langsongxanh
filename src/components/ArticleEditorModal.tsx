@@ -294,10 +294,38 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
     }
   };
 
+  // Guess the source website of pasted web content from its image (then link) URLs, e.g. "baocantho.com.vn".
+  const detectSourceSite = (html: string): string => {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const pick = (urls: string[]) => {
+      const counts = new Map<string, number>();
+      for (const raw of urls) {
+        try {
+          const { protocol, hostname } = new URL(raw);
+          if (!/^https?:$/.test(protocol) || hostname.endsWith('supabase.co')) continue;
+          const host = hostname.replace(/^www\./, '');
+          counts.set(host, (counts.get(host) || 0) + 1);
+        } catch {
+          /* relative or malformed URL */
+        }
+      }
+      return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+    };
+    return (
+      pick(Array.from(doc.querySelectorAll('img'), (el) => el.getAttribute('src') || '')) ||
+      pick(Array.from(doc.querySelectorAll('a'), (el) => el.getAttribute('href') || ''))
+    );
+  };
+
   const handleContentPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const { selectionStart: start, selectionEnd: end } = e.currentTarget;
     const html = e.clipboardData.getData('text/html');
     const imageFiles = Array.from<File>(e.clipboardData.files).filter((f) => f.type.startsWith('image/'));
+
+    if (html) {
+      const site = detectSourceSite(html);
+      if (site) setAuthorName((prev) => prev.trim() || site);
+    }
 
     // Rich content with images (web page, Word, Google Docs): convert it, images included.
     if (html && /<img[\s>]/i.test(html)) {
