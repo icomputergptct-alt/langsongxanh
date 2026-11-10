@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Monitor, PlayCircle, Plus, Pencil, Trash2, X, Search, ExternalLink, Loader2, Film,
-  Play, Pause, Volume2, VolumeX, Captions, Maximize, Minimize,
+  Play, Pause, Volume2, VolumeX, Captions, Maximize, Minimize, SkipBack, SkipForward, ListVideo,
 } from 'lucide-react';
 import { VideoItem, VIDEO_CATEGORIES } from '../types';
 import { storageService } from '../services/storageService';
@@ -29,6 +29,19 @@ export const parseYouTubeId = (input: string): string | null => {
   return null;
 };
 
+// The playlist ("series") id from a YouTube link's list= parameter, if any.
+export const parsePlaylistId = (input: string): string | null => {
+  try {
+    const u = new URL(input.trim());
+    const host = u.hostname.replace(/^(www|m|music)\./, '');
+    if (host !== 'youtube.com' && host !== 'youtu.be' && host !== 'youtube-nocookie.com') return null;
+    const list = u.searchParams.get('list');
+    return list && /^[\w-]{10,}$/.test(list) ? list : null;
+  } catch {
+    return null;
+  }
+};
+
 const isHttpUrl = (value: string) => {
   try {
     return /^https?:$/.test(new URL(value).protocol);
@@ -42,8 +55,8 @@ const isDirectVideoFile = (url: string) => /\.(mp4|webm|ogg|mov)(\?|#|$)/i.test(
 const thumbnailOf = (v: VideoItem) =>
   v.thumbnailUrl || (v.youtubeId ? `https://i.ytimg.com/vi/${v.youtubeId}/hqdefault.jpg` : null);
 
-// Best-effort title lookup so the admin only has to paste a link.
-async function fetchVideoTitle(url: string): Promise<string | null> {
+// Best-effort title/thumbnail lookup so the admin only has to paste a link.
+async function fetchOEmbed(url: string): Promise<{ title: string; thumbnail: string | null } | null> {
   const endpoints = [
     `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(url)}`,
     `https://noembed.com/embed?url=${encodeURIComponent(url)}`,
@@ -53,13 +66,17 @@ async function fetchVideoTitle(url: string): Promise<string | null> {
       const res = await fetch(endpoint);
       if (!res.ok) continue;
       const data = await res.json();
-      if (typeof data?.title === 'string' && data.title.trim()) return data.title.trim();
+      if (typeof data?.title === 'string' && data.title.trim()) {
+        return { title: data.title.trim(), thumbnail: typeof data.thumbnail_url === 'string' ? data.thumbnail_url : null };
+      }
     } catch {
       /* try the next one */
     }
   }
   return null;
 }
+
+const fetchVideoTitle = async (url: string) => (await fetchOEmbed(url))?.title ?? null;
 
 interface Props {
   isAdmin: boolean;
@@ -107,7 +124,7 @@ export const InformaticsVideos: React.FC<Props> = ({ isAdmin }) => {
   useEffect(() => setVisibleCount(PAGE_SIZE), [query, category]);
 
   const openVideo = (v: VideoItem) => {
-    if (v.youtubeId || isDirectVideoFile(v.url)) setPlaying(v);
+    if (v.youtubeId || parsePlaylistId(v.url) || isDirectVideoFile(v.url)) setPlaying(v);
     else window.open(v.url, '_blank', 'noopener,noreferrer');
   };
 
@@ -199,7 +216,8 @@ export const InformaticsVideos: React.FC<Props> = ({ isAdmin }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.slice(0, visibleCount).map((v) => {
               const thumb = thumbnailOf(v);
-              const playable = !!v.youtubeId || isDirectVideoFile(v.url);
+              const isSeries = !!parsePlaylistId(v.url);
+              const playable = !!v.youtubeId || isSeries || isDirectVideoFile(v.url);
               return (
                 <div
                   key={v.id}
@@ -224,6 +242,11 @@ export const InformaticsVideos: React.FC<Props> = ({ isAdmin }) => {
                       <span className="absolute bottom-2 left-2 text-[10px] font-semibold bg-black/70 text-cyan-200 px-2 py-0.5 rounded">
                         {v.category}
                       </span>
+                      {isSeries && (
+                        <span className="absolute top-2 left-2 flex items-center gap-1 text-[10px] font-semibold bg-blue-600/90 text-white px-2 py-0.5 rounded">
+                          <ListVideo className="w-3 h-3" /> Danh sách phát
+                        </span>
+                      )}
                     </div>
                     <div className="p-3 flex-1">
                       <h3 className="text-sm font-semibold text-slate-100 line-clamp-2 group-hover:text-cyan-300 transition">
@@ -315,10 +338,22 @@ const loadYouTubeApi = (): Promise<void> => {
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
-const YouTubePlayer: React.FC<{ videoId: string }> = ({ videoId }) => {
+// Titles for the playlist sidebar, looked up once per video id via oEmbed.
+const titleCache = new Map<string, Promise<string | null>>();
+const lookupTitle = (id: string) => {
+  if (!titleCache.has(id)) titleCache.set(id, fetchVideoTitle(`https://www.youtube.com/watch?v=${id}`));
+  return titleCache.get(id)!;
+};
+
+const YouTubePlayer: React.FC<{
+  videoId: string | null;
+  playlistId: string | null;
+  onCurrentTitle?: (title: string | null) => void;
+}> = ({ videoId, playlistId, onCurrentTitle }) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(100);
@@ -326,9 +361,22 @@ const YouTubePlayer: React.FC<{ videoId: string }> = ({ videoId }) => {
   const [captionsOn, setCaptionsOn] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [playlist, setPlaylist] = useState<string[]>([]);
+  const [playlistIndex, setPlaylistIndex] = useState(-1);
+  const [titles, setTitles] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let destroyed = false;
+    let poll: ReturnType<typeof setInterval> | undefined;
+    const syncPlaylist = () => {
+      const p = playerRef.current;
+      if (!p?.getPlaylist) return;
+      const ids: string[] | null = p.getPlaylist();
+      if (ids?.length) {
+        setPlaylist((prev) => (prev.length === ids.length && prev.every((x, i) => x === ids[i]) ? prev : ids));
+        setPlaylistIndex(p.getPlaylistIndex());
+      }
+    };
     loadYouTubeApi().then(() => {
       if (destroyed || !mountRef.current) return;
       // The API replaces the mount node with its iframe; give it a child to replace
@@ -338,19 +386,36 @@ const YouTubePlayer: React.FC<{ videoId: string }> = ({ videoId }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const YT = (window as any).YT;
       playerRef.current = new YT.Player(target, {
-        videoId,
+        ...(videoId ? { videoId } : {}),
         host: 'https://www.youtube-nocookie.com',
         width: '100%',
         height: '100%',
-        playerVars: { autoplay: 1, rel: 0, playsinline: 1, controls: 1, fs: 1, origin: window.location.origin },
+        playerVars: {
+          autoplay: 1,
+          rel: 0,
+          playsinline: 1,
+          controls: 1,
+          fs: 1,
+          origin: window.location.origin,
+          ...(playlistId ? { listType: 'playlist', list: playlistId } : {}),
+        },
         events: {
           onReady: (e: { target: YTPlayer }) => {
             if (destroyed) return;
             setReady(true);
             setVolume(e.target.getVolume());
             setMuted(e.target.isMuted());
+            if (playlistId) {
+              // The playlist arrives a moment after the player is ready.
+              syncPlaylist();
+              poll = setInterval(syncPlaylist, 1000);
+              setTimeout(() => clearInterval(poll), 15000);
+            }
           },
-          onStateChange: (e: { data: number }) => setIsPlaying(e.data === 1 || e.data === 3),
+          onStateChange: (e: { data: number }) => {
+            setIsPlaying(e.data === 1 || e.data === 3);
+            if (playlistId) syncPlaylist();
+          },
           // The captions module loads once a caption track is shown.
           onApiChange: () => {
             const opts: string[] = playerRef.current?.getOptions?.() || [];
@@ -361,10 +426,41 @@ const YouTubePlayer: React.FC<{ videoId: string }> = ({ videoId }) => {
     });
     return () => {
       destroyed = true;
+      clearInterval(poll);
       playerRef.current?.destroy?.();
       playerRef.current = null;
     };
-  }, [videoId]);
+  }, [videoId, playlistId]);
+
+  // Fill in sidebar titles a few at a time.
+  useEffect(() => {
+    let cancelled = false;
+    const queue = [...playlist];
+    const worker = async () => {
+      while (!cancelled && queue.length) {
+        const id = queue.shift()!;
+        const title = await lookupTitle(id);
+        if (!cancelled && title) setTitles((prev) => (prev[id] ? prev : { ...prev, [id]: title }));
+      }
+    };
+    for (let i = 0; i < 4; i++) void worker();
+    return () => {
+      cancelled = true;
+    };
+  }, [playlist]);
+
+  const currentTitle = playlist[playlistIndex] ? titles[playlist[playlistIndex]] ?? null : null;
+  useEffect(() => {
+    onCurrentTitle?.(currentTitle);
+  }, [currentTitle]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep the playing item in view in the sidebar.
+  useEffect(() => {
+    const el = listRef.current?.querySelector<HTMLElement>(`[data-index="${playlistIndex}"]`);
+    if (el && listRef.current) {
+      listRef.current.scrollTo({ top: el.offsetTop - listRef.current.offsetTop - 8, behavior: 'smooth' });
+    }
+  }, [playlistIndex, playlist]);
 
   useEffect(() => {
     const onChange = () => setIsFullscreen(document.fullscreenElement === wrapperRef.current);
@@ -421,14 +517,22 @@ const YouTubePlayer: React.FC<{ videoId: string }> = ({ videoId }) => {
     player()?.setPlaybackRate(v);
   };
 
+  const playAt = (index: number) => {
+    const p = player();
+    if (!p || index < 0 || index >= playlist.length) return;
+    p.playVideoAt(index);
+    setPlaylistIndex(index);
+  };
+
   const toggleFullscreen = () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else wrapperRef.current?.requestFullscreen?.();
   };
 
   const btn = 'p-2 rounded-lg text-slate-200 hover:bg-slate-700/70 disabled:opacity-40 transition';
+  const hasList = playlist.length > 1;
 
-  return (
+  const playerColumn = (
     <div
       ref={wrapperRef}
       className={`flex flex-col bg-black overflow-hidden ${isFullscreen ? 'w-full h-full' : 'rounded-xl border border-slate-800'}`}
@@ -437,9 +541,25 @@ const YouTubePlayer: React.FC<{ videoId: string }> = ({ videoId }) => {
         <div ref={mountRef} className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full" />
       </div>
       <div className="flex flex-wrap items-center gap-1 sm:gap-2 px-2 py-1.5 bg-slate-900/95 border-t border-slate-800">
+        {hasList && (
+          <button type="button" onClick={() => playAt(playlistIndex - 1)} disabled={!ready || playlistIndex <= 0} className={btn} title="Video trước">
+            <SkipBack className="w-5 h-5" />
+          </button>
+        )}
         <button type="button" onClick={togglePlay} disabled={!ready} className={btn} title={isPlaying ? 'Tạm dừng' : 'Phát'}>
           {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
         </button>
+        {hasList && (
+          <button
+            type="button"
+            onClick={() => playAt(playlistIndex + 1)}
+            disabled={!ready || playlistIndex >= playlist.length - 1}
+            className={btn}
+            title="Video tiếp theo"
+          >
+            <SkipForward className="w-5 h-5" />
+          </button>
+        )}
         <button type="button" onClick={toggleMute} disabled={!ready} className={btn} title={muted ? 'Bật tiếng' : 'Tắt tiếng'}>
           {muted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
         </button>
@@ -452,7 +572,7 @@ const YouTubePlayer: React.FC<{ videoId: string }> = ({ videoId }) => {
           disabled={!ready}
           title="Âm lượng"
           aria-label="Âm lượng"
-          className="w-24 sm:w-32 accent-cyan-400"
+          className="w-20 sm:w-32 accent-cyan-400"
         />
         <span className="text-[11px] text-slate-400 w-8">{muted ? 0 : volume}%</span>
         <div className="flex-1" />
@@ -479,20 +599,69 @@ const YouTubePlayer: React.FC<{ videoId: string }> = ({ videoId }) => {
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          onClick={toggleFullscreen}
-          className={btn}
-          title={isFullscreen ? 'Thoát toàn màn hình' : 'Toàn màn hình'}
-        >
+        <button type="button" onClick={toggleFullscreen} className={btn} title={isFullscreen ? 'Thoát toàn màn hình' : 'Toàn màn hình'}>
           {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
         </button>
       </div>
     </div>
   );
+
+  if (!playlistId) return playerColumn;
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-3">
+      <div className="flex-1 min-w-0">{playerColumn}</div>
+      <aside className="lg:w-80 shrink-0 flex flex-col rounded-xl border border-slate-800 bg-slate-900/90 overflow-hidden max-h-[40vh] lg:max-h-[min(70vh,560px)]">
+        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-slate-800 text-sm font-semibold text-slate-100">
+          <ListVideo className="w-4 h-4 text-cyan-400" />
+          <span>Danh sách phát</span>
+          {playlist.length > 0 && (
+            <span className="ml-auto text-xs font-normal text-slate-400">
+              {playlistIndex + 1}/{playlist.length}
+            </span>
+          )}
+        </div>
+        <div ref={listRef} className="flex-1 overflow-y-auto p-1.5 space-y-1">
+          {playlist.length === 0 ? (
+            <div className="flex items-center justify-center gap-2 py-8 text-xs text-slate-400">
+              <Loader2 className="w-4 h-4 animate-spin" /> Đang tải danh sách...
+            </div>
+          ) : (
+            playlist.map((id, i) => (
+              <button
+                key={`${id}-${i}`}
+                type="button"
+                data-index={i}
+                onClick={() => playAt(i)}
+                className={`w-full flex gap-2 p-1.5 rounded-lg text-left transition ${
+                  i === playlistIndex ? 'bg-blue-600/25 ring-1 ring-blue-400/40' : 'hover:bg-slate-800/70'
+                }`}
+              >
+                <span className="w-5 shrink-0 self-center text-center text-[11px] text-slate-500">
+                  {i === playlistIndex ? <Play className="w-3 h-3 mx-auto text-cyan-300 fill-cyan-300" /> : i + 1}
+                </span>
+                <img
+                  src={`https://i.ytimg.com/vi/${id}/mqdefault.jpg`}
+                  alt=""
+                  loading="lazy"
+                  className="w-24 aspect-video object-cover rounded-md bg-slate-950 shrink-0"
+                />
+                <span className={`text-xs line-clamp-3 ${i === playlistIndex ? 'text-white font-semibold' : 'text-slate-300'}`}>
+                  {titles[id] || `Video ${i + 1}`}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      </aside>
+    </div>
+  );
 };
 
 const VideoPlayerModal: React.FC<{ video: VideoItem; onClose: () => void }> = ({ video, onClose }) => {
+  const playlistId = parsePlaylistId(video.url);
+  // In a series, the heading follows whichever video is playing.
+  const [currentTitle, setCurrentTitle] = useState<string | null>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -501,15 +670,21 @@ const VideoPlayerModal: React.FC<{ video: VideoItem; onClose: () => void }> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="w-full max-w-4xl" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`w-full ${playlistId ? 'max-w-6xl' : 'max-w-4xl'} max-h-full overflow-y-auto`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-start justify-between gap-3 mb-3">
-          <h2 className="text-base sm:text-lg font-semibold text-white">{video.title}</h2>
+          <div>
+            <h2 className="text-base sm:text-lg font-semibold text-white">{currentTitle || video.title}</h2>
+            {currentTitle && currentTitle !== video.title && <p className="text-xs text-slate-400">{video.title}</p>}
+          </div>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-slate-300 hover:bg-slate-800" title="Đóng">
             <X className="w-5 h-5" />
           </button>
         </div>
-        {video.youtubeId ? (
-          <YouTubePlayer videoId={video.youtubeId} />
+        {video.youtubeId || playlistId ? (
+          <YouTubePlayer videoId={video.youtubeId} playlistId={playlistId} onCurrentTitle={setCurrentTitle} />
         ) : (
           <div className="aspect-video rounded-xl overflow-hidden bg-black border border-slate-800">
             <video src={video.url} controls autoPlay className="w-full h-full" />
@@ -544,18 +719,33 @@ const VideoEditorModal: React.FC<{ video: VideoItem | null; onClose: () => void;
   const [error, setError] = useState<string | null>(null);
 
   const youtubeId = parseYouTubeId(url);
-  const previewThumb = thumbnailUrl.trim() || (youtubeId ? `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg` : '');
+  const playlistId = parsePlaylistId(url);
+  // A playlist-only link (no v=) has no video id to build a thumbnail from; oEmbed supplies one.
+  const [playlistThumb, setPlaylistThumb] = useState<string | null>(null);
+  const previewThumb =
+    thumbnailUrl.trim() || (youtubeId ? `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg` : playlistThumb || '');
 
   // Auto-fill the title once a valid link is pasted (only while the title is still empty).
+  // For a series the playlist's own title is used rather than the first video's.
   useEffect(() => {
     const link = url.trim();
-    if (title.trim() || !(isHttpUrl(link) || youtubeId)) return;
+    setPlaylistThumb(null);
+    if (!(isHttpUrl(link) || youtubeId)) return;
+    if (title.trim() && !(playlistId && !youtubeId)) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       setIsFetchingTitle(true);
-      const found = await fetchVideoTitle(youtubeId ? `https://www.youtube.com/watch?v=${youtubeId}` : link);
+      const lookup = playlistId
+        ? `https://www.youtube.com/playlist?list=${playlistId}`
+        : youtubeId
+          ? `https://www.youtube.com/watch?v=${youtubeId}`
+          : link;
+      const found = await fetchOEmbed(lookup);
       if (!cancelled) {
-        if (found) setTitle((prev) => prev || found);
+        if (found) {
+          setTitle((prev) => prev || found.title);
+          if (playlistId && !youtubeId) setPlaylistThumb(found.thumbnail);
+        }
         setIsFetchingTitle(false);
       }
     }, 400);
@@ -581,7 +771,7 @@ const VideoEditorModal: React.FC<{ video: VideoItem | null; onClose: () => void;
         title: title.trim(),
         category,
         description: description.trim(),
-        thumbnailUrl: thumbnailUrl.trim() || null,
+        thumbnailUrl: thumbnailUrl.trim() || (!youtubeId ? playlistThumb : null) || null,
       });
       onSaved();
     } catch (err) {
@@ -620,8 +810,10 @@ const VideoEditorModal: React.FC<{ video: VideoItem | null; onClose: () => void;
               autoFocus
             />
             {url.trim() && (
-              <p className={`mt-1 text-[11px] ${youtubeId ? 'text-emerald-400' : 'text-amber-300'}`}>
-                {youtubeId
+              <p className={`mt-1 text-[11px] ${youtubeId || playlistId ? 'text-emerald-400' : 'text-amber-300'}`}>
+                {playlistId
+                  ? 'Danh sách phát YouTube — người xem sẽ thấy cả dãy video của series bên cạnh trình phát.'
+                  : youtubeId
                   ? 'Video YouTube — sẽ phát ngay trên trang.'
                   : 'Không phải link YouTube — người xem sẽ được mở link ở tab mới (trừ file .mp4/.webm sẽ phát trực tiếp).'}
               </p>
