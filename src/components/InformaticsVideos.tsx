@@ -738,14 +738,6 @@ const VideoPlayerModal: React.FC<{ video: VideoItem; onClose: () => void }> = ({
           </div>
         )}
         {video.description && <p className="mt-3 text-sm text-slate-300 whitespace-pre-line">{video.description}</p>}
-        <a
-          href={video.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 inline-flex items-center gap-1 text-xs text-cyan-400 hover:underline"
-        >
-          <ExternalLink className="w-3.5 h-3.5" /> Mở trên trang gốc
-        </a>
       </div>
     </div>
   );
