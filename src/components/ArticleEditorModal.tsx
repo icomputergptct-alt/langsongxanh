@@ -191,7 +191,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
   const [slug, setSlug] = useState('');
   const [summary, setSummary] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState<TechCategory>('Trí tuệ Nhân tạo');
+  const [category, setCategory] = useState<TechCategory>('Tin tức thời sự');
   const [tags, setTags] = useState('');
   const [coverImage, setCoverImage] = useState('');
   const [readTimeMinutes, setReadTimeMinutes] = useState(5);
@@ -232,7 +232,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
       setSlug('');
       setSummary('');
       setContent('');
-      setCategory(defaultCategory || 'Trí tuệ Nhân tạo');
+      setCategory(defaultCategory || 'Tin tức thời sự');
       setTags('');
       setCoverImage('');
       setReadTimeMinutes(5);
