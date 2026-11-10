@@ -2,11 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Monitor, PlayCircle, Plus, Pencil, Trash2, X, Search, ExternalLink, Loader2, Film,
   Play, Pause, Volume2, VolumeX, Captions, Maximize, Minimize, SkipBack, SkipForward, ListVideo,
+  RectangleHorizontal, Square,
 } from 'lucide-react';
 import { VideoItem, VIDEO_CATEGORIES } from '../types';
 import { storageService } from '../services/storageService';
 
 const PAGE_SIZE = 12;
+const THEATER_KEY = 'lhs_video_theater_v1';
 
 // Pull the 11-char video id out of any common YouTube link shape (watch, youtu.be,
 // shorts, embed, live), or accept a bare id.
@@ -349,7 +351,9 @@ const YouTubePlayer: React.FC<{
   videoId: string | null;
   playlistId: string | null;
   onCurrentTitle?: (title: string | null) => void;
-}> = ({ videoId, playlistId, onCurrentTitle }) => {
+  theater?: boolean;
+  onToggleTheater?: () => void;
+}> = ({ videoId, playlistId, onCurrentTitle, theater = false, onToggleTheater }) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer>(null);
@@ -537,7 +541,7 @@ const YouTubePlayer: React.FC<{
       ref={wrapperRef}
       className={`flex flex-col bg-black overflow-hidden ${isFullscreen ? 'w-full h-full' : 'rounded-xl border border-slate-800'}`}
     >
-      <div className={isFullscreen ? 'flex-1 min-h-0' : 'aspect-video'}>
+      <div className={isFullscreen ? 'flex-1 min-h-0' : theater ? 'aspect-video max-h-[calc(100vh-9rem)]' : 'aspect-video'}>
         <div ref={mountRef} className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full" />
       </div>
       <div className="flex flex-wrap items-center gap-1 sm:gap-2 px-2 py-1.5 bg-slate-900/95 border-t border-slate-800">
@@ -599,6 +603,16 @@ const YouTubePlayer: React.FC<{
             </option>
           ))}
         </select>
+        {onToggleTheater && !isFullscreen && (
+          <button
+            type="button"
+            onClick={onToggleTheater}
+            className={`${btn} ${theater ? 'text-cyan-300' : ''}`}
+            title={theater ? 'Chế độ mặc định' : 'Chế độ rạp (khung lớn)'}
+          >
+            {theater ? <Square className="w-5 h-5" /> : <RectangleHorizontal className="w-5 h-5" />}
+          </button>
+        )}
         <button type="button" onClick={toggleFullscreen} className={btn} title={isFullscreen ? 'Thoát toàn màn hình' : 'Toàn màn hình'}>
           {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
         </button>
@@ -609,9 +623,13 @@ const YouTubePlayer: React.FC<{
   if (!playlistId) return playerColumn;
 
   return (
-    <div className="flex flex-col lg:flex-row gap-3">
+    <div className={`flex flex-col gap-3 ${theater ? '' : 'lg:flex-row'}`}>
       <div className="flex-1 min-w-0">{playerColumn}</div>
-      <aside className="lg:w-80 shrink-0 flex flex-col rounded-xl border border-slate-800 bg-slate-900/90 overflow-hidden max-h-[40vh] lg:max-h-[min(70vh,560px)]">
+      <aside
+        className={`shrink-0 flex flex-col rounded-xl border border-slate-800 bg-slate-900/90 overflow-hidden ${
+          theater ? 'max-h-[50vh]' : 'lg:w-80 max-h-[40vh] lg:max-h-[min(70vh,560px)]'
+        }`}
+      >
         <div className="flex items-center gap-2 px-3 py-2.5 border-b border-slate-800 text-sm font-semibold text-slate-100">
           <ListVideo className="w-4 h-4 text-cyan-400" />
           <span>Danh sách phát</span>
@@ -621,7 +639,10 @@ const YouTubePlayer: React.FC<{
             </span>
           )}
         </div>
-        <div ref={listRef} className="flex-1 overflow-y-auto p-1.5 space-y-1">
+        <div
+          ref={listRef}
+          className={`flex-1 overflow-y-auto p-1.5 ${theater ? 'grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1 content-start' : 'space-y-1'}`}
+        >
           {playlist.length === 0 ? (
             <div className="flex items-center justify-center gap-2 py-8 text-xs text-slate-400">
               <Loader2 className="w-4 h-4 animate-spin" /> Đang tải danh sách...
@@ -662,6 +683,23 @@ const VideoPlayerModal: React.FC<{ video: VideoItem; onClose: () => void }> = ({
   const playlistId = parsePlaylistId(video.url);
   // In a series, the heading follows whichever video is playing.
   const [currentTitle, setCurrentTitle] = useState<string | null>(null);
+  // "Chế độ rạp": the player spreads across the screen; remembered for this browser.
+  const [theater, setTheater] = useState(() => {
+    try {
+      return localStorage.getItem(THEATER_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleTheater = () =>
+    setTheater((prev) => {
+      try {
+        localStorage.setItem(THEATER_KEY, prev ? '0' : '1');
+      } catch {
+        /* storage unavailable */
+      }
+      return !prev;
+    });
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -669,9 +707,12 @@ const VideoPlayerModal: React.FC<{ video: VideoItem; onClose: () => void }> = ({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={onClose}>
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm ${theater ? 'p-2 sm:p-3' : 'p-4'}`}
+      onClick={onClose}
+    >
       <div
-        className={`w-full ${playlistId ? 'max-w-6xl' : 'max-w-4xl'} max-h-full overflow-y-auto`}
+        className={`w-full ${theater ? 'max-w-[1800px]' : playlistId ? 'max-w-6xl' : 'max-w-4xl'} max-h-full overflow-y-auto`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 mb-3">
@@ -684,7 +725,13 @@ const VideoPlayerModal: React.FC<{ video: VideoItem; onClose: () => void }> = ({
           </button>
         </div>
         {video.youtubeId || playlistId ? (
-          <YouTubePlayer videoId={video.youtubeId} playlistId={playlistId} onCurrentTitle={setCurrentTitle} />
+          <YouTubePlayer
+            videoId={video.youtubeId}
+            playlistId={playlistId}
+            onCurrentTitle={setCurrentTitle}
+            theater={theater}
+            onToggleTheater={toggleTheater}
+          />
         ) : (
           <div className="aspect-video rounded-xl overflow-hidden bg-black border border-slate-800">
             <video src={video.url} controls autoPlay className="w-full h-full" />
