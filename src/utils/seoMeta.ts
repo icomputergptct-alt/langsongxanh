@@ -14,6 +14,7 @@ function getCanonicalLink(): HTMLLinkElement | null {
 }
 
 const DEFAULT_TITLE = document.title;
+export const DEFAULT_PAGE_TITLE = DEFAULT_TITLE;
 const DEFAULT_DESCRIPTION = getMetaTag('meta[name="description"]')?.content ?? '';
 const DEFAULT_OG_TITLE = getMetaTag('meta[property="og:title"]')?.content ?? DEFAULT_TITLE;
 const DEFAULT_OG_DESCRIPTION = getMetaTag('meta[property="og:description"]')?.content ?? DEFAULT_DESCRIPTION;

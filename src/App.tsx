@@ -40,7 +40,7 @@ import { useAuth } from './contexts/AuthContext';
 import { formatRelativeTime } from './utils/relativeTime';
 import { getPageNumbers } from './utils/pagination';
 import { SOFTWARE_UTILITIES } from './data/initialData';
-import { setPageMeta, resetPageMeta } from './utils/seoMeta';
+import { setPageMeta, resetPageMeta, DEFAULT_PAGE_TITLE } from './utils/seoMeta';
 
 // The quadratic/cubic equation solver (EQN mode) lives inside the Scientific
 // Calculator tool, but "giải phương trình bậc 2/3" is searched for on its own —
@@ -334,6 +334,21 @@ export default function App() {
       resetPageMeta();
     }
   }, [activeTab]);
+
+  // Browser tab title follows the header menu that's open. Utilities sets its own
+  // (per tool) in handleToolChange, and an open exam document keeps its own title.
+  useEffect(() => {
+    const TAB_TITLES: Partial<Record<typeof activeTab, string>> = {
+      quiz: 'Phòng Thi Trắc Nghiệm',
+      offline: 'Kho đề thi kiểm tra',
+      admin: 'Quản Trị & Tiến Độ',
+      meeting: 'Phòng Họp Online',
+      contact: 'Liên Hệ Hệ Thống',
+    };
+    if (activeTab === 'utilities' || (activeTab === 'offline' && searchViewingDoc)) return;
+    const label = TAB_TITLES[activeTab];
+    document.title = label ? `${label} - Long Hoà Số` : DEFAULT_PAGE_TITLE;
+  }, [activeTab, searchViewingDoc]);
 
   // Sync the open meeting room to the URL (/phong-hop/{room}) so the address bar
   // doubles as the invite link; leaving the tab drops it back to "/".
