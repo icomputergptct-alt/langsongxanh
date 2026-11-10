@@ -534,7 +534,8 @@ ${clone.outerHTML}
             return (
               <p
                 key={index}
-                className={`leading-relaxed ${theme.text}`}
+                // pre-line keeps single line breaks typed in the editor (e.g. "+ ..." lines).
+                className={`leading-relaxed whitespace-pre-line ${theme.text}`}
                 dangerouslySetInnerHTML={{ __html: renderInline(paragraph) }}
               />
             );
