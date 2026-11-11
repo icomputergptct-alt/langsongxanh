@@ -669,6 +669,14 @@ export default function App() {
     articleListTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  // "Tin cùng nhóm" slider under an open article: newest articles in the same category.
+  const relatedArticles = selectedArticle
+    ? articles
+        .filter((a) => a.category === selectedArticle.category && a.id !== selectedArticle.id)
+        .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+        .slice(0, 8)
+    : [];
+
   const featuredArticle = articles.find((a) => a.isDeepAnalysis) || articles[0];
 
   // Home page "Tin tức công nghệ mới" card: the 3 newest articles in the
@@ -767,11 +775,38 @@ export default function App() {
             ) : selectedArticle ? (
               /* Article Deep Detail View */
               <ArticleDetail
+                key={selectedArticle.id}
                 article={selectedArticle}
                 isSavedOffline={storageService.isArticleSavedOffline(selectedArticle.id)}
                 onBack={() => selectArticle(null)}
                 onToggleSaveOffline={(art) => handleToggleSaveOffline(art)}
                 onToggleLike={(id) => handleToggleLike(id)}
+                relatedSection={
+                  relatedArticles.length > 0 && (
+                    <div className="mt-10">
+                      <h3 className="flex items-center gap-2 text-sm font-bold text-slate-100 mb-3">
+                        <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                        Tin cùng nhóm: {selectedArticle.category}
+                      </h3>
+                      <TechNewsSlider<Article>
+                        items={relatedArticles}
+                        getKey={(article) => article.id}
+                        renderItem={(article) => (
+                          <ArticleCard
+                            article={article}
+                            isSavedOffline={storageService.isArticleSavedOffline(article.id)}
+                            onSelectArticle={(art) => {
+                              selectArticle(art);
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                            onToggleSaveOffline={(art, e) => handleToggleSaveOffline(art, e)}
+                            onToggleLike={(id, e) => handleToggleLike(id, e)}
+                          />
+                        )}
+                      />
+                    </div>
+                  )
+                }
               />
             ) : (
               /* Article Feed & Explorer View with Signature Bento Grid */

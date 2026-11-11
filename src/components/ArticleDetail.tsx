@@ -27,6 +27,8 @@ interface ArticleDetailProps {
   onBack: () => void;
   onToggleSaveOffline: (article: Article) => void;
   onToggleLike: (articleId: string) => void;
+  /** Rendered below the article, e.g. a slider of articles in the same category. */
+  relatedSection?: React.ReactNode;
 }
 
 export const ArticleDetail: React.FC<ArticleDetailProps> = ({
@@ -35,6 +37,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
   onBack,
   onToggleSaveOffline,
   onToggleLike,
+  relatedSection,
 }) => {
   const [likes, setLikes] = useState(article.likes);
   const [isLiked, setIsLiked] = useState(!!article.isLikedByUser);
@@ -569,6 +572,8 @@ ${clone.outerHTML}
         </div>
 
       </article>
+
+      {relatedSection}
 
     </div>
   );
