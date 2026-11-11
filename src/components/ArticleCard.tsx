@@ -17,6 +17,8 @@ interface ArticleCardProps {
   onSelectArticle: (article: Article) => void;
   onToggleSaveOffline: (article: Article, e: React.MouseEvent) => void;
   onToggleLike: (articleId: string, e: React.MouseEvent) => void;
+  /** Force the compact small-image card for any category (e.g. related-news slider). */
+  compact?: boolean;
 }
 
 export const ArticleCard: React.FC<ArticleCardProps> = ({
@@ -25,11 +27,17 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   onSelectArticle,
   onToggleSaveOffline,
   onToggleLike,
+  compact = false,
 }) => {
   // Short tech-news items get a compact horizontal card instead of the big
   // cover-image card used for full articles.
-  if (isCompactNewsCategory(article.category)) {
+  if (compact || isCompactNewsCategory(article.category)) {
     const isLocal = article.category === LOCAL_NEWS_CATEGORY;
+    const badge = isLocal
+      ? 'Địa phương'
+      : isCompactNewsCategory(article.category)
+        ? 'Tin mới'
+        : article.category;
     return (
       <article
         id={`article-card-${article.id}`}
@@ -46,8 +54,8 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-center gap-1.5 mb-1 text-[10px]">
-            <span className={`font-bold uppercase px-1.5 py-0.5 rounded ${isLocal ? 'bg-amber-500/15 text-amber-700' : 'bg-emerald-500/15 text-emerald-700'}`}>
-              {isLocal ? 'Địa phương' : 'Tin mới'}
+            <span className={`font-bold uppercase px-1.5 py-0.5 rounded truncate max-w-[60%] shrink-0 ${isLocal ? 'bg-amber-500/15 text-amber-700' : 'bg-emerald-500/15 text-emerald-700'}`}>
+              {badge}
             </span>
             <span className="text-blue-600 font-medium truncate">{formatRelativeTime(article.publishedAt)}</span>
           </div>

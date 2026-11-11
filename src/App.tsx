@@ -793,6 +793,7 @@ export default function App() {
                         getKey={(article) => article.id}
                         renderItem={(article) => (
                           <ArticleCard
+                            compact
                             article={article}
                             isSavedOffline={storageService.isArticleSavedOffline(article.id)}
                             onSelectArticle={(art) => {
