@@ -58,6 +58,49 @@ function getServerSupabase() {
   return createClient(url, anonKey, { auth: { persistSession: false } });
 }
 
+const visitRateLimiter = createRateLimiter(20, 60_000);
+
+// Coarse, anonymous device info from the User-Agent — nothing finer than
+// device type / OS / browser family is kept.
+function classifyUserAgent(ua: string, touch: boolean) {
+  const isBot = /bot|crawl|spider|slurp|facebookexternalhit|preview|headless|lighthouse/i.test(ua);
+  let os = "Khác";
+  if (/Windows/i.test(ua)) os = "Windows";
+  else if (/iPhone|iPod/i.test(ua)) os = "iOS";
+  else if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && touch)) os = "iPadOS";
+  else if (/Android/i.test(ua)) os = "Android";
+  else if (/CrOS/i.test(ua)) os = "ChromeOS";
+  else if (/Mac OS X|Macintosh/i.test(ua)) os = "macOS";
+  else if (/Linux/i.test(ua)) os = "Linux";
+
+  let device = "desktop";
+  if (os === "iPadOS" || (/Android/i.test(ua) && !/Mobile/i.test(ua)) || /Tablet/i.test(ua)) device = "tablet";
+  else if (os === "iOS" || /Mobile|Android/i.test(ua)) device = "mobile";
+
+  let browser = "Khác";
+  if (/Zalo/i.test(ua)) browser = "Zalo";
+  else if (/FBAN|FBAV|FB_IAB|Messenger/i.test(ua)) browser = "Facebook";
+  else if (/TikTok|musical_ly/i.test(ua)) browser = "TikTok";
+  else if (/coc_coc|CocCoc/i.test(ua)) browser = "Cốc Cốc";
+  else if (/Edg\//i.test(ua)) browser = "Edge";
+  else if (/OPR\/|Opera/i.test(ua)) browser = "Opera";
+  else if (/SamsungBrowser/i.test(ua)) browser = "Samsung Internet";
+  else if (/Firefox|FxiOS/i.test(ua)) browser = "Firefox";
+  else if (/Chrome|CriOS/i.test(ua)) browser = "Chrome";
+  else if (/Safari/i.test(ua)) browser = "Safari";
+
+  return { isBot, device, os, browser };
+}
+
+function decodeHeader(value: unknown): string | null {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 export function createApiApp() {
   const app = express();
 
@@ -97,6 +140,31 @@ export function createApiApp() {
   });
 
   // Health check
+  // Anonymous visit analytics: the IP is never stored — only coarse device
+  // info and Vercel's approximate city/country headers.
+  app.post("/api/track-visit", visitRateLimiter, async (req, res) => {
+    // Respond only after the insert: Vercel may freeze the function once the
+    // response is sent, which would drop a pending write.
+    const done = () => res.status(204).end();
+    const supabase = getServerSupabase();
+    if (!supabase) return done();
+    const ua = String(req.headers["user-agent"] || "");
+    const { isBot, device, os, browser } = classifyUserAgent(ua, req.body?.touch === true);
+    if (isBot) return done();
+    const rawPath = typeof req.body?.path === "string" ? req.body.path : "/";
+    const path = rawPath.split(/[?#]/)[0].slice(0, 200) || "/";
+    const { error } = await supabase.rpc("log_visit", {
+      p_device: device,
+      p_os: os,
+      p_browser: browser,
+      p_country: decodeHeader(req.headers["x-vercel-ip-country"]),
+      p_city: decodeHeader(req.headers["x-vercel-ip-city"]),
+      p_path: path,
+    });
+    if (error) console.warn("log_visit failed:", error.message);
+    done();
+  });
+
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });

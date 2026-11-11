@@ -1014,4 +1014,37 @@ export const storageService = {
     if (error) throw error;
     return Number(data) || 0;
   },
+
+  // Admin-only aggregated anonymous visit stats (see get_visit_stats in auth.sql).
+  async getVisitStats(days: number): Promise<VisitStats> {
+    const { data, error } = await supabase.rpc('get_visit_stats', { p_days: days });
+    if (error) throw error;
+    const d = (data || {}) as Partial<VisitStats>;
+    return {
+      total: Number(d.total) || 0,
+      device: d.device || [],
+      os: d.os || [],
+      browser: d.browser || [],
+      city: d.city || [],
+      path: d.path || [],
+      hour: d.hour || [],
+      day: d.day || [],
+    };
+  },
 };
+
+export interface VisitStatRow<L = string> {
+  label: L;
+  count: number;
+}
+
+export interface VisitStats {
+  total: number;
+  device: VisitStatRow[];
+  os: VisitStatRow[];
+  browser: VisitStatRow[];
+  city: VisitStatRow[];
+  path: VisitStatRow[];
+  hour: VisitStatRow<number>[];
+  day: VisitStatRow[];
+}

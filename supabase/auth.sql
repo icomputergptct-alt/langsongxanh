@@ -869,3 +869,91 @@ create policy "admin update videos" on videos for update
 drop policy if exists "admin delete videos" on videos;
 create policy "admin delete videos" on videos for delete
   using (exists (select 1 from profiles where id = auth.uid() and is_admin));
+
+-- ============================================================================
+-- Anonymous visit analytics (admin "Thống Kê Truy Cập" tab).
+-- ============================================================================
+-- One row per browser-tab session: device type, OS, browser, approximate
+-- city/country (from Vercel's geo headers) and the landing path. No IP, no
+-- user id, no fingerprint — rows can't be tied back to a person. Rows older
+-- than 180 days are pruned automatically by log_visit().
+create table if not exists visit_events (
+  id bigserial primary key,
+  created_at timestamptz not null default now(),
+  device text not null default 'unknown',
+  os text not null default 'Khác',
+  browser text not null default 'Khác',
+  country text,
+  city text,
+  path text
+);
+create index if not exists visit_events_created_at_idx on visit_events(created_at desc);
+
+alter table visit_events enable row level security;
+-- No insert/select policies: writes only via log_visit(), reads only via
+-- get_visit_stats() (admin-checked), both security definer.
+
+create or replace function public.log_visit(
+  p_device text, p_os text, p_browser text, p_country text, p_city text, p_path text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into visit_events (device, os, browser, country, city, path)
+  values (
+    left(coalesce(nullif(p_device, ''), 'unknown'), 20),
+    left(coalesce(nullif(p_os, ''), 'Khác'), 40),
+    left(coalesce(nullif(p_browser, ''), 'Khác'), 40),
+    left(nullif(p_country, ''), 8),
+    left(nullif(p_city, ''), 80),
+    left(nullif(p_path, ''), 200)
+  );
+  -- Occasional cleanup so the table never grows past ~180 days of data.
+  if random() < 0.02 then
+    delete from visit_events where created_at < now() - interval '180 days';
+  end if;
+end;
+$$;
+
+grant execute on function public.log_visit(text, text, text, text, text, text) to anon, authenticated;
+
+-- Aggregated stats for the last p_days days (admin only). Hours/days are in
+-- Vietnam time.
+create or replace function public.get_visit_stats(p_days int default 30)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  result json;
+  since timestamptz := now() - make_interval(days => greatest(1, least(coalesce(p_days, 30), 180)));
+begin
+  if not exists (select 1 from profiles where id = auth.uid() and is_admin) then
+    raise exception 'not allowed';
+  end if;
+
+  with v as (select * from visit_events where created_at >= since)
+  select json_build_object(
+    'total', (select count(*) from v),
+    'device', (select coalesce(json_agg(r order by r.count desc), '[]') from (select device as label, count(*) as count from v group by 1) r),
+    'os', (select coalesce(json_agg(r order by r.count desc), '[]') from (select os as label, count(*) as count from v group by 1) r),
+    'browser', (select coalesce(json_agg(r order by r.count desc), '[]') from (select browser as label, count(*) as count from v group by 1) r),
+    'city', (select coalesce(json_agg(r order by r.count desc), '[]') from (
+      select coalesce(city, 'Không rõ') || coalesce(' (' || country || ')', '') as label, count(*) as count
+      from v group by 1 order by 2 desc limit 15) r),
+    'path', (select coalesce(json_agg(r order by r.count desc), '[]') from (
+      select coalesce(path, '/') as label, count(*) as count from v group by 1 order by 2 desc limit 15) r),
+    'hour', (select coalesce(json_agg(r order by r.label), '[]') from (
+      select extract(hour from created_at at time zone 'Asia/Ho_Chi_Minh')::int as label, count(*) as count from v group by 1) r),
+    'day', (select coalesce(json_agg(r order by r.label), '[]') from (
+      select to_char(created_at at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') as label, count(*) as count from v group by 1) r)
+  ) into result;
+  return result;
+end;
+$$;
+
+grant execute on function public.get_visit_stats(int) to authenticated;

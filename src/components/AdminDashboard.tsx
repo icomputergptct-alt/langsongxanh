@@ -28,13 +28,15 @@ import {
   FileSearch,
   History,
   UserCircle,
-  GraduationCap
+  GraduationCap,
+  Activity
 } from 'lucide-react';
 import { ActivityLog, Article, ContactMessage, ExamAttempt, ExamDocument, QuizExam, TECH_NEWS_CATEGORY, LOCAL_NEWS_CATEGORY, TechCategory } from '../types';
 import { storageService } from '../services/storageService';
 import { ArticleEditorModal } from './ArticleEditorModal';
 import { AttemptsPreviewModal } from './AttemptsPreviewModal';
 import { getPageNumbers } from '../utils/pagination';
+import { VisitAnalytics } from './VisitAnalytics';
 
 const ACTIVITY_LOGS_PER_PAGE = 20;
 
@@ -60,7 +62,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [searchCandidate, setSearchCandidate] = useState('');
   const [selectedAttempt, setSelectedAttempt] = useState<ExamAttempt | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'attempts' | 'exams' | 'analytics' | 'news' | 'contact' | 'activity'>('analytics');
+  const [activeSubTab, setActiveSubTab] = useState<'attempts' | 'exams' | 'analytics' | 'news' | 'contact' | 'activity' | 'visits'>('analytics');
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [isArticleEditorOpen, setIsArticleEditorOpen] = useState(false);
   const [newArticleCategory, setNewArticleCategory] = useState<TechCategory | undefined>(undefined);
@@ -329,7 +331,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
       </div>
 
       {/* Sub Tabs */}
-      <div className="flex items-center gap-2 mb-6 border-b border-slate-800 pb-3">
+      <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-slate-800 pb-3">
         <button
           onClick={() => setActiveSubTab('analytics')}
           className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors ${
@@ -402,6 +404,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
           >
             <History className="w-3.5 h-3.5" />
             <span>Nhật Ký Hoạt Động ({activityLogs.length})</span>
+          </button>
+        )}
+
+        {isAdmin && (
+          <button
+            onClick={() => setActiveSubTab('visits')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+              activeSubTab === 'visits'
+                ? 'bg-slate-800 text-cyan-400 border border-slate-700 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5" />
+            <span>Thống Kê Truy Cập</span>
           </button>
         )}
       </div>
@@ -970,6 +986,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenCreateQuiz
           </div>
         )
       )}
+
+      {/* Anonymous visit analytics (admin only) */}
+      {activeSubTab === 'visits' && isAdmin && <VisitAnalytics />}
 
       {/* SUB-VIEW 6: Activity Log (admin only) — who did what and when, across
           anonymous guests/parents and logged-in teachers/admins. */}

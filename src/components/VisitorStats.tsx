@@ -28,7 +28,16 @@ export const VisitorStats: React.FC = () => {
     // effect invocations in the same tick — React StrictMode's dev-only
     // double-invoke — can't both see "not counted yet" and increment twice.
     const alreadyCounted = sessionStorage.getItem(SESSION_VISIT_KEY) === '1';
-    if (!alreadyCounted) sessionStorage.setItem(SESSION_VISIT_KEY, '1');
+    if (!alreadyCounted) {
+      sessionStorage.setItem(SESSION_VISIT_KEY, '1');
+      // Anonymous analytics (device/OS/browser/approx. city) — see /api/track-visit.
+      fetch('/api/track-visit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        keepalive: true,
+        body: JSON.stringify({ path: window.location.pathname, touch: navigator.maxTouchPoints > 1 }),
+      }).catch(() => {});
+    }
 
     (alreadyCounted ? storageService.getTotalVisits() : storageService.incrementSiteVisit())
       .then((count) => {
