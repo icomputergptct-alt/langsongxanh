@@ -292,6 +292,29 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
     if (!isOpen) setRemoteThumb(null);
   }, [isOpen]);
 
+  // Optional cover the editor picks for a video post, overriding the automatic one.
+  const [manualVideoCover, setManualVideoCover] = useState('');
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const videoCoverInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (isOpen) setManualVideoCover('');
+  }, [isOpen, article]);
+
+  const handlePickVideoCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !file.type.startsWith('image/')) return;
+    setIsUploadingCover(true);
+    try {
+      setManualVideoCover(await storageService.uploadArticleImage(file));
+    } catch (err) {
+      console.error('Không tải được ảnh bìa lên:', err);
+      setError('Không tải được ảnh bìa lên Supabase. Vui lòng thử lại.');
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   // Inserts a block at the textarea's cursor (replacing any selection), padded with
@@ -432,7 +455,8 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
   // (YouTube), else the first image in the text, else a generic video cover.
   const fetchedThumb = remoteThumb?.source === trimmedVideo ? remoteThumb : null;
   const effectiveCover = isVideoNews
-    ? videoThumbnail(trimmedVideo) ||
+    ? manualVideoCover ||
+      videoThumbnail(trimmedVideo) ||
       (hasStoredVideoCover ? article!.coverImage : '') ||
       fetchedThumb?.preview ||
       contentImages[0] ||
@@ -625,18 +649,45 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
                   ✓ Nhận dạng: {resolvedVideo.kind === 'file' ? 'File video' : resolvedVideo.provider} — xem trước:
                 </p>
                 <VideoEmbed source={trimmedVideo} title={title || 'Xem trước video'} className="max-w-md" />
-                {isVideoNews && (
-                  <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400">
-                    <img src={effectiveCover} alt="" className="w-16 h-16 rounded-lg object-cover border border-slate-700" />
-                    <span>
-                      {isFetchingThumb
-                        ? 'Đang lấy hình mở đầu của video...'
-                        : effectiveCover === VIDEO_NEWS_COVER
-                          ? 'Không lấy được hình mở đầu — dùng ảnh mặc định.'
-                          : 'Ảnh hiển thị trên thẻ tin (hình mở đầu của video).'}
-                    </span>
+              </div>
+            )}
+            {isVideoNews && (
+              <div className="mt-3 flex items-center gap-3 text-[11px] text-slate-400">
+                <img src={effectiveCover} alt="" className="w-20 h-20 rounded-lg object-cover border border-slate-700 shrink-0" />
+                <div className="space-y-1.5">
+                  <p>
+                    {isUploadingCover
+                      ? 'Đang tải ảnh bìa lên...'
+                      : manualVideoCover
+                        ? 'Ảnh bìa bạn đã chọn.'
+                        : isFetchingThumb
+                          ? 'Đang lấy hình mở đầu của video...'
+                          : effectiveCover === VIDEO_NEWS_COVER
+                            ? 'Chưa có hình mở đầu — đang dùng ảnh mặc định.'
+                            : 'Ảnh bìa tự động (hình mở đầu của video).'}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => videoCoverInputRef.current?.click()}
+                      disabled={isUploadingCover}
+                      className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-cyan-300 font-semibold px-2.5 py-1 rounded-lg transition-colors"
+                    >
+                      <ImagePlus className="w-3.5 h-3.5" />
+                      <span>{manualVideoCover ? 'Đổi ảnh bìa' : 'Chọn ảnh bìa khác (không bắt buộc)'}</span>
+                    </button>
+                    {manualVideoCover && (
+                      <button
+                        type="button"
+                        onClick={() => setManualVideoCover('')}
+                        className="text-slate-400 hover:text-slate-200 font-semibold px-2 py-1"
+                      >
+                        Dùng hình tự động
+                      </button>
+                    )}
                   </div>
-                )}
+                  <input ref={videoCoverInputRef} type="file" accept="image/*" hidden onChange={handlePickVideoCover} />
+                </div>
               </div>
             )}
           </div>
@@ -807,7 +858,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
           </button>
           <button
             onClick={handleSave}
-            disabled={isSaving || isUploadingImages || isFetchingThumb}
+            disabled={isSaving || isUploadingImages || isFetchingThumb || isUploadingCover}
             className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white text-sm font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-cyan-600/20 transition-all"
           >
             <Check className="w-4 h-4" />
