@@ -957,3 +957,6 @@ end;
 $$;
 
 grant execute on function public.get_visit_stats(int) to authenticated;
+
+-- Video news ("Tin tức video"): a video link or embed code attached to an article.
+alter table articles add column if not exists video_source text;

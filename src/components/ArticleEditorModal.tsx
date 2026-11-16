@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Check, Newspaper, ImagePlus } from 'lucide-react';
-import { Article, TechCategory, DEFAULT_AVATAR } from '../types';
+import { X, Check, Newspaper, ImagePlus, Video } from 'lucide-react';
+import { Article, TechCategory, DEFAULT_AVATAR, VIDEO_NEWS_CATEGORY } from '../types';
+import { resolveVideoSource, videoThumbnail } from '../utils/videoEmbed';
+import { VideoEmbed } from './VideoEmbed';
 import { storageService } from '../services/storageService';
 
 interface ArticleEditorModalProps {
@@ -19,6 +21,7 @@ const CATEGORIES: TechCategory[] = [
   'Phần cứng & Bán dẫn',
   'Tin công nghệ mới',
   'Tin tức địa phương',
+  'Tin tức video',
 ];
 
 const SKIPPED_TAGS = new Set(['SCRIPT', 'STYLE', 'META', 'TITLE', 'HEAD', 'LINK', 'NOSCRIPT']);
@@ -203,6 +206,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
   const [isDeepAnalysis, setIsDeepAnalysis] = useState(false);
   const [isTrending, setIsTrending] = useState(false);
   const [keyInsights, setKeyInsights] = useState('');
+  const [videoSource, setVideoSource] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
@@ -227,6 +231,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
       setIsDeepAnalysis(!!article.isDeepAnalysis);
       setIsTrending(!!article.isTrending);
       setKeyInsights((article.keyInsights || []).join('\n'));
+      setVideoSource(article.videoSource || '');
     } else {
       setTitle('');
       setSlug('');
@@ -241,6 +246,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
       setIsDeepAnalysis(false);
       setIsTrending(false);
       setKeyInsights('');
+      setVideoSource('');
     }
     setError(null);
     setImageNotice(null);
@@ -373,9 +379,33 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
     await uploadImageFiles(files, start, end);
   };
 
+  const handleVideoSourceChange = (value: string) => {
+    setVideoSource(value);
+    const thumb = videoThumbnail(value);
+    if (thumb) setCoverImage((prev) => prev.trim() || thumb);
+  };
+
+  const isVideoNews = category === VIDEO_NEWS_CATEGORY;
+  const trimmedVideo = videoSource.trim();
+  const resolvedVideo = resolveVideoSource(trimmedVideo);
+
   const handleSave = async () => {
-    if (!title.trim() || !summary.trim() || !content.trim() || !coverImage.trim() || !authorName.trim()) {
-      setError('Vui lòng điền đầy đủ: tiêu đề, tóm tắt, nội dung, ảnh bìa và tên tác giả.');
+    if (trimmedVideo && !resolvedVideo) {
+      setError('Không nhận dạng được video. Hãy dán link YouTube / Facebook / TikTok / Vimeo / file .mp4, hoặc mã nhúng <iframe>.');
+      return;
+    }
+    if (isVideoNews && !resolvedVideo) {
+      setError('Tin tức video cần có link video hoặc mã nhúng.');
+      return;
+    }
+    // A video post can stand on its own: the body text is optional then.
+    const needsContent = !resolvedVideo;
+    if (!title.trim() || !summary.trim() || (needsContent && !content.trim()) || !coverImage.trim() || !authorName.trim()) {
+      setError(
+        needsContent
+          ? 'Vui lòng điền đầy đủ: tiêu đề, tóm tắt, nội dung, ảnh bìa và tên tác giả.'
+          : 'Vui lòng điền đầy đủ: tiêu đề, tóm tắt, ảnh bìa và tên tác giả.'
+      );
       return;
     }
 
@@ -401,6 +431,8 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
           isDeepAnalysis,
           isTrending,
           keyInsights: insightList,
+          // '' (not undefined) clears a video that was removed while editing.
+          videoSource: trimmedVideo || (article.videoSource ? '' : undefined),
         }
       : {
           id: `art-${Date.now()}`,
@@ -424,6 +456,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
           isDeepAnalysis,
           isTrending,
           keyInsights: insightList,
+          videoSource: trimmedVideo || undefined,
         };
 
     try {
@@ -506,10 +539,38 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
             />
           </div>
 
+          <div className={isVideoNews ? 'p-3 rounded-xl border border-rose-500/40 bg-rose-500/5' : ''}>
+            <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 mb-1">
+              <Video className="w-3.5 h-3.5 text-rose-400" />
+              Video {isVideoNews ? '(bắt buộc)' : '(không bắt buộc)'} — dán link hoặc mã nhúng HTML
+            </label>
+            <textarea
+              rows={2}
+              value={videoSource}
+              onChange={(e) => handleVideoSourceChange(e.target.value)}
+              placeholder={'https://www.youtube.com/watch?v=...   hoặc   <iframe src="https://..." ...></iframe>'}
+              className="w-full bg-slate-950 border border-slate-800 focus:border-rose-500 rounded-xl p-3 text-xs font-mono text-slate-300 placeholder-slate-600 focus:outline-none resize-y"
+            />
+            <p className="mt-1 text-[11px] text-slate-500">
+              Hỗ trợ YouTube (cả Shorts), Facebook, TikTok, Vimeo, Dailymotion, file .mp4/.webm, hoặc thẻ &lt;iframe&gt;/&lt;video&gt; lấy từ nút "Nhúng" (Embed) của trang nguồn.
+            </p>
+            {trimmedVideo && !resolvedVideo && (
+              <p className="mt-1 text-xs text-amber-300">Chưa nhận dạng được video từ nội dung này.</p>
+            )}
+            {resolvedVideo && (
+              <div className="mt-2">
+                <p className="text-[11px] text-emerald-400 mb-1.5">
+                  ✓ Nhận dạng: {resolvedVideo.kind === 'file' ? 'File video' : resolvedVideo.provider} — xem trước:
+                </p>
+                <VideoEmbed source={trimmedVideo} title={title || 'Xem trước video'} className="max-w-md" />
+              </div>
+            )}
+          </div>
+
           <div>
             <div className="flex items-end justify-between gap-3 mb-1">
               <label className="block text-xs font-medium text-slate-400">
-                Nội dung (hỗ trợ ### tiêu đề, ```code```, gạch đầu dòng * ). Có thể dán (Ctrl+V) cả chữ lẫn hình ảnh.
+                Nội dung{resolvedVideo ? ' (không bắt buộc với tin video)' : ''} (hỗ trợ ### tiêu đề, ```code```, gạch đầu dòng * ). Có thể dán (Ctrl+V) cả chữ lẫn hình ảnh.
               </label>
               <button
                 type="button"

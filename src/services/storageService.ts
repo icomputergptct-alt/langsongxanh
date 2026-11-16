@@ -91,6 +91,7 @@ function rowToArticle(row: any, isLiked: boolean, isBookmarked: boolean): Articl
     isDeepAnalysis: row.is_deep_analysis,
     isTrending: row.is_trending,
     keyInsights: row.key_insights || [],
+    videoSource: row.video_source || undefined,
   };
 }
 
@@ -115,6 +116,9 @@ function articleToRow(article: Article) {
     is_deep_analysis: !!article.isDeepAnalysis,
     is_trending: !!article.isTrending,
     key_insights: article.keyInsights || [],
+    // Only sent when set (or being cleared), so saving plain articles keeps
+    // working on a database that hasn't added the video_source column yet.
+    ...(article.videoSource !== undefined ? { video_source: article.videoSource || null } : {}),
   });
 }
 

@@ -6,9 +6,10 @@ import {
   BookmarkCheck, 
   Sparkles, 
   TrendingUp, 
-  ArrowUpRight
+  ArrowUpRight,
+  Play
 } from 'lucide-react';
-import { Article, LOCAL_NEWS_CATEGORY, isCompactNewsCategory } from '../types';
+import { Article, LOCAL_NEWS_CATEGORY, VIDEO_NEWS_CATEGORY, isCompactNewsCategory } from '../types';
 import { formatRelativeTime } from '../utils/relativeTime';
 
 interface ArticleCardProps {
@@ -20,6 +21,19 @@ interface ArticleCardProps {
   /** Force the compact small-image card for any category (e.g. related-news slider). */
   compact?: boolean;
 }
+
+// Round play button over a video post's thumbnail.
+const PlayOverlay: React.FC<{ small?: boolean }> = ({ small }) => (
+  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <span
+      className={`flex items-center justify-center rounded-full bg-red-600/90 text-white shadow-lg group-hover:scale-110 transition-transform ${
+        small ? 'w-8 h-8' : 'w-14 h-14'
+      }`}
+    >
+      <Play className={`${small ? 'w-4 h-4' : 'w-7 h-7'} fill-current ml-0.5`} />
+    </span>
+  </div>
+);
 
 export const ArticleCard: React.FC<ArticleCardProps> = ({
   article,
@@ -33,9 +47,12 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   // cover-image card used for full articles.
   if (compact || isCompactNewsCategory(article.category)) {
     const isLocal = article.category === LOCAL_NEWS_CATEGORY;
+    const isVideo = article.category === VIDEO_NEWS_CATEGORY;
     const badge = isLocal
       ? 'Địa phương'
-      : isCompactNewsCategory(article.category)
+      : isVideo
+        ? 'Video'
+        : isCompactNewsCategory(article.category)
         ? 'Tin mới'
         : article.category;
     return (
@@ -44,17 +61,18 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         onClick={() => onSelectArticle(article)}
         className="group relative bg-white hover:bg-slate-50 border border-emerald-400/60 hover:border-emerald-400 rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 shadow-md shadow-black/10 hover:shadow-lg hover:shadow-emerald-500/20 flex gap-3 p-3"
       >
-        <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-xl overflow-hidden bg-slate-100">
+        <div className="relative w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-xl overflow-hidden bg-slate-100">
           <img
             src={article.coverImage}
             alt={article.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
           />
+          {article.videoSource && <PlayOverlay small />}
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-center gap-1.5 mb-1 text-[10px]">
-            <span className={`font-bold uppercase px-1.5 py-0.5 rounded truncate max-w-[60%] shrink-0 ${isLocal ? 'bg-amber-500/15 text-amber-700' : 'bg-emerald-500/15 text-emerald-700'}`}>
+            <span className={`font-bold uppercase px-1.5 py-0.5 rounded truncate max-w-[60%] shrink-0 ${isLocal ? 'bg-amber-500/15 text-amber-700' : isVideo ? 'bg-rose-500/15 text-rose-700' : 'bg-emerald-500/15 text-emerald-700'}`}>
               {badge}
             </span>
             <span className="text-blue-600 font-medium truncate">{formatRelativeTime(article.publishedAt)}</span>
@@ -101,6 +119,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           loading="lazy"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+        {article.videoSource && <PlayOverlay />}
 
         {/* Badges */}
         <div className="absolute top-3.5 left-3.5 flex flex-wrap gap-1.5">

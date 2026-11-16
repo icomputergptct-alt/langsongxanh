@@ -20,7 +20,8 @@ create table if not exists articles (
   likes int not null default 0,
   is_deep_analysis boolean not null default false,
   is_trending boolean not null default false,
-  key_insights text[] not null default '{}'
+  key_insights text[] not null default '{}',
+  video_source text
 );
 
 create table if not exists comments (

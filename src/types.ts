@@ -11,7 +11,8 @@ export type TechCategory =
   | 'Blockchain & Web3'
   | 'Phần cứng & Bán dẫn'
   | 'Tin công nghệ mới'
-  | 'Tin tức địa phương';
+  | 'Tin tức địa phương'
+  | 'Tin tức video';
 
 // Short news items shown in the home page's "Tin tức công nghệ mới" card.
 export const TECH_NEWS_CATEGORY: TechCategory = 'Tin công nghệ mới';
@@ -27,8 +28,11 @@ export const resolveAvatar = (url?: string | null) =>
 export const LOCAL_NEWS_CATEGORY: TechCategory = 'Tin tức địa phương';
 
 // Short news categories that use the compact card and a strip instead of the article grid.
+// Video news: posts built around a video (link or embed code), shown in their own strip.
+export const VIDEO_NEWS_CATEGORY: TechCategory = 'Tin tức video';
+
 export const isCompactNewsCategory = (category: string) =>
-  category === TECH_NEWS_CATEGORY || category === LOCAL_NEWS_CATEGORY;
+  category === TECH_NEWS_CATEGORY || category === LOCAL_NEWS_CATEGORY || category === VIDEO_NEWS_CATEGORY;
 
 export interface Comment {
   id: string;
@@ -68,6 +72,8 @@ export interface Article {
   isDeepAnalysis?: boolean;
   isTrending?: boolean;
   keyInsights?: string[];
+  // A video link (YouTube, Facebook, TikTok, .mp4...) or an embed code (<iframe>).
+  videoSource?: string;
 }
 
 export interface OfflineArticle {

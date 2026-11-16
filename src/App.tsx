@@ -35,7 +35,7 @@ import { SearchResults } from './components/SearchResults';
 import { ContactPage } from './components/ContactPage';
 import { InformaticsVideos } from './components/InformaticsVideos';
 import { MeetingRoom, parseRoomInput, POST_LOGIN_PATH_KEY } from './components/MeetingRoom';
-import { Article, ExamDocument, QuizExam, SoftwareUtility, TECH_NEWS_CATEGORY, LOCAL_NEWS_CATEGORY, isCompactNewsCategory } from './types';
+import { Article, ExamDocument, QuizExam, SoftwareUtility, TECH_NEWS_CATEGORY, LOCAL_NEWS_CATEGORY, VIDEO_NEWS_CATEGORY, isCompactNewsCategory } from './types';
 import { storageService } from './services/storageService';
 import { useAuth } from './contexts/AuthContext';
 import { formatRelativeTime } from './utils/relativeTime';
@@ -209,6 +209,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAllTechNews, setShowAllTechNews] = useState(false);
   const [showAllLocalNews, setShowAllLocalNews] = useState(false);
+  const [showAllVideoNews, setShowAllVideoNews] = useState(false);
 
   // Offline management
   const [isOffline, setIsOffline] = useState(() => storageService.isOfflineMode());
@@ -610,6 +611,9 @@ export default function App() {
   const localNewsInList = filteredArticles
     .filter((a) => a.category === LOCAL_NEWS_CATEGORY)
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  const videoNewsInList = filteredArticles
+    .filter((a) => a.category === VIDEO_NEWS_CATEGORY)
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   const gridArticles = filteredArticles.filter((a) => !isCompactNewsCategory(a.category));
 
   // A titled strip of compact news cards: an auto-sliding row, or the full grid once "Xem tất cả" is on.
@@ -972,6 +976,8 @@ export default function App() {
                       renderNewsStrip('Tin công nghệ mới', 'bg-red-500', techNewsInList, showAllTechNews, () => setShowAllTechNews((v) => !v))}
                     {safeArticlePage === 1 &&
                       renderNewsStrip('Tin tức địa phương', 'bg-amber-400', localNewsInList, showAllLocalNews, () => setShowAllLocalNews((v) => !v))}
+                    {safeArticlePage === 1 &&
+                      renderNewsStrip('Tin tức video', 'bg-rose-500', videoNewsInList, showAllVideoNews, () => setShowAllVideoNews((v) => !v))}
 
                     {paginatedArticles.length > 0 && (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

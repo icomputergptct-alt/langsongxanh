@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { Article } from '../types';
 import { CommentSection } from './CommentSection';
+import { VideoEmbed } from './VideoEmbed';
+import { resolveVideoSource } from '../utils/videoEmbed';
 
 interface ArticleDetailProps {
   article: Article;
@@ -66,6 +68,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
   };
 
   const articleRef = useRef<HTMLElement>(null);
+  const hasVideo = !!resolveVideoSource(article.videoSource);
 
   // Prints just the article (in the light reader theme) from a hidden iframe that
   // reuses the page's stylesheets, so menus, the AI box, likes and comments stay out.
@@ -78,6 +81,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
     if (!clone) return;
 
     clone.querySelectorAll('[data-print-hide]').forEach((el) => el.remove());
+    clone.querySelectorAll('[data-print-only]').forEach((el) => el.classList.remove('hidden'));
     clone.querySelectorAll('img').forEach((img) => img.removeAttribute('loading'));
 
     const escapeHtml = (s: string) =>
@@ -386,8 +390,18 @@ ${clone.outerHTML}
           </div>
         </div>
 
-        {/* Cover Image */}
-        <div className="mb-8 rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
+        {/* Video (for video posts) or Cover Image. The cover stays in print, where a player can't play. */}
+        {hasVideo && (
+          <div data-print-hide className="mb-8">
+            <VideoEmbed source={article.videoSource!} title={article.title} />
+          </div>
+        )}
+        <div
+          {...(hasVideo ? { 'data-print-only': '' } : {})}
+          className={`mb-8 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 ${
+            hasVideo ? 'hidden' : ''
+          }`}
+        >
           <img
             src={article.coverImage}
             alt={article.title}
