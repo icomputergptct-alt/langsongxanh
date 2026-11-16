@@ -3,6 +3,9 @@ import { X, Check, Newspaper, ImagePlus, Video } from 'lucide-react';
 import { Article, TechCategory, DEFAULT_AVATAR, VIDEO_NEWS_CATEGORY } from '../types';
 import { resolveVideoSource, videoThumbnail } from '../utils/videoEmbed';
 import { VideoEmbed } from './VideoEmbed';
+
+// Card image for a video post whose video has no derivable thumbnail.
+const VIDEO_NEWS_COVER = '/video-cover.svg';
 import { storageService } from '../services/storageService';
 
 interface ArticleEditorModalProps {
@@ -388,6 +391,11 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
   const isVideoNews = category === VIDEO_NEWS_CATEGORY;
   const trimmedVideo = videoSource.trim();
   const resolvedVideo = resolveVideoSource(trimmedVideo);
+  // Video news has no cover field: the card uses the video's own thumbnail
+  // (YouTube), else the first image in the text, else a generic video cover.
+  const effectiveCover = isVideoNews
+    ? videoThumbnail(trimmedVideo) || contentImages[0] || VIDEO_NEWS_COVER
+    : coverImage.trim();
 
   const handleSave = async () => {
     if (trimmedVideo && !resolvedVideo) {
@@ -400,11 +408,13 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
     }
     // A video post can stand on its own: the body text is optional then.
     const needsContent = !resolvedVideo;
-    if (!title.trim() || !summary.trim() || (needsContent && !content.trim()) || !coverImage.trim() || !authorName.trim()) {
+    if (!title.trim() || !summary.trim() || (needsContent && !content.trim()) || !effectiveCover || !authorName.trim()) {
       setError(
-        needsContent
-          ? 'Vui lòng điền đầy đủ: tiêu đề, tóm tắt, nội dung, ảnh bìa và tên tác giả.'
-          : 'Vui lòng điền đầy đủ: tiêu đề, tóm tắt, ảnh bìa và tên tác giả.'
+        isVideoNews
+          ? 'Vui lòng điền đầy đủ: tiêu đề, tóm tắt và tên tác giả.'
+          : needsContent
+            ? 'Vui lòng điền đầy đủ: tiêu đề, tóm tắt, nội dung, ảnh bìa và tên tác giả.'
+            : 'Vui lòng điền đầy đủ: tiêu đề, tóm tắt, ảnh bìa và tên tác giả.'
       );
       return;
     }
@@ -425,7 +435,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
           content: content.trim(),
           category,
           tags: tagList,
-          coverImage: coverImage.trim(),
+          coverImage: effectiveCover,
           readTimeMinutes: Number(readTimeMinutes) || 5,
           author: { ...article.author, name: authorName.trim(), role: authorRole.trim(), avatar: authorAvatar.trim() },
           isDeepAnalysis,
@@ -450,7 +460,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
           readTimeMinutes: Number(readTimeMinutes) || 5,
           category,
           tags: tagList,
-          coverImage: coverImage.trim(),
+          coverImage: effectiveCover,
           views: 0,
           likes: 0,
           isDeepAnalysis,
@@ -595,7 +605,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
             {isUploadingImages && <p className="mt-1 text-xs text-cyan-300">Đang tải ảnh lên...</p>}
             {imageNotice && <p className="mt-1 text-xs text-amber-300">{imageNotice}</p>}
 
-            {galleryImages.length > 0 && (
+            {!isVideoNews && galleryImages.length > 0 && (
               <div className="mt-3">
                 <p className="text-xs font-medium text-slate-400 mb-2">
                   Danh sách hình ảnh trong bài ({galleryImages.length}) — bấm vào ảnh để đặt làm ảnh bìa
@@ -635,6 +645,8 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
             )}
           </div>
 
+          {/* Video news keeps only the essentials: no cover, tags, role, read time, insights or flags. */}
+          {!isVideoNews && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-400 mb-1">Ảnh bìa (URL)</label>
@@ -657,8 +669,9 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
               />
             </div>
           </div>
+          )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className={isVideoNews ? '' : 'grid grid-cols-1 sm:grid-cols-3 gap-4'}>
             <div>
               <label className="block text-xs font-medium text-slate-400 mb-1">Tên tác giả</label>
               <input
@@ -668,6 +681,8 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
                 className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none"
               />
             </div>
+            {!isVideoNews && (
+            <>
             <div>
               <label className="block text-xs font-medium text-slate-400 mb-1">Chức danh tác giả</label>
               <input
@@ -688,8 +703,12 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
                 className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none"
               />
             </div>
+            </>
+            )}
           </div>
 
+          {!isVideoNews && (
+          <>
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1">Điểm nhấn chính (mỗi dòng một ý, không bắt buộc)</label>
             <textarea
@@ -710,6 +729,8 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
               Đánh dấu thịnh hành
             </label>
           </div>
+          </>
+          )}
 
           {error && (
             <div className="text-xs text-rose-300 bg-rose-500/10 border border-rose-500/30 rounded-lg p-3">{error}</div>
