@@ -61,17 +61,18 @@ function resolveUrl(raw: string): ResolvedVideo | null {
   }
 
   if (host === 'facebook.com' || host === 'fb.watch') {
-    // Already a plugin URL (from Facebook's own embed code): keep it as is.
-    if (u.pathname.startsWith('/plugins/video.php')) {
-      return { kind: 'iframe', provider: 'Facebook', vertical: false, src: u.toString() };
-    }
-    const vertical = u.pathname.includes('/reel/');
-    return {
-      kind: 'iframe',
-      provider: 'Facebook',
-      vertical,
-      src: `https://www.facebook.com/plugins/video.php?show_text=false&href=${encodeURIComponent(u.toString())}`,
-    };
+    // A plugin URL (from Facebook's own embed code) carries the video link in href.
+    const isPlugin = u.pathname.startsWith('/plugins/video.php');
+    const href = isPlugin ? u.searchParams.get('href') || '' : u.toString();
+    // Reels are vertical, even though Facebook's embed code sizes them 560x309 —
+    // in a landscape frame the player crops the top and bottom off.
+    const vertical = href.includes('/reel/');
+    const player = new URL('https://www.facebook.com/plugins/video.php');
+    player.searchParams.set('href', href);
+    player.searchParams.set('show_text', 'false');
+    player.searchParams.set('width', vertical ? '360' : '560');
+    player.searchParams.set('height', vertical ? '640' : '315');
+    return { kind: 'iframe', provider: 'Facebook', vertical, src: player.toString() };
   }
 
   if (host === 'dailymotion.com' || host === 'dai.ly') {
