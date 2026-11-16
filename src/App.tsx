@@ -617,7 +617,15 @@ export default function App() {
   const gridArticles = filteredArticles.filter((a) => !isCompactNewsCategory(a.category));
 
   // A titled strip of compact news cards: an auto-sliding row, or the full grid once "Xem tất cả" is on.
-  const renderNewsStrip = (title: string, dotClass: string, items: Article[], showAll: boolean, toggleShowAll: () => void) => {
+  const renderNewsStrip = (
+    title: string,
+    dotClass: string,
+    items: Article[],
+    showAll: boolean,
+    toggleShowAll: () => void,
+    // Show "Xem tất cả" even when everything already fits in the slider.
+    alwaysShowToggle = false
+  ) => {
     if (items.length === 0) return null;
     const renderCard = (article: Article) => (
       <ArticleCard
@@ -635,7 +643,7 @@ export default function App() {
             <span className={`w-2 h-2 ${dotClass} rounded-full animate-pulse`}></span>
             {title}
           </h3>
-          {items.length > TECH_NEWS_STRIP_LIMIT && (
+          {(alwaysShowToggle || items.length > TECH_NEWS_STRIP_LIMIT) && (
             <button onClick={toggleShowAll} className="text-xs font-bold text-blue-400 hover:text-blue-300">
               {showAll ? 'Thu gọn ↑' : `Xem tất cả (${items.length}) →`}
             </button>
@@ -977,7 +985,7 @@ export default function App() {
                     {safeArticlePage === 1 &&
                       renderNewsStrip('Tin tức địa phương', 'bg-amber-400', localNewsInList, showAllLocalNews, () => setShowAllLocalNews((v) => !v))}
                     {safeArticlePage === 1 &&
-                      renderNewsStrip('Tin tức video', 'bg-rose-500', videoNewsInList, showAllVideoNews, () => setShowAllVideoNews((v) => !v))}
+                      renderNewsStrip('Tin tức video', 'bg-rose-500', videoNewsInList, showAllVideoNews, () => setShowAllVideoNews((v) => !v), true)}
 
                     {paginatedArticles.length > 0 && (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
