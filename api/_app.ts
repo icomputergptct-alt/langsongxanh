@@ -59,6 +59,46 @@ function getServerSupabase() {
 }
 
 const visitRateLimiter = createRateLimiter(20, 60_000);
+const videoThumbRateLimiter = createRateLimiter(20, 60_000);
+
+// Video pages whose preview image (og:image) we may read, and the CDNs those
+// images may come from — a fixed allowlist so this can't be used to fetch
+// arbitrary/internal URLs.
+const VIDEO_PAGE_HOSTS = ["facebook.com", "fb.watch", "tiktok.com", "vimeo.com", "dailymotion.com"];
+const VIDEO_IMAGE_HOSTS = ["fbcdn.net", "tiktokcdn.com", "tiktokcdn-us.com", "vimeocdn.com", "dmcdn.net"];
+const MAX_THUMB_BYTES = 5 * 1024 * 1024;
+
+const hostAllowed = (url: string, allowed: string[]) => {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && allowed.some((h) => u.hostname === h || u.hostname.endsWith(`.${h}`));
+  } catch {
+    return false;
+  }
+};
+
+// Facebook only serves og:image to its own crawler UA; the others accept it too.
+async function fetchVideoThumbnail(pageUrl: string): Promise<{ type: string; body: Buffer } | null> {
+  const page = await fetch(pageUrl, {
+    headers: { "User-Agent": "facebookexternalhit/1.1", "Accept-Language": "vi,en;q=0.8" },
+    redirect: "follow",
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!page.ok || !hostAllowed(page.url, VIDEO_PAGE_HOSTS)) return null;
+  const html = (await page.text()).slice(0, 2_000_000);
+  const tag =
+    html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]*>/i)?.[0] || "";
+  const raw = tag.match(/content=["']([^"']+)["']/i)?.[1];
+  if (!raw) return null;
+  const imageUrl = raw.replace(/&amp;/g, "&");
+  if (!hostAllowed(imageUrl, VIDEO_IMAGE_HOSTS)) return null;
+
+  const img = await fetch(imageUrl, { redirect: "follow", signal: AbortSignal.timeout(8000) });
+  const type = img.headers.get("content-type") || "";
+  if (!img.ok || !type.startsWith("image/") || !hostAllowed(img.url, VIDEO_IMAGE_HOSTS)) return null;
+  const body = Buffer.from(await img.arrayBuffer());
+  return body.length > 0 && body.length <= MAX_THUMB_BYTES ? { type, body } : null;
+}
 
 // Coarse, anonymous device info from the User-Agent — nothing finer than
 // device type / OS / browser family is kept.
@@ -163,6 +203,23 @@ export function createApiApp() {
     });
     if (error) console.warn("log_visit failed:", error.message);
     done();
+  });
+
+  // Opening frame of a Facebook/TikTok/Vimeo/Dailymotion video, proxied as image
+  // bytes so the editor can store a permanent copy (their CDN links expire).
+  app.get("/api/video-thumbnail", videoThumbRateLimiter, async (req, res) => {
+    const url = typeof req.query.url === "string" ? req.query.url : "";
+    if (!hostAllowed(url, VIDEO_PAGE_HOSTS)) return res.status(400).json({ error: "Nguồn video không được hỗ trợ." });
+    try {
+      const thumb = await fetchVideoThumbnail(url);
+      if (!thumb) return res.status(404).json({ error: "Không tìm thấy ảnh của video." });
+      res.setHeader("Content-Type", thumb.type);
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      return res.send(thumb.body);
+    } catch (err: any) {
+      console.error("Error in video-thumbnail:", err?.message);
+      return res.status(502).json({ error: "Không lấy được ảnh của video." });
+    }
   });
 
   app.get("/api/health", (req, res) => {

@@ -131,3 +131,23 @@ export function videoThumbnail(source?: string | null): string | null {
   const id = v?.kind === 'iframe' ? v.src.match(/youtube-nocookie\.com\/embed\/([\w-]{11})/)?.[1] : null;
   return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null;
 }
+
+// The public page of a non-YouTube video, whose preview image the server can
+// read (/api/video-thumbnail). For Facebook embeds that's the plugin's href.
+export function videoPageUrl(source?: string | null): string | null {
+  const v = resolveVideoSource(source);
+  if (!v || v.kind !== 'iframe' || v.provider === 'YouTube') return null;
+  try {
+    const u = new URL(v.src);
+    if (u.pathname.startsWith('/plugins/video.php')) return u.searchParams.get('href');
+    const tiktok = u.pathname.match(/^\/embed\/v2\/(\d+)/)?.[1];
+    if (tiktok) return `https://www.tiktok.com/@/video/${tiktok}`;
+    const vimeo = u.hostname === 'player.vimeo.com' ? u.pathname.match(/\/video\/(\d+)/)?.[1] : null;
+    if (vimeo) return `https://vimeo.com/${vimeo}`;
+    const dm = u.pathname.match(/^\/embed\/video\/(\w+)/)?.[1];
+    if (dm) return `https://www.dailymotion.com/video/${dm}`;
+  } catch {
+    /* resolved src is always a valid URL */
+  }
+  return null;
+}

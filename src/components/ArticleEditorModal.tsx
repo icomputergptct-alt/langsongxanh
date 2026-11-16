@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Check, Newspaper, ImagePlus, Video } from 'lucide-react';
 import { Article, TechCategory, DEFAULT_AVATAR, VIDEO_NEWS_CATEGORY } from '../types';
-import { resolveVideoSource, videoThumbnail } from '../utils/videoEmbed';
+import { resolveVideoSource, videoThumbnail, videoPageUrl } from '../utils/videoEmbed';
 import { VideoEmbed } from './VideoEmbed';
 
 // Card image for a video post whose video has no derivable thumbnail.
@@ -255,6 +255,43 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
     setImageNotice(null);
   }, [isOpen, article, defaultCategory]);
 
+  // Opening frame of a Facebook/TikTok/Vimeo/Dailymotion video, fetched through
+  // our API (their CDN links expire, so the bytes are uploaded on save).
+  const [remoteThumb, setRemoteThumb] = useState<{ source: string; blob: Blob; preview: string } | null>(null);
+  const [isFetchingThumb, setIsFetchingThumb] = useState(false);
+  const thumbSource = videoSource.trim();
+  // Editing a post whose stored cover already belongs to this same video: keep it.
+  const hasStoredVideoCover =
+    !!article && article.videoSource?.trim() === thumbSource && article.coverImage !== VIDEO_NEWS_COVER;
+  useEffect(() => {
+    const pageUrl = videoPageUrl(thumbSource);
+    if (!isOpen || category !== VIDEO_NEWS_CATEGORY || !pageUrl || hasStoredVideoCover) return;
+    if (remoteThumb?.source === thumbSource) return;
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setIsFetchingThumb(true);
+      try {
+        const res = await fetch(`/api/video-thumbnail?url=${encodeURIComponent(pageUrl)}`);
+        const blob = res.ok ? await res.blob() : null;
+        if (!cancelled && blob?.type.startsWith('image/')) {
+          setRemoteThumb({ source: thumbSource, blob, preview: URL.createObjectURL(blob) });
+        }
+      } catch (err) {
+        console.error('Không lấy được ảnh mở đầu của video:', err);
+      } finally {
+        if (!cancelled) setIsFetchingThumb(false);
+      }
+    }, 600);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [isOpen, category, thumbSource, hasStoredVideoCover, remoteThumb?.source]);
+
+  useEffect(() => {
+    if (!isOpen) setRemoteThumb(null);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   // Inserts a block at the textarea's cursor (replacing any selection), padded with
@@ -393,8 +430,13 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
   const resolvedVideo = resolveVideoSource(trimmedVideo);
   // Video news has no cover field: the card uses the video's own thumbnail
   // (YouTube), else the first image in the text, else a generic video cover.
+  const fetchedThumb = remoteThumb?.source === trimmedVideo ? remoteThumb : null;
   const effectiveCover = isVideoNews
-    ? videoThumbnail(trimmedVideo) || contentImages[0] || VIDEO_NEWS_COVER
+    ? videoThumbnail(trimmedVideo) ||
+      (hasStoredVideoCover ? article!.coverImage : '') ||
+      fetchedThumb?.preview ||
+      contentImages[0] ||
+      VIDEO_NEWS_COVER
     : coverImage.trim();
 
   const handleSave = async () => {
@@ -422,6 +464,16 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
     setIsSaving(true);
     setError(null);
 
+    let finalCover = effectiveCover;
+    if (fetchedThumb && finalCover === fetchedThumb.preview) {
+      try {
+        finalCover = await storageService.uploadArticleImage(fetchedThumb.blob);
+      } catch (err) {
+        console.error('Không tải được ảnh video lên:', err);
+        finalCover = contentImages[0] || VIDEO_NEWS_COVER;
+      }
+    }
+
     const finalSlug = slug.trim() || slugify(title);
     const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean);
     const insightList = keyInsights.split('\n').map((t) => t.trim()).filter(Boolean);
@@ -435,7 +487,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
           content: content.trim(),
           category,
           tags: tagList,
-          coverImage: effectiveCover,
+          coverImage: finalCover,
           readTimeMinutes: Number(readTimeMinutes) || 5,
           author: { ...article.author, name: authorName.trim(), role: authorRole.trim(), avatar: authorAvatar.trim() },
           isDeepAnalysis,
@@ -460,7 +512,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
           readTimeMinutes: Number(readTimeMinutes) || 5,
           category,
           tags: tagList,
-          coverImage: effectiveCover,
+          coverImage: finalCover,
           views: 0,
           likes: 0,
           isDeepAnalysis,
@@ -573,6 +625,18 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
                   ✓ Nhận dạng: {resolvedVideo.kind === 'file' ? 'File video' : resolvedVideo.provider} — xem trước:
                 </p>
                 <VideoEmbed source={trimmedVideo} title={title || 'Xem trước video'} className="max-w-md" />
+                {isVideoNews && (
+                  <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400">
+                    <img src={effectiveCover} alt="" className="w-16 h-16 rounded-lg object-cover border border-slate-700" />
+                    <span>
+                      {isFetchingThumb
+                        ? 'Đang lấy hình mở đầu của video...'
+                        : effectiveCover === VIDEO_NEWS_COVER
+                          ? 'Không lấy được hình mở đầu — dùng ảnh mặc định.'
+                          : 'Ảnh hiển thị trên thẻ tin (hình mở đầu của video).'}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -743,7 +807,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
           </button>
           <button
             onClick={handleSave}
-            disabled={isSaving || isUploadingImages}
+            disabled={isSaving || isUploadingImages || isFetchingThumb}
             className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white text-sm font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-cyan-600/20 transition-all"
           >
             <Check className="w-4 h-4" />
