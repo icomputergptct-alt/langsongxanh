@@ -21,7 +21,8 @@ create table if not exists articles (
   is_deep_analysis boolean not null default false,
   is_trending boolean not null default false,
   key_insights text[] not null default '{}',
-  video_source text
+  video_source text,
+  video_aspect text
 );
 
 create table if not exists comments (

@@ -393,7 +393,7 @@ ${clone.outerHTML}
         {/* Video (for video posts) or Cover Image. The cover stays in print, where a player can't play. */}
         {hasVideo && (
           <div data-print-hide className="mb-8">
-            <VideoEmbed source={article.videoSource!} title={article.title} />
+            <VideoEmbed source={article.videoSource!} title={article.title} aspect={article.videoAspect} />
           </div>
         )}
         <div

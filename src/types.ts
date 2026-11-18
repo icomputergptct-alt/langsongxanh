@@ -74,6 +74,8 @@ export interface Article {
   keyInsights?: string[];
   // A video link (YouTube, Facebook, TikTok, .mp4...) or an embed code (<iframe>).
   videoSource?: string;
+  // Frame shape for the video ('16:9', '9:16', '1:1', '4:3'); empty = automatic.
+  videoAspect?: string;
 }
 
 export interface OfflineArticle {

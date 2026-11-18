@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Check, Newspaper, ImagePlus, Video } from 'lucide-react';
 import { Article, TechCategory, DEFAULT_AVATAR, VIDEO_NEWS_CATEGORY } from '../types';
-import { resolveVideoSource, videoThumbnail, videoPageUrl } from '../utils/videoEmbed';
+import { resolveVideoSource, videoThumbnail, videoPageUrl, VIDEO_ASPECTS } from '../utils/videoEmbed';
 import { VideoEmbed } from './VideoEmbed';
 
 // Card image for a video post whose video has no derivable thumbnail.
@@ -210,6 +210,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
   const [isTrending, setIsTrending] = useState(false);
   const [keyInsights, setKeyInsights] = useState('');
   const [videoSource, setVideoSource] = useState('');
+  const [videoAspect, setVideoAspect] = useState(''); // '' = automatic
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
@@ -235,6 +236,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
       setIsTrending(!!article.isTrending);
       setKeyInsights((article.keyInsights || []).join('\n'));
       setVideoSource(article.videoSource || '');
+      setVideoAspect(article.videoAspect || '');
     } else {
       setTitle('');
       setSlug('');
@@ -250,6 +252,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
       setIsTrending(false);
       setKeyInsights('');
       setVideoSource('');
+      setVideoAspect('');
     }
     setError(null);
     setImageNotice(null);
@@ -519,6 +522,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
           keyInsights: insightList,
           // '' (not undefined) clears a video that was removed while editing.
           videoSource: trimmedVideo || (article.videoSource ? '' : undefined),
+          videoAspect: (trimmedVideo && videoAspect) || (article.videoAspect ? '' : undefined),
         }
       : {
           id: `art-${Date.now()}`,
@@ -543,6 +547,7 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
           isTrending,
           keyInsights: insightList,
           videoSource: trimmedVideo || undefined,
+          videoAspect: (trimmedVideo && videoAspect) || undefined,
         };
 
     try {
@@ -648,7 +653,35 @@ export const ArticleEditorModal: React.FC<ArticleEditorModalProps> = ({ isOpen, 
                 <p className="text-[11px] text-emerald-400 mb-1.5">
                   ✓ Nhận dạng: {resolvedVideo.kind === 'file' ? 'File video' : resolvedVideo.provider} — xem trước:
                 </p>
-                <VideoEmbed source={trimmedVideo} title={title || 'Xem trước video'} className="max-w-md" />
+                {resolvedVideo.kind === 'iframe' && (
+                  <div className="flex flex-wrap items-center gap-1.5 mb-2 text-[11px]">
+                    <span className="text-slate-400 mr-1">Khung hình:</span>
+                    {[
+                      { value: '', label: `Tự động (${resolvedVideo.aspect})` },
+                      ...VIDEO_ASPECTS.map((a) => ({
+                        value: a,
+                        label: { '16:9': 'Ngang 16:9', '9:16': 'Dọc 9:16', '1:1': 'Vuông 1:1', '4:3': 'Ngang 4:3' }[a],
+                      })),
+                    ].map((opt) => (
+                      <button
+                        key={opt.value || 'auto'}
+                        type="button"
+                        onClick={() => setVideoAspect(opt.value)}
+                        className={`px-2.5 py-1 rounded-lg border transition-colors ${
+                          videoAspect === opt.value
+                            ? 'bg-rose-600 border-rose-500 text-white font-bold'
+                            : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-rose-500'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                    <span className="basis-full text-slate-500">
+                      Chọn khung khớp với video gốc nếu xem trước bị cắt hình hoặc có viền đen.
+                    </span>
+                  </div>
+                )}
+                <VideoEmbed source={trimmedVideo} title={title || 'Xem trước video'} aspect={videoAspect} className="max-w-md" />
               </div>
             )}
             {isVideoNews && (

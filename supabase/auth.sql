@@ -960,3 +960,5 @@ grant execute on function public.get_visit_stats(int) to authenticated;
 
 -- Video news ("Tin tức video"): a video link or embed code attached to an article.
 alter table articles add column if not exists video_source text;
+-- Frame shape chosen for the video ('16:9', '9:16', '1:1', '4:3'); null = automatic.
+alter table articles add column if not exists video_aspect text;

@@ -4,9 +4,27 @@
 // can safely render. Embed codes are never injected as HTML: only the
 // iframe/video `src` is extracted and rebuilt by our own player markup.
 
+// Frame shapes a player can be shown in. Embedded players can't tell us the
+// video's real shape, so `aspect` is a best guess the editor can override.
+export const VIDEO_ASPECTS = ['16:9', '9:16', '1:1', '4:3'] as const;
+export type VideoAspect = (typeof VIDEO_ASPECTS)[number];
+
 export type ResolvedVideo =
-  | { kind: 'iframe'; src: string; vertical: boolean; provider: string }
+  | { kind: 'iframe'; src: string; aspect: VideoAspect; provider: string }
   | { kind: 'file'; src: string };
+
+export const isVideoAspect = (v: unknown): v is VideoAspect =>
+  typeof v === 'string' && (VIDEO_ASPECTS as readonly string[]).includes(v);
+
+// The listed shape closest to a width x height pair.
+const nearestAspect = (w: number, h: number): VideoAspect | null => {
+  if (!(w > 0 && h > 0)) return null;
+  const ratio = w / h;
+  const values: Record<VideoAspect, number> = { '16:9': 16 / 9, '9:16': 9 / 16, '1:1': 1, '4:3': 4 / 3 };
+  return VIDEO_ASPECTS.reduce((best, a) =>
+    Math.abs(Math.log(values[a] / ratio)) < Math.abs(Math.log(values[best] / ratio)) ? a : best
+  );
+};
 
 const isHttps = (url: string) => {
   try {
@@ -45,19 +63,19 @@ function resolveUrl(raw: string): ResolvedVideo | null {
     return {
       kind: 'iframe',
       provider: 'YouTube',
-      vertical: u.pathname.startsWith('/shorts/'),
+      aspect: u.pathname.startsWith('/shorts/') ? '9:16' : '16:9',
       src: `https://www.youtube-nocookie.com/embed/${yt}?rel=0${seconds > 0 ? `&start=${seconds}` : ''}`,
     };
   }
 
   if (host === 'vimeo.com' || host === 'player.vimeo.com') {
     const id = u.pathname.match(/(?:\/video)?\/(\d+)/)?.[1];
-    if (id) return { kind: 'iframe', provider: 'Vimeo', vertical: false, src: `https://player.vimeo.com/video/${id}` };
+    if (id) return { kind: 'iframe', provider: 'Vimeo', aspect: '16:9', src: `https://player.vimeo.com/video/${id}` };
   }
 
   if (host === 'tiktok.com') {
     const id = u.pathname.match(/\/(?:video|embed(?:\/v2)?)\/(\d+)/)?.[1];
-    if (id) return { kind: 'iframe', provider: 'TikTok', vertical: true, src: `https://www.tiktok.com/embed/v2/${id}` };
+    if (id) return { kind: 'iframe', provider: 'TikTok', aspect: '9:16', src: `https://www.tiktok.com/embed/v2/${id}` };
   }
 
   if (host === 'facebook.com' || host === 'fb.watch') {
@@ -66,18 +84,16 @@ function resolveUrl(raw: string): ResolvedVideo | null {
     const href = isPlugin ? u.searchParams.get('href') || '' : u.toString();
     // Reels are vertical, even though Facebook's embed code sizes them 560x309 —
     // in a landscape frame the player crops the top and bottom off.
-    const vertical = href.includes('/reel/');
+    const aspect: VideoAspect = href.includes('/reel/') ? '9:16' : '16:9';
     const player = new URL('https://www.facebook.com/plugins/video.php');
     player.searchParams.set('href', href);
     player.searchParams.set('show_text', 'false');
-    player.searchParams.set('width', vertical ? '360' : '560');
-    player.searchParams.set('height', vertical ? '640' : '315');
-    return { kind: 'iframe', provider: 'Facebook', vertical, src: player.toString() };
+    return withAspect({ kind: 'iframe', provider: 'Facebook', aspect, src: player.toString() }, aspect);
   }
 
   if (host === 'dailymotion.com' || host === 'dai.ly') {
     const id = host === 'dai.ly' ? u.pathname.slice(1) : u.pathname.match(/\/(?:embed\/)?video\/([a-zA-Z0-9]+)/)?.[1];
-    if (id) return { kind: 'iframe', provider: 'Dailymotion', vertical: false, src: `https://www.dailymotion.com/embed/video/${id}` };
+    if (id) return { kind: 'iframe', provider: 'Dailymotion', aspect: '16:9', src: `https://www.dailymotion.com/embed/video/${id}` };
   }
 
   if (isDirectFile(u.toString())) return { kind: 'file', src: u.toString() };
@@ -93,18 +109,26 @@ function resolveEmbedCode(html: string): ResolvedVideo | null {
   if (iframeSrc) {
     // Known providers get normalised (e.g. YouTube -> nocookie); any other
     // https player (VTV, báo điện tử...) is shown as-is inside a sandboxed iframe.
+    // The embed code's own width/height hint at the video's shape — except
+    // Facebook's, which sizes every video (reels too) 560x309.
+    const fromSize = nearestAspect(
+      parseInt(iframe?.getAttribute('width') || '', 10),
+      parseInt(iframe?.getAttribute('height') || '', 10)
+    );
     const known = resolveUrl(iframeSrc);
-    if (known) return known;
+    if (known) {
+      return known.kind === 'iframe' && known.provider !== 'Facebook' && fromSize && known.aspect === '16:9'
+        ? { ...known, aspect: fromSize }
+        : known;
+    }
     if (isHttps(iframeSrc)) {
-      const w = parseInt(iframe?.getAttribute('width') || '', 10);
-      const h = parseInt(iframe?.getAttribute('height') || '', 10);
       let provider = 'Video';
       try {
         provider = new URL(iframeSrc).hostname.replace(/^www\./, '');
       } catch {
         /* checked by isHttps */
       }
-      return { kind: 'iframe', provider, vertical: w > 0 && h > w, src: iframeSrc };
+      return { kind: 'iframe', provider, aspect: fromSize || '16:9', src: iframeSrc };
     }
   }
 
@@ -118,6 +142,21 @@ function resolveEmbedCode(html: string): ResolvedVideo | null {
   const linked = doc.querySelector('[cite], [data-href]');
   const link = linked?.getAttribute('cite') || linked?.getAttribute('data-href');
   return link ? resolveUrl(link) : null;
+}
+
+// Shows the player in another frame shape (Facebook's plugin also lays itself
+// out from width/height parameters, so those follow the shape).
+export function withAspect(video: ResolvedVideo, aspect: VideoAspect): ResolvedVideo {
+  if (video.kind !== 'iframe') return video;
+  let src = video.src;
+  if (video.provider === 'Facebook') {
+    const u = new URL(src);
+    const [w, h] = { '16:9': [560, 315], '9:16': [360, 640], '1:1': [500, 500], '4:3': [560, 420] }[aspect];
+    u.searchParams.set('width', String(w));
+    u.searchParams.set('height', String(h));
+    src = u.toString();
+  }
+  return { ...video, aspect, src };
 }
 
 export function resolveVideoSource(source?: string | null): ResolvedVideo | null {
