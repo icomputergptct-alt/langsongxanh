@@ -155,6 +155,29 @@ const buildExamDocMeta = (doc: ExamDocument): { title: string; description: stri
 // Articles per page in the news feed grid.
 const ARTICLES_PER_PAGE = 9;
 
+// Once a news strip holds more than this many items, its "Xem tất cả" opens a
+// dedicated page listing every item instead of expanding in place on the home page.
+const NEWS_STRIP_PAGE_THRESHOLD = 12;
+
+// Full-list pages for the compact news strips.
+type NewsListKind = 'local' | 'video';
+const NEWS_LIST_PAGES: Record<NewsListKind, { path: string; title: string; description: string }> = {
+  local: {
+    path: '/tin-tuc-dia-phuong',
+    title: 'Tin tức địa phương',
+    description: 'Tất cả tin tức địa phương mới nhất trên Long Hoà Số.',
+  },
+  video: {
+    path: '/tin-tuc-video',
+    title: 'Tin tức video',
+    description: 'Tất cả tin tức video mới nhất trên Long Hoà Số.',
+  },
+};
+const matchNewsListPath = (pathname: string): NewsListKind | null => {
+  const clean = pathname.replace(/\/+$/, '') || '/';
+  return (Object.keys(NEWS_LIST_PAGES) as NewsListKind[]).find((k) => NEWS_LIST_PAGES[k].path === clean) ?? null;
+};
+
 export default function App() {
   const { user, profile, isAdmin, signOut, isLoading: isAuthLoading } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -184,6 +207,33 @@ export default function App() {
   const [articlesReloadKey, setArticlesReloadKey] = useState(0);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [currentArticlePage, setCurrentArticlePage] = useState(1);
+  // Full-list page for a news strip (/tin-tuc-dia-phuong, /tin-tuc-video), shown inside the news tab.
+  const [newsListView, setNewsListView] = useState<NewsListKind | null>(
+    () => matchNewsListPath(window.location.pathname)
+  );
+
+  const openNewsList = (kind: NewsListKind) => {
+    const page = NEWS_LIST_PAGES[kind];
+    setNewsListView(kind);
+    if (window.location.pathname !== page.path) window.history.pushState({}, '', page.path);
+    setPageMeta(`${page.title} - Long Hoà Số`, page.description, page.path);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const closeNewsList = () => {
+    setNewsListView(null);
+    if (matchNewsListPath(window.location.pathname)) window.history.pushState({}, '', '/');
+    resetPageMeta();
+  };
+
+  // A deep link straight to a full-list page gets its meta too.
+  useEffect(() => {
+    const kind = matchNewsListPath(window.location.pathname);
+    if (kind) {
+      const page = NEWS_LIST_PAGES[kind];
+      setPageMeta(`${page.title} - Long Hoà Số`, page.description, page.path);
+    }
+  }, []);
 
   // "Quản Trị & Tiến Độ" requires login; bounce back if the session ends while it's open.
   useEffect(() => {
@@ -261,10 +311,20 @@ export default function App() {
       const path = `/bai-viet/${article.slug}`;
       if (window.location.pathname !== path) window.history.pushState({}, '', path);
     } else if (window.location.pathname.startsWith('/bai-viet/')) {
-      // Back to the list; other pages' URLs are left to the tab sync below.
-      window.history.pushState({}, '', '/');
+      // Back to the list (or the full-list page it was opened from); other
+      // pages' URLs are left to the tab sync below.
+      window.history.pushState({}, '', newsListView ? NEWS_LIST_PAGES[newsListView].path : '/');
     }
   };
+
+  // The full-list page only lives inside the news tab.
+  useEffect(() => {
+    if (activeTab !== 'news' && newsListView) {
+      setNewsListView(null);
+      // Utilities sets its own per-tool meta (from a child effect that has already run).
+      if (activeTab !== 'utilities') resetPageMeta();
+    }
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync the exam document being viewed to the URL (/de-thi/{id}) + document
   // meta, so each file in "Kho Đề Thi" is a distinct, shareable, indexable page
@@ -459,7 +519,15 @@ export default function App() {
       const route = matchRouteFromPath(window.location.pathname);
       const docId = matchExamDocId(window.location.pathname);
       const meeting = matchMeetingPath(window.location.pathname);
-      if (meeting) {
+      const newsList = matchNewsListPath(window.location.pathname);
+      setNewsListView(newsList);
+      if (newsList) {
+        const page = NEWS_LIST_PAGES[newsList];
+        setSelectedArticle(null);
+        setSearchViewingDoc(null);
+        setPageMeta(`${page.title} - Long Hoà Số`, page.description, page.path);
+        setActiveTab('news');
+      } else if (meeting) {
         setSelectedArticle(null);
         setSearchViewingDoc(null);
         setMeetingRoom(meeting.room);
@@ -624,18 +692,14 @@ export default function App() {
     showAll: boolean,
     toggleShowAll: () => void,
     // Show "Xem tất cả" even when everything already fits in the slider.
-    alwaysShowToggle = false
+    alwaysShowToggle = false,
+    // Full-list page to open instead of expanding in place once the strip grows past the threshold.
+    listKind?: NewsListKind
   ) => {
     if (items.length === 0) return null;
-    const renderCard = (article: Article) => (
-      <ArticleCard
-        article={article}
-        isSavedOffline={storageService.isArticleSavedOffline(article.id)}
-        onSelectArticle={(art) => selectArticle(art)}
-        onToggleSaveOffline={(art, e) => handleToggleSaveOffline(art, e)}
-        onToggleLike={(id, e) => handleToggleLike(id, e)}
-      />
-    );
+    const opensListPage = !!listKind && items.length > NEWS_STRIP_PAGE_THRESHOLD;
+    const handleToggle = () => (opensListPage ? openNewsList(listKind!) : toggleShowAll());
+    const showAllInline = showAll && !opensListPage;
     return (
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -644,23 +708,69 @@ export default function App() {
             {title}
           </h3>
           {(alwaysShowToggle || items.length > TECH_NEWS_STRIP_LIMIT) && (
-            <button onClick={toggleShowAll} className="text-xs font-bold text-blue-400 hover:text-blue-300">
-              {showAll ? 'Thu gọn ↑' : `Xem tất cả (${items.length}) →`}
+            <button onClick={handleToggle} className="text-xs font-bold text-blue-400 hover:text-blue-300">
+              {showAllInline ? 'Thu gọn ↑' : `Xem tất cả (${items.length}) →`}
             </button>
           )}
         </div>
-        {showAll ? (
+        {showAllInline ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {items.map((article) => (
-              <React.Fragment key={article.id}>{renderCard(article)}</React.Fragment>
+              <React.Fragment key={article.id}>{renderNewsCard(article)}</React.Fragment>
             ))}
           </div>
         ) : (
           <TechNewsSlider<Article>
             items={items.slice(0, TECH_NEWS_STRIP_LIMIT)}
             getKey={(article) => article.id}
-            renderItem={renderCard}
+            renderItem={renderNewsCard}
           />
+        )}
+      </div>
+    );
+  };
+
+  const renderNewsCard = (article: Article) => (
+    <ArticleCard
+      article={article}
+      isSavedOffline={storageService.isArticleSavedOffline(article.id)}
+      onSelectArticle={(art) => selectArticle(art)}
+      onToggleSaveOffline={(art, e) => handleToggleSaveOffline(art, e)}
+      onToggleLike={(id, e) => handleToggleLike(id, e)}
+    />
+  );
+
+  // Full-list page for one news strip: every item in that category, newest first.
+  const renderNewsListPage = (kind: NewsListKind) => {
+    const page = NEWS_LIST_PAGES[kind];
+    const items = kind === 'local' ? localNewsInList : videoNewsInList;
+    const dotClass = kind === 'local' ? 'bg-amber-400' : 'bg-rose-500';
+    return (
+      <div className="space-y-6 pb-16">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-xl sm:text-2xl font-bold text-slate-100">
+            <span className={`w-2.5 h-2.5 ${dotClass} rounded-full animate-pulse`}></span>
+            {page.title}
+            <span className="text-sm font-semibold text-slate-400">({items.length})</span>
+          </h2>
+          <button
+            onClick={closeNewsList}
+            className="flex items-center gap-1.5 text-xs font-bold text-blue-400 hover:text-blue-300 bg-slate-800/70 hover:bg-slate-700 border border-slate-700 px-3.5 py-2 rounded-xl transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Về trang chủ
+          </button>
+        </div>
+        {items.length === 0 ? (
+          <div className="text-center py-16 bg-slate-900/60 border border-slate-800 rounded-3xl p-8 text-sm text-slate-400">
+            Chưa có tin nào trong mục này.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {items.map((article) => (
+              <React.Fragment key={article.id}>{renderNewsCard(article)}</React.Fragment>
+            ))}
+          </div>
         )}
       </div>
     );
@@ -716,7 +826,14 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={(tab) => {
           setActiveTab(tab);
-          selectArticle(null); // Return to list view
+          if (newsListView) {
+            // Off a full-list page (or an article opened from it) back to the home feed.
+            setSelectedArticle(null);
+            closeNewsList();
+            if (window.location.pathname.startsWith('/bai-viet/')) window.history.pushState({}, '', '/');
+          } else {
+            selectArticle(null); // Return to list view
+          }
         }}
         isOffline={isOffline}
         savedOfflineCount={savedCount}
@@ -821,6 +938,8 @@ export default function App() {
                   )
                 }
               />
+            ) : newsListView ? (
+              renderNewsListPage(newsListView)
             ) : (
               /* Article Feed & Explorer View with Signature Bento Grid */
               <div className="space-y-8 pb-16">
@@ -983,9 +1102,9 @@ export default function App() {
                     {SHOW_TECH_NEWS_STRIP && safeArticlePage === 1 &&
                       renderNewsStrip('Tin công nghệ mới', 'bg-red-500', techNewsInList, showAllTechNews, () => setShowAllTechNews((v) => !v))}
                     {safeArticlePage === 1 &&
-                      renderNewsStrip('Tin tức địa phương', 'bg-amber-400', localNewsInList, showAllLocalNews, () => setShowAllLocalNews((v) => !v))}
+                      renderNewsStrip('Tin tức địa phương', 'bg-amber-400', localNewsInList, showAllLocalNews, () => setShowAllLocalNews((v) => !v), false, 'local')}
                     {safeArticlePage === 1 &&
-                      renderNewsStrip('Tin tức video', 'bg-rose-500', videoNewsInList, showAllVideoNews, () => setShowAllVideoNews((v) => !v), true)}
+                      renderNewsStrip('Tin tức video', 'bg-rose-500', videoNewsInList, showAllVideoNews, () => setShowAllVideoNews((v) => !v), true, 'video')}
 
                     {paginatedArticles.length > 0 && (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
