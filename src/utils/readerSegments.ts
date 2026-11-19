@@ -16,8 +16,8 @@ export interface ReadableArticle {
 
 /** Browser voices: Chrome cuts long utterances off after ~15s, so keep them short. */
 export const DEVICE_SEGMENT_LENGTH = 220;
-/** AI voice: longer pieces mean fewer requests and more natural phrasing. */
-export const CLOUD_SEGMENT_LENGTH = 400;
+/** Google voice: Google's free speech service rejects text much past ~250 characters. */
+export const CLOUD_SEGMENT_LENGTH = 200;
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
 
@@ -95,9 +95,6 @@ export const segmentHash = (text: string): string => {
   return h.toString(36);
 };
 
-/** AI voices offered to readers (Gemini prebuilt voice names). */
-export const CLOUD_VOICES = [
-  { id: 'Kore', label: 'Giọng nữ (AI)' },
-  { id: 'Charon', label: 'Giọng nam (AI)' },
-] as const;
+/** Voices voiced on the server (Google's free Vietnamese voice). */
+export const CLOUD_VOICES = [{ id: 'google', label: 'Giọng Google' }] as const;
 export type CloudVoiceId = (typeof CLOUD_VOICES)[number]['id'];

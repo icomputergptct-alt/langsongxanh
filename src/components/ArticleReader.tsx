@@ -49,7 +49,7 @@ const getVietnameseVoices = (): SpeechSynthesisVoice[] =>
         .sort((a, b) => voiceScore(b) - voiceScore(a))
     : [];
 
-// A voice choice: an AI voice voiced on the server ("cloud:Kore"), or one built into
+// A voice choice: Google's voice fetched through the server ("cloud:google"), or one built into
 // the browser/OS ("device:<voiceURI>").
 type VoiceChoice = { engine: 'cloud'; id: string } | { engine: 'device'; id: string };
 const parseChoice = (value: string | null): VoiceChoice | null => {
@@ -63,10 +63,10 @@ const parseChoice = (value: string | null): VoiceChoice | null => {
 const choiceKey = (c: VoiceChoice) => `${c.engine}:${c.id}`;
 
 /**
- * Reads the article aloud in Vietnamese. Uses Gemini's AI voice through /api/tts by
- * default, since most visitors use Chrome, which has no Vietnamese voice on desktop;
+ * Reads the article aloud in Vietnamese. Uses Google's free Vietnamese voice through
+ * /api/tts by default, since most visitors use Chrome, which has no Vietnamese voice on desktop;
  * a Vietnamese voice built into the browser (Edge, Safari, Android) is offered too and
- * is the fallback whenever the AI voice can't be reached.
+ * is the fallback whenever the Google voice can't be reached.
  */
 export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveBlockChange }) => {
   const [status, setStatus] = useState<'idle' | 'playing' | 'paused'>('idle');
@@ -81,7 +81,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
   const [choice, setChoice] = useState<VoiceChoice>(
     () => parseChoice(readStored(VOICE_KEY)) ?? { engine: 'cloud', id: CLOUD_VOICES[0].id }
   );
-  // A remembered device voice may not exist on this browser — fall back to the AI voice.
+  // A remembered device voice may not exist on this browser — fall back to the Google voice.
   const deviceVoice =
     choice.engine === 'device' ? deviceVoices.find((v) => v.voiceURI === choice.id) ?? null : null;
   const engine: 'cloud' | 'device' = choice.engine === 'device' && deviceVoice ? 'device' : 'cloud';
@@ -98,7 +98,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
   rateRef.current = rate;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const loadedRef = useRef<{ key: string; index: number } | null>(null);
-  // Fetched AI recordings for this article, as object URLs keyed by "voice|index".
+  // Fetched Google recordings for this article, as object URLs keyed by "voice|index".
   const audioUrlsRef = useRef(new Map<string, Promise<string>>());
 
   useEffect(() => {
@@ -137,12 +137,11 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
       article: article.id,
       i: String(i),
       h: segmentHash(segments[i].text),
-      voice,
     });
     const promise = fetch(`/api/tts?${params}`).then(async (res) => {
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.error || 'Không tải được giọng đọc AI.');
+        throw new Error(body?.error || 'Không tải được giọng đọc Google.');
       }
       return URL.createObjectURL(await res.blob());
     });
@@ -197,18 +196,18 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
     }
   };
 
-  // The AI voice is unreachable (offline, quota, server not configured): switch to a
+  // The Google voice is unreachable (offline, blocked, server not configured): switch to a
   // Vietnamese voice built into the browser if there is one, otherwise stop with a message.
   const handleCloudFailure = (i: number, message?: string) => {
     const fallback = deviceVoices[0];
     if (fallback) {
-      setError('Không tải được giọng đọc AI, đã chuyển sang giọng có sẵn của trình duyệt.');
+      setError('Không tải được giọng đọc Google, đã chuyển sang giọng có sẵn của trình duyệt.');
       const block = segments[i]?.block;
       setChoice({ engine: 'device', id: fallback.voiceURI });
       // Segments are re-split for the new engine; resume once that's rendered.
       pendingResumeBlockRef.current = block ?? 'title';
     } else {
-      setError(message || 'Không tải được giọng đọc AI. Vui lòng thử lại sau.');
+      setError(message || 'Không tải được giọng đọc Google. Vui lòng thử lại sau.');
       setIsLoading(false);
       setStatus('paused');
     }
