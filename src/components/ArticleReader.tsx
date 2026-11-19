@@ -376,19 +376,21 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
     loadedRef.current = null;
   }, [segments]);
 
-  // Settings menu (speed, voice, volume, skip) that drops down from the toolbar pill.
-  const [menuOpen, setMenuOpen] = useState(false);
+  // Drop-down panels under the toolbar pill: volume (speaker icon) or speed/voice (gear).
+  const [openPanel, setOpenPanel] = useState<'volume' | 'settings' | null>(null);
+  const menuOpen = openPanel !== null;
+  const togglePanel = (panel: 'volume' | 'settings') => setOpenPanel((p) => (p === panel ? null : panel));
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!menuOpen && !error) return;
     const onPointerDown = (e: PointerEvent) => {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
+        setOpenPanel(null);
         setError(null);
       }
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
+      if (e.key === 'Escape') setOpenPanel(null);
     };
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKey);
@@ -464,10 +466,11 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
 
         <button
           type="button"
-          onClick={toggleMute}
-          aria-label={effectiveVolume === 0 ? 'Bật tiếng' : 'Tắt tiếng'}
-          title={effectiveVolume === 0 ? 'Bật tiếng' : 'Tắt tiếng'}
-          className={iconBtn}
+          onClick={() => togglePanel('volume')}
+          aria-label="Âm lượng"
+          aria-expanded={openPanel === 'volume'}
+          title={`Âm lượng ${Math.round(effectiveVolume * 100)}%`}
+          className={`${iconBtn} ${openPanel === 'volume' ? 'bg-slate-800 text-emerald-300' : ''}`}
         >
           {effectiveVolume === 0 ? (
             <VolumeX className="w-3.5 h-3.5" />
@@ -479,17 +482,47 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
         </button>
         <button
           type="button"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Tùy chỉnh giọng đọc"
-          aria-expanded={menuOpen}
-          title="Tốc độ, âm lượng"
-          className={`${iconBtn} ${menuOpen ? 'bg-slate-800 text-emerald-300' : ''}`}
+          onClick={() => togglePanel('settings')}
+          aria-label="Tốc độ đọc"
+          aria-expanded={openPanel === 'settings'}
+          title="Tốc độ đọc"
+          className={`${iconBtn} ${openPanel === 'settings' ? 'bg-slate-800 text-emerald-300' : ''}`}
         >
           <Settings2 className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {menuOpen && (
+      {openPanel === 'volume' && (
+        <div className="absolute right-0 top-full mt-2 z-30 w-56 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-xs text-slate-200">
+          <span className="flex items-center justify-between text-slate-400 mb-2">
+            Âm lượng <span className="tabular-nums text-slate-200 font-semibold">{Math.round(effectiveVolume * 100)}%</span>
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleMute}
+              aria-label={effectiveVolume === 0 ? 'Bật tiếng' : 'Tắt tiếng'}
+              title={effectiveVolume === 0 ? 'Bật tiếng' : 'Tắt tiếng'}
+              className="p-1 rounded hover:bg-slate-800 text-slate-300"
+            >
+              {effectiveVolume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={effectiveVolume}
+              onChange={(e) => changeVolume(Number(e.target.value))}
+              aria-label="Âm lượng"
+              autoFocus
+              className="flex-1 accent-emerald-400 cursor-pointer"
+            />
+          </div>
+        </div>
+      )}
+
+      {openPanel === 'settings' && (
         <div className="absolute right-0 top-full mt-2 z-30 w-64 p-3 space-y-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-xs text-slate-200">
           <div>
             <span className="block text-slate-400 mb-1.5">Tốc độ</span>
@@ -529,32 +562,6 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
               </select>
             </label>
           )}
-
-          <div>
-            <span className="flex items-center justify-between text-slate-400 mb-1.5">
-              Âm lượng <span className="tabular-nums">{Math.round(effectiveVolume * 100)}%</span>
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={toggleMute}
-                aria-label={effectiveVolume === 0 ? 'Bật tiếng' : 'Tắt tiếng'}
-                className="p-1 rounded hover:bg-slate-800 text-slate-300"
-              >
-                {effectiveVolume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-              </button>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={effectiveVolume}
-                onChange={(e) => changeVolume(Number(e.target.value))}
-                aria-label="Âm lượng"
-                className="flex-1 accent-emerald-400 cursor-pointer"
-              />
-            </div>
-          </div>
         </div>
       )}
 
