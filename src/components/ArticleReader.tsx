@@ -3,14 +3,12 @@ import {
   Headphones,
   Play,
   Pause,
-  Square,
-  SkipBack,
-  SkipForward,
   AlertTriangle,
   Loader2,
   Volume1,
   Volume2,
   VolumeX,
+  Settings2,
 } from 'lucide-react';
 import {
   buildReaderSegments,
@@ -311,10 +309,6 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
     speakFrom(index);
   };
 
-  const stop = () => {
-    stopOutput();
-    finish();
-  };
 
   const changeRate = (value: number) => {
     setRate(value);
@@ -382,45 +376,74 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
     loadedRef.current = null;
   }, [segments]);
 
+  // Settings menu (speed, voice, volume, skip) that drops down from the toolbar pill.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuOpen && !error) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+        setError(null);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen, error]);
+
   if (segments.length === 0) return null;
 
   const progress = status === 'idle' ? 0 : ((index + (status === 'playing' ? 0.5 : 0)) / segments.length) * 100;
   const label = isLoading
-    ? 'Đang tải giọng đọc…'
+    ? 'Đang tải…'
     : status === 'playing'
-      ? 'Đang đọc bài viết…'
+      ? 'Đang đọc'
       : status === 'paused'
-        ? 'Đã tạm dừng'
-        : 'Nghe đọc bài viết';
+        ? 'Tạm dừng'
+        : 'Nghe đọc';
+  const iconBtn =
+    'p-1.5 rounded hover:bg-slate-800 text-slate-300 disabled:opacity-30 disabled:hover:bg-transparent transition-colors';
 
   return (
-    <div
-      data-print-hide
-      className="mb-8 p-4 sm:p-5 bg-gradient-to-br from-blue-950/70 via-slate-900 to-emerald-950/60 border border-emerald-500/30 rounded-xl text-slate-200"
-    >
-      <div className="flex flex-wrap items-center gap-3">
+    <div ref={rootRef} data-print-hide className="relative">
+      <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1 text-xs text-slate-200">
         <button
           type="button"
           onClick={() => (status === 'playing' ? pause() : status === 'paused' ? resume() : speakFrom(0))}
           aria-label={status === 'playing' ? 'Tạm dừng' : 'Nghe đọc bài viết'}
-          className="flex items-center justify-center w-11 h-11 shrink-0 rounded-full bg-gradient-to-br from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/20 transition-colors"
+          title={status === 'playing' ? 'Tạm dừng' : 'Nghe đọc bài viết'}
+          className="flex items-center justify-center w-7 h-7 shrink-0 rounded-md bg-gradient-to-br from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 text-white transition-colors"
         >
           {isLoading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : status === 'playing' ? (
-            <Pause className="w-5 h-5" />
+            <Pause className="w-3.5 h-3.5" />
           ) : (
-            <Play className="w-5 h-5 ml-0.5" />
+            <Play className="w-3.5 h-3.5 ml-0.5" />
           )}
         </button>
 
-        <div className="flex-1 min-w-[140px]">
-          <div className="flex items-center gap-1.5 text-sm font-bold text-emerald-300">
-            <Headphones className="w-4 h-4" />
-            <span>{label}</span>
+        <div className="px-1.5 w-[86px]">
+          <div className="flex items-center justify-between gap-1 text-[10px] font-semibold leading-none">
+            <span className="flex items-center gap-1 text-emerald-300 truncate">
+              <Headphones className="w-3 h-3 shrink-0" />
+              {label}
+            </span>
+            {status !== 'idle' && (
+              <span className="text-slate-500 tabular-nums">
+                {index + 1}/{segments.length}
+              </span>
+            )}
           </div>
           <div
-            className="mt-2 h-1.5 rounded-full bg-slate-800 overflow-hidden cursor-pointer"
+            className="mt-1.5 h-1 rounded-full bg-slate-800 overflow-hidden cursor-pointer"
             role="progressbar"
             aria-valuenow={Math.round(progress)}
             aria-valuemin={0}
@@ -437,108 +460,112 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">
-            {status === 'idle' ? `${segments.length} đoạn` : `Đoạn ${index + 1}/${segments.length}`}
-          </p>
         </div>
 
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => speakFrom(Math.max(0, index - 1))}
-            disabled={status === 'idle'}
-            aria-label="Đoạn trước"
-            className="p-2 rounded-lg hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent text-slate-300"
-          >
-            <SkipBack className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => speakFrom(index + 1)}
-            disabled={status === 'idle'}
-            aria-label="Đoạn sau"
-            className="p-2 rounded-lg hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent text-slate-300"
-          >
-            <SkipForward className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={stop}
-            disabled={status === 'idle'}
-            aria-label="Dừng đọc"
-            className="p-2 rounded-lg hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent text-slate-300"
-          >
-            <Square className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={toggleMute}
-            aria-label={effectiveVolume === 0 ? 'Bật tiếng' : 'Tắt tiếng'}
-            title={effectiveVolume === 0 ? 'Bật tiếng' : 'Tắt tiếng'}
-            className="p-2 rounded-lg hover:bg-slate-800 text-slate-300"
-          >
-            {effectiveVolume === 0 ? (
-              <VolumeX className="w-4 h-4" />
-            ) : effectiveVolume < 0.5 ? (
-              <Volume1 className="w-4 h-4" />
-            ) : (
-              <Volume2 className="w-4 h-4" />
-            )}
-          </button>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={effectiveVolume}
-            onChange={(e) => changeVolume(Number(e.target.value))}
-            aria-label="Âm lượng"
-            title={`Âm lượng ${Math.round(effectiveVolume * 100)}%`}
-            className="w-20 sm:w-24 accent-emerald-400 cursor-pointer"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 text-xs">
-          <select
-            value={rate}
-            onChange={(e) => changeRate(Number(e.target.value))}
-            aria-label="Tốc độ đọc"
-            className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-200"
-          >
-            {RATES.map((r) => (
-              <option key={r} value={r}>
-                {r}x
-              </option>
-            ))}
-          </select>
-          <select
-            value={engine === 'device' ? choiceKey(choice) : `cloud:${cloudVoice}`}
-            onChange={(e) => changeVoice(e.target.value)}
-            aria-label="Giọng đọc"
-            className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-200 max-w-[190px]"
-          >
-            {CLOUD_VOICES.map((v) => (
-              <option key={v.id} value={`cloud:${v.id}`}>
-                {v.label}
-              </option>
-            ))}
-            {deviceVoices.map((v) => (
-              <option key={v.voiceURI} value={`device:${v.voiceURI}`}>
-                Trình duyệt: {v.name.replace(/^Microsoft\s+/, '').replace(/\s*-\s*Vietnamese.*$/i, '')}
-              </option>
-            ))}
-          </select>
-        </div>
+        <button
+          type="button"
+          onClick={toggleMute}
+          aria-label={effectiveVolume === 0 ? 'Bật tiếng' : 'Tắt tiếng'}
+          title={effectiveVolume === 0 ? 'Bật tiếng' : 'Tắt tiếng'}
+          className={iconBtn}
+        >
+          {effectiveVolume === 0 ? (
+            <VolumeX className="w-3.5 h-3.5" />
+          ) : effectiveVolume < 0.5 ? (
+            <Volume1 className="w-3.5 h-3.5" />
+          ) : (
+            <Volume2 className="w-3.5 h-3.5" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label="Tùy chỉnh giọng đọc"
+          aria-expanded={menuOpen}
+          title="Tốc độ, âm lượng"
+          className={`${iconBtn} ${menuOpen ? 'bg-slate-800 text-emerald-300' : ''}`}
+        >
+          <Settings2 className="w-3.5 h-3.5" />
+        </button>
       </div>
 
-      {error && (
-        <p className="mt-3 flex items-start gap-2 text-[11px] leading-relaxed text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5">
-          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-          <span>{error}</span>
-        </p>
+      {menuOpen && (
+        <div className="absolute right-0 top-full mt-2 z-30 w-64 p-3 space-y-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-xs text-slate-200">
+          <div>
+            <span className="block text-slate-400 mb-1.5">Tốc độ</span>
+            <div className="flex gap-1">
+              {RATES.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => changeRate(r)}
+                  className={`flex-1 py-1 rounded-md border text-[11px] transition-colors ${
+                    rate === r
+                      ? 'bg-emerald-600 border-emerald-500 text-white font-bold'
+                      : 'border-slate-700 hover:bg-slate-800 text-slate-300'
+                  }`}
+                >
+                  {r}x
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Only worth a picker when the browser has Vietnamese voices of its own. */}
+          {deviceVoices.length > 0 && (
+            <label className="block">
+              <span className="block text-slate-400 mb-1.5">Giọng đọc</span>
+              <select
+                value={engine === 'device' ? choiceKey(choice) : `cloud:${cloudVoice}`}
+                onChange={(e) => changeVoice(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 text-slate-200"
+              >
+                <option value={`cloud:${CLOUD_VOICES[0].id}`}>Mặc định</option>
+                {deviceVoices.map((v) => (
+                  <option key={v.voiceURI} value={`device:${v.voiceURI}`}>
+                    {v.name.replace(/^Microsoft\s+/, '').replace(/\s*-\s*Vietnamese.*$/i, '')}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <div>
+            <span className="flex items-center justify-between text-slate-400 mb-1.5">
+              Âm lượng <span className="tabular-nums">{Math.round(effectiveVolume * 100)}%</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleMute}
+                aria-label={effectiveVolume === 0 ? 'Bật tiếng' : 'Tắt tiếng'}
+                className="p-1 rounded hover:bg-slate-800 text-slate-300"
+              >
+                {effectiveVolume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={effectiveVolume}
+                onChange={(e) => changeVolume(Number(e.target.value))}
+                aria-label="Âm lượng"
+                className="flex-1 accent-emerald-400 cursor-pointer"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {error && !menuOpen && (
+        <div className="absolute right-0 top-full mt-2 z-30 w-64 flex items-start gap-2 text-[11px] leading-relaxed text-amber-200 bg-slate-900 border border-amber-500/40 rounded-xl shadow-2xl p-2.5">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-400" />
+          <span className="flex-1">{error}</span>
+          <button type="button" onClick={() => setError(null)} aria-label="Đóng" className="text-slate-400 hover:text-white">
+            ✕
+          </button>
+        </div>
       )}
     </div>
   );

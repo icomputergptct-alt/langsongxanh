@@ -266,7 +266,7 @@ ${clone.outerHTML}
     <div id="article-detail-container" className="max-w-4xl mx-auto pb-16">
       
       {/* Top Bar Actions */}
-      <div className="flex items-center justify-between gap-4 py-4 mb-4 border-b border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-4 mb-4 border-b border-slate-800">
         <button
           id="back-to-articles-btn"
           onClick={onBack}
@@ -276,7 +276,10 @@ ${clone.outerHTML}
           <span>Quay lại danh sách</span>
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {/* Read the article aloud in Vietnamese */}
+          <ArticleReader article={article} onActiveBlockChange={setSpeakingBlock} />
+
           {/* Reader Preferences */}
           <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1 text-xs">
             <button
@@ -415,9 +418,6 @@ ${clone.outerHTML}
             </span>
           </div>
         </div>
-
-        {/* Read the article aloud in Vietnamese */}
-        <ArticleReader article={article} onActiveBlockChange={setSpeakingBlock} />
 
         {/* Video (for video posts) or Cover Image. The cover stays in print, where a player can't play. */}
         {hasVideo && (
