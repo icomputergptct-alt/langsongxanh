@@ -5,6 +5,12 @@ import http from "http";
 import https from "https";
 import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
+import {
+  buildReaderSegments,
+  segmentHash,
+  CLOUD_SEGMENT_LENGTH,
+  CLOUD_VOICES,
+} from "../src/utils/readerSegments.js";
 
 function getGeminiClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -59,6 +65,32 @@ function getServerSupabase() {
 }
 
 const visitRateLimiter = createRateLimiter(20, 60_000);
+
+// Read-aloud: an article is many segments and the player fetches a few ahead,
+// so this allows a steady listen while capping how fast one visitor can spend quota.
+const ttsRateLimiter = createRateLimiter(40, 60_000);
+// Recently voiced segments kept in memory (~200KB each), on top of the CDN cache.
+const ttsCache = new Map<string, Buffer>();
+const TTS_CACHE_LIMIT = 150;
+
+// Wraps headerless 16-bit mono PCM in a WAV header so <audio> can play it.
+function pcmToWav(pcm: Buffer, sampleRate: number): Buffer {
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + pcm.length, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20); // PCM
+  header.writeUInt16LE(1, 22); // mono
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(sampleRate * 2, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([header, pcm]);
+}
 const videoThumbRateLimiter = createRateLimiter(20, 60_000);
 
 // Video pages whose preview image (og:image) we may read, and the CDNs those
@@ -219,6 +251,82 @@ export function createApiApp() {
     } catch (err: any) {
       console.error("Error in video-thumbnail:", err?.message);
       return res.status(502).json({ error: "Không lấy được ảnh của video." });
+    }
+  });
+
+  // Read-aloud audio for one segment of an article, voiced by Gemini TTS — for browsers
+  // without a Vietnamese voice of their own (Chrome on Windows/Mac). The text always
+  // comes from the stored article (never the caller), and the hash in the URL pins the
+  // exact wording, so responses can be cached by the CDN for good.
+  app.get("/api/tts", ttsRateLimiter, async (req, res) => {
+    const articleId = typeof req.query.article === "string" ? req.query.article : "";
+    const index = Number(req.query.i);
+    const hash = typeof req.query.h === "string" ? req.query.h : "";
+    const voice = CLOUD_VOICES.find((v) => v.id === req.query.voice)?.id ?? CLOUD_VOICES[0].id;
+    if (!articleId || !Number.isInteger(index) || index < 0 || !hash) {
+      return res.status(400).json({ error: "Thiếu thông tin đoạn cần đọc." });
+    }
+
+    const cacheKey = `${articleId}|${index}|${hash}|${voice}`;
+    const sendAudio = (audio: Buffer) => {
+      res.setHeader("Content-Type", "audio/wav");
+      res.setHeader("Cache-Control", "public, max-age=31536000, s-maxage=31536000, immutable");
+      return res.send(audio);
+    };
+    const cached = ttsCache.get(cacheKey);
+    if (cached) return sendAudio(cached);
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    const supabase = getServerSupabase();
+    if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || !supabase) {
+      return res.status(503).json({ error: "Giọng đọc AI chưa được cấu hình trên máy chủ." });
+    }
+
+    try {
+      const { data: article, error } = await supabase
+        .from("articles")
+        .select("title, summary, content")
+        .eq("id", articleId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!article) return res.status(404).json({ error: "Không tìm thấy bài viết." });
+
+      const segment = buildReaderSegments(article, CLOUD_SEGMENT_LENGTH)[index];
+      if (!segment || segmentHash(segment.text) !== hash) {
+        return res.status(409).json({ error: "Bài viết vừa được cập nhật, vui lòng tải lại trang." });
+      }
+
+      const model = process.env.GEMINI_TTS_MODEL || "gemini-3.8-flash-lite-tts";
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: segment.text }] }],
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
+          },
+        }),
+      });
+      if (!response.ok) {
+        console.error("Gemini TTS failed:", response.status, (await response.text()).slice(0, 300));
+        return res.status(502).json({ error: "Không tạo được giọng đọc. Vui lòng thử lại." });
+      }
+      const json: any = await response.json();
+      const inline = json?.candidates?.[0]?.content?.parts?.find((p: any) => p?.inlineData?.data)?.inlineData;
+      if (!inline) return res.status(502).json({ error: "Không tạo được giọng đọc. Vui lòng thử lại." });
+
+      const bytes = Buffer.from(inline.data, "base64");
+      const mime = String(inline.mimeType || "").toLowerCase();
+      // Older TTS models return headerless 16-bit PCM ("audio/l16; rate=24000").
+      const audio = mime.includes("wav") ? bytes : pcmToWav(bytes, Number(mime.match(/rate=(\d+)/)?.[1]) || 24000);
+
+      ttsCache.set(cacheKey, audio);
+      if (ttsCache.size > TTS_CACHE_LIMIT) ttsCache.delete(ttsCache.keys().next().value!);
+      return sendAudio(audio);
+    } catch (err: any) {
+      console.error("Error in tts:", err?.message);
+      return res.status(500).json({ error: "Không tạo được giọng đọc. Vui lòng thử lại." });
     }
   });
 

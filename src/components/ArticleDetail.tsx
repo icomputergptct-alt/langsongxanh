@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import DOMPurify from 'dompurify';
 import {
@@ -21,7 +21,7 @@ import {
 import { Article } from '../types';
 import { CommentSection } from './CommentSection';
 import { VideoEmbed } from './VideoEmbed';
-import { ArticleReader, buildReaderSegments } from './ArticleReader';
+import { ArticleReader } from './ArticleReader';
 import { resolveVideoSource } from '../utils/videoEmbed';
 
 interface ArticleDetailProps {
@@ -72,7 +72,6 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
 
   // Read-aloud: which block (title, summary, paragraph) is being spoken, so it can be
   // highlighted and kept on screen.
-  const readerSegments = useMemo(() => buildReaderSegments(article), [article]);
   const [speakingBlock, setSpeakingBlock] = useState<string | null>(null);
   useEffect(() => {
     if (!speakingBlock) return;
@@ -413,7 +412,7 @@ ${clone.outerHTML}
         </div>
 
         {/* Read the article aloud in Vietnamese */}
-        <ArticleReader segments={readerSegments} onActiveBlockChange={setSpeakingBlock} />
+        <ArticleReader article={article} onActiveBlockChange={setSpeakingBlock} />
 
         {/* Video (for video posts) or Cover Image. The cover stays in print, where a player can't play. */}
         {hasVideo && (
