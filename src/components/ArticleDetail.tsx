@@ -22,6 +22,7 @@ import { Article } from '../types';
 import { CommentSection } from './CommentSection';
 import { VideoEmbed } from './VideoEmbed';
 import { ArticleReader } from './ArticleReader';
+import { isSummaryRepeatedInBody } from '../utils/readerSegments';
 import { resolveVideoSource } from '../utils/videoEmbed';
 
 // "AI Long Hoà Số Assistant" summary box — temporarily hidden; set back to true to show it again.
@@ -72,6 +73,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
   };
 
   const articleRef = useRef<HTMLElement>(null);
+  const summaryRepeated = isSummaryRepeatedInBody(article);
 
   // Read-aloud: which block (title, summary, paragraph) is being spoken, so it can be
   // highlighted and kept on screen.
@@ -500,7 +502,8 @@ ${clone.outerHTML}
         </div>
         )}
 
-        {/* Article Summary Box */}
+        {/* Article Summary Box — skipped when the body already starts with the same text */}
+        {!summaryRepeated && (
         <div
           data-tts-block="summary"
           className={`mb-8 p-4 border-l-4 border-cyan-500 rounded-r-xl italic leading-relaxed ${size.quote} ${theme.quote}${
@@ -509,6 +512,7 @@ ${clone.outerHTML}
         >
           "{article.summary}"
         </div>
+        )}
 
         {/* Article Body Content (Markdown-like rendering) */}
         <div className={`space-y-6 ${fontClasses[fontSize]}`}>

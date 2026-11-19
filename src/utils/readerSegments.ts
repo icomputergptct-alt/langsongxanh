@@ -66,12 +66,30 @@ const splitForSpeech = (text: string, maxLength: number): string[] => {
   return pieces.map((p) => p.replace(/\s+/g, ' ').trim()).filter((p) => /[\p{L}\p{N}]/u.test(p));
 };
 
+const normalizeForCompare = (text: string) =>
+  toPlainText(text)
+    .replace(/[“”"'‘’]/g, '')
+    .toLowerCase()
+    .trim();
+
+/**
+ * Many posts paste their summary in again as a body paragraph (usually the first),
+ * so showing the summary box too would print — and read aloud — the same text twice.
+ */
+export const isSummaryRepeatedInBody = (article: ReadableArticle): boolean => {
+  const summary = normalizeForCompare(article.summary || '');
+  if (summary.length < 20) return false;
+  return (article.content || '')
+    .split('\n\n')
+    .some((paragraph) => normalizeForCompare(paragraph).startsWith(summary));
+};
+
 /** Title, summary and body paragraphs (no images or code), split into readable pieces. */
 export const buildReaderSegments = (article: ReadableArticle, maxLength: number): ReaderSegment[] => {
   const blocks: { block: string; text: string }[] = [
     { block: 'title', text: article.title || '' },
-    { block: 'summary', text: article.summary || '' },
   ];
+  if (!isSummaryRepeatedInBody(article)) blocks.push({ block: 'summary', text: article.summary || '' });
   (article.content || '').split('\n\n').forEach((paragraph, index) => {
     const trimmed = paragraph.trim();
     if (!trimmed || trimmed.startsWith('```') || /^!\[[^\]]*\]\([^)]*\)$/.test(trimmed)) return;
