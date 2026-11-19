@@ -24,6 +24,9 @@ import { VideoEmbed } from './VideoEmbed';
 import { ArticleReader } from './ArticleReader';
 import { resolveVideoSource } from '../utils/videoEmbed';
 
+// "AI Long Hoà Số Assistant" summary box — temporarily hidden; set back to true to show it again.
+const SHOW_AI_SUMMARY = false;
+
 interface ArticleDetailProps {
   article: Article;
   isSavedOffline: boolean;
@@ -434,6 +437,7 @@ ${clone.outerHTML}
         </div>
 
         {/* AI Smart Summary Generator Button & Box */}
+        {SHOW_AI_SUMMARY && (
         <div data-print-hide className="mb-8 p-5 bg-gradient-to-br from-indigo-950/60 via-slate-900 to-slate-950 border border-indigo-500/30 rounded-xl">
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2 text-indigo-300 font-bold text-sm sm:text-base">
@@ -494,6 +498,7 @@ ${clone.outerHTML}
             </p>
           )}
         </div>
+        )}
 
         {/* Article Summary Box */}
         <div
