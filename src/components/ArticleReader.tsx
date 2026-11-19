@@ -1,5 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Headphones, Play, Pause, Square, SkipBack, SkipForward, AlertTriangle, Loader2 } from 'lucide-react';
+import {
+  Headphones,
+  Play,
+  Pause,
+  Square,
+  SkipBack,
+  SkipForward,
+  AlertTriangle,
+  Loader2,
+  Volume1,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import {
   buildReaderSegments,
   segmentHash,
@@ -16,6 +28,7 @@ interface ArticleReaderProps {
 
 const RATES = [0.75, 1, 1.25, 1.5, 1.75];
 const RATE_KEY = 'lhs-tts-rate';
+const VOLUME_KEY = 'lhs-tts-volume';
 const VOICE_KEY = 'lhs-tts-voice2';
 const PREFETCH_AHEAD = 2;
 
@@ -77,6 +90,13 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
     const stored = Number(readStored(RATE_KEY));
     return RATES.includes(stored) ? stored : 1;
   });
+  // 0–1; muting keeps the level so unmuting goes back to it.
+  const [volume, setVolume] = useState(() => {
+    const stored = readStored(VOLUME_KEY);
+    const n = stored === null ? NaN : Number(stored);
+    return Number.isFinite(n) && n >= 0 && n <= 1 ? n : 1;
+  });
+  const [muted, setMuted] = useState(false);
   const [deviceVoices, setDeviceVoices] = useState<SpeechSynthesisVoice[]>(getVietnameseVoices);
   const [choice, setChoice] = useState<VoiceChoice>(
     () => parseChoice(readStored(VOICE_KEY)) ?? { engine: 'cloud', id: CLOUD_VOICES[0].id }
@@ -96,6 +116,9 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
   const sessionRef = useRef(0);
   const rateRef = useRef(rate);
   rateRef.current = rate;
+  const effectiveVolume = muted ? 0 : volume;
+  const volumeRef = useRef(effectiveVolume);
+  volumeRef.current = effectiveVolume;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const loadedRef = useRef<{ key: string; index: number } | null>(null);
   // Fetched Google recordings for this article, as object URLs keyed by "voice|index".
@@ -182,6 +205,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
     const audio = getAudio();
     audio.src = url;
     audio.playbackRate = rateRef.current;
+    audio.volume = volumeRef.current;
     loadedRef.current = { key: `${voice}|${i}`, index: i };
     audio.onended = () => {
       if (sessionRef.current === session) speakFrom(i + 1);
@@ -219,6 +243,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
     utterance.lang = 'vi-VN';
     if (deviceVoice) utterance.voice = deviceVoice;
     utterance.rate = rateRef.current;
+    utterance.volume = volumeRef.current;
     utterance.onend = () => {
       if (sessionRef.current === session) speakFrom(i + 1);
     };
@@ -299,6 +324,36 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
     } else if (status === 'playing') {
       speakFrom(index);
     }
+  };
+
+  // The Google voice changes volume live; a browser voice can't change mid-sentence,
+  // so it picks the new level up from the next segment (mute restarts the current one).
+  const applyVolume = (next: number, restartDevice: boolean) => {
+    volumeRef.current = next;
+    if (engine === 'cloud') {
+      if (audioRef.current) audioRef.current.volume = next;
+    } else if (restartDevice && status === 'playing') {
+      speakFrom(index);
+    }
+  };
+
+  const changeVolume = (value: number) => {
+    setVolume(value);
+    setMuted(false);
+    writeStored(VOLUME_KEY, String(value));
+    applyVolume(value, false);
+  };
+
+  const toggleMute = () => {
+    const nextMuted = !(muted || volume === 0);
+    // Unmuting from a level of 0 should actually make sound.
+    const level = !nextMuted && volume === 0 ? 0.5 : volume;
+    if (level !== volume) {
+      setVolume(level);
+      writeStored(VOLUME_KEY, String(level));
+    }
+    setMuted(nextMuted);
+    applyVolume(nextMuted ? 0 : level, true);
   };
 
   const changeVoice = (value: string) => {
@@ -414,6 +469,35 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
           >
             <Square className="w-4 h-4" />
           </button>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={toggleMute}
+            aria-label={effectiveVolume === 0 ? 'Bật tiếng' : 'Tắt tiếng'}
+            title={effectiveVolume === 0 ? 'Bật tiếng' : 'Tắt tiếng'}
+            className="p-2 rounded-lg hover:bg-slate-800 text-slate-300"
+          >
+            {effectiveVolume === 0 ? (
+              <VolumeX className="w-4 h-4" />
+            ) : effectiveVolume < 0.5 ? (
+              <Volume1 className="w-4 h-4" />
+            ) : (
+              <Volume2 className="w-4 h-4" />
+            )}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={effectiveVolume}
+            onChange={(e) => changeVolume(Number(e.target.value))}
+            aria-label="Âm lượng"
+            title={`Âm lượng ${Math.round(effectiveVolume * 100)}%`}
+            className="w-20 sm:w-24 accent-emerald-400 cursor-pointer"
+          />
         </div>
 
         <div className="flex items-center gap-2 text-xs">
