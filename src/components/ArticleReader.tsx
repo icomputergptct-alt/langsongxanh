@@ -27,6 +27,7 @@ interface ArticleReaderProps {
 }
 
 const RATES = [0.75, 1, 1.25, 1.5, 1.75];
+const DEFAULT_RATE = 1.25;
 const RATE_KEY = 'lhs-tts-rate';
 const VOLUME_KEY = 'lhs-tts-volume';
 const VOICE_KEY = 'lhs-tts-voice2';
@@ -88,7 +89,7 @@ export const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onActiveB
   const [error, setError] = useState<string | null>(null);
   const [rate, setRate] = useState(() => {
     const stored = Number(readStored(RATE_KEY));
-    return RATES.includes(stored) ? stored : 1;
+    return RATES.includes(stored) ? stored : DEFAULT_RATE;
   });
   // 0–1; muting keeps the level so unmuting goes back to it.
   const [volume, setVolume] = useState(() => {
