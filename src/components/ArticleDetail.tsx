@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import DOMPurify from 'dompurify';
 import {
@@ -21,6 +21,7 @@ import {
 import { Article } from '../types';
 import { CommentSection } from './CommentSection';
 import { VideoEmbed } from './VideoEmbed';
+import { ArticleReader, buildReaderSegments } from './ArticleReader';
 import { resolveVideoSource } from '../utils/videoEmbed';
 
 interface ArticleDetailProps {
@@ -68,6 +69,24 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
   };
 
   const articleRef = useRef<HTMLElement>(null);
+
+  // Read-aloud: which block (title, summary, paragraph) is being spoken, so it can be
+  // highlighted and kept on screen.
+  const readerSegments = useMemo(() => buildReaderSegments(article), [article]);
+  const [speakingBlock, setSpeakingBlock] = useState<string | null>(null);
+  useEffect(() => {
+    if (!speakingBlock) return;
+    const el = articleRef.current?.querySelector<HTMLElement>(`[data-tts-block="${speakingBlock}"]`);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.top < 80 || rect.bottom > window.innerHeight - 40) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [speakingBlock]);
+  const ttsHighlight = (block: string) =>
+    speakingBlock === block
+      ? ' rounded-lg bg-emerald-400/15 ring-1 ring-emerald-400/40 ring-offset-4 ring-offset-transparent transition-colors'
+      : ' transition-colors';
   const hasVideo = !!resolveVideoSource(article.videoSource);
 
   // Prints just the article (in the light reader theme) from a hidden iframe that
@@ -345,7 +364,10 @@ ${clone.outerHTML}
         </div>
 
         {/* Title */}
-        <h1 className={`font-extrabold tracking-tight leading-tight mb-4 ${size.title} ${theme.heading}`}>
+        <h1
+          data-tts-block="title"
+          className={`font-extrabold tracking-tight leading-tight mb-4 ${size.title} ${theme.heading}${ttsHighlight('title')}`}
+        >
           {article.title}
         </h1>
 
@@ -389,6 +411,9 @@ ${clone.outerHTML}
             </span>
           </div>
         </div>
+
+        {/* Read the article aloud in Vietnamese */}
+        <ArticleReader segments={readerSegments} onActiveBlockChange={setSpeakingBlock} />
 
         {/* Video (for video posts) or Cover Image. The cover stays in print, where a player can't play. */}
         {hasVideo && (
@@ -472,7 +497,12 @@ ${clone.outerHTML}
         </div>
 
         {/* Article Summary Box */}
-        <div className={`mb-8 p-4 border-l-4 border-cyan-500 rounded-r-xl italic leading-relaxed ${size.quote} ${theme.quote}`}>
+        <div
+          data-tts-block="summary"
+          className={`mb-8 p-4 border-l-4 border-cyan-500 rounded-r-xl italic leading-relaxed ${size.quote} ${theme.quote}${
+            speakingBlock === 'summary' ? ' ring-1 ring-emerald-400/40 bg-emerald-400/15' : ''
+          }`}
+        >
           "{article.summary}"
         </div>
 
@@ -497,7 +527,11 @@ ${clone.outerHTML}
             // Heading 3
             if (paragraph.startsWith('### ')) {
               return (
-                <h3 key={index} className={`text-xl font-bold mt-8 mb-3 border-b pb-2 ${theme.heading} ${theme.border}`}>
+                <h3
+                  key={index}
+                  data-tts-block={`p${index}`}
+                  className={`text-xl font-bold mt-8 mb-3 border-b pb-2 ${theme.heading} ${theme.border}${ttsHighlight(`p${index}`)}`}
+                >
                   {paragraph.replace('### ', '')}
                 </h3>
               );
@@ -528,7 +562,11 @@ ${clone.outerHTML}
             if (paragraph.startsWith('* ') || paragraph.startsWith('- ')) {
               const items = paragraph.split('\n').map((item) => item.replace(/^[\*\-]\s+/, ''));
               return (
-                <ul key={index} className={`space-y-2 pl-6 list-disc marker:text-cyan-500 ${theme.text}`}>
+                <ul
+                  key={index}
+                  data-tts-block={`p${index}`}
+                  className={`space-y-2 pl-6 list-disc marker:text-cyan-500 ${theme.text}${ttsHighlight(`p${index}`)}`}
+                >
                   {items.map((it, i) => (
                     <li key={i} dangerouslySetInnerHTML={{ __html: renderInline(it) }} />
                   ))}
@@ -539,7 +577,11 @@ ${clone.outerHTML}
             if (/^\d+\.\s+/.test(paragraph)) {
               const items = paragraph.split('\n').map((item) => item.replace(/^\d+\.\s+/, ''));
               return (
-                <ol key={index} className={`space-y-2 pl-6 list-decimal marker:text-cyan-500 ${theme.text}`}>
+                <ol
+                  key={index}
+                  data-tts-block={`p${index}`}
+                  className={`space-y-2 pl-6 list-decimal marker:text-cyan-500 ${theme.text}${ttsHighlight(`p${index}`)}`}
+                >
                   {items.map((it, i) => (
                     <li key={i} dangerouslySetInnerHTML={{ __html: renderInline(it) }} />
                   ))}
@@ -552,7 +594,8 @@ ${clone.outerHTML}
               <p
                 key={index}
                 // pre-line keeps single line breaks typed in the editor (e.g. "+ ..." lines).
-                className={`leading-relaxed whitespace-pre-line ${theme.text}`}
+                data-tts-block={`p${index}`}
+                className={`leading-relaxed whitespace-pre-line ${theme.text}${ttsHighlight(`p${index}`)}`}
                 dangerouslySetInnerHTML={{ __html: renderInline(paragraph) }}
               />
             );
